@@ -186,23 +186,30 @@ st.markdown("""
         font-size: 1rem;       
         color: #8b949e;        
         overflow: hidden;
-        border-right: 0.15em solid #FF1B6B;
+        border-right: 0.15em solid #FF1B6B; /* Ini kursornya */
         white-space: nowrap;
         margin: 0;
-        /* Durasi total jadi 10 detik, infinite muter terus */
+        /* Pemanggilan 2 animasi sekaligus: ngetik & ngedip */
         animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
     }
 
+    /* 1. ANIMASI TEKS MAJU MUNDUR & JEDA */
     @keyframes typing-sub {
-        /* 0% ke 30% (3 detik): Proses ngetik 26 karakter */
+        /* 0% ke 30% (3 detik): Proses ngetik 29 karakter */
         0%   { width: 0; animation-timing-function: steps(29, end); }
         
-        /* 30% ke 80% (5 detik): Teks diem full 26 karakter, kursor kedap-kedip doang */
+        /* 30% ke 80% (5 detik): Teks diem full 29 karakter */
         30%  { width: 29ch; animation-timing-function: step-end; }
         80%  { width: 29ch; animation-timing-function: steps(29, end); }
         
         /* 80% ke 100% (2 detik): Proses hapus karakter ke 0 */
         100% { width: 0; }
+    }
+
+    /* 2. ANIMASI KURSOR KEDAP-KEDIP (INI YANG BIKIN NGEDIP BRE!) */
+    @keyframes blink-caret {
+        from, to { border-color: transparent; }
+        50% { border-color: #FF1B6B; }
     }
     </style>
 """, unsafe_allow_html=True)
