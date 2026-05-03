@@ -229,24 +229,6 @@ st.markdown("""
     [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
     [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
 
-    /* 3. PERBAIKAN EFEK MELAYANG (LEVITATE) PADA FORM & CONTAINER */
-    /* Target khusus ke Form dan Container ber-border bawaan Streamlit */
-    div[data-testid="stForm"], 
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease, border-color 0.3s ease !important;
-        background-color: #161b22 !important; /* Kasih background agak terang dikit dari warna base */
-        border-radius: 12px !important; /* Bikin pinggirannya agak tumpul (rounded) */
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 15px !important; /* Kasih ruang nafas */
-    }
-    
-    div[data-testid="stForm"]:hover, 
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        transform: translateY(-6px) !important; /* Ngangkat 6 pixel ke atas */
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 27, 107, 0.3) !important; /* Glow shadow neon */
-        border-color: #FF1B6B !important; /* Garisnya berubah pink pas kena mouse */
-    }
-
     /* 3. LIVE STATUS RADAR */
     .live-indicator {
         display: inline-flex;
