@@ -342,44 +342,27 @@ st.markdown("""
         box-shadow: 0 -5px 20px #FF1B6B !important;
     }
 
-    /* 2. TYPEWRITER + FLICKER SYNC */
-    .typewriter {
-        font-family: 'JetBrainsMono', monospace;
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #f0f6fc;
-        overflow: hidden;
-        border-right: 0.15em solid #FF1B6B;
-        white-space: nowrap;
-        margin: 0; 
-        padding-right: 5px;
-        width: max-content; 
-        
-        /* Gabungin 3 animasi: ngetik, kursor ngedip, dan lampu rusak (flicker) */
-        animation: 
-            typing 3s steps(25, end) infinite alternate, 
-            blink-caret .75s step-end infinite,
-            flicker-force 5s linear infinite !important;
+    /* 2. FLICKER KHUSUS JUDUL (Efek Lampu Neon Rusak) */
+    .typewriter, h1 {
+        animation: flicker-force 5s linear infinite !important;
     }
 
-    /* Keyframe Flicker yang lebih agresif biar kerasa rusaknya */
     @keyframes flicker-force {
         0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 10px #FF1B6B; }
-        20%, 24%, 55% { opacity: 0.2; text-shadow: none; }
+        20%, 24%, 55% { opacity: 0.3; text-shadow: none; filter: blur(0.5px); }
     }
 
-    /* 1. DATA PULSE BRUTE FORCE */
-    [data-testid="stMetricValue"], 
-    [data-testid="stMetricValue"] > div {
+    /* 1. DATA PULSE BRUTE FORCE (Hajar sampai ke akar) */
+    [data-testid="stMetricValue"] > div:nth-child(1), 
+    [data-testid="stMetric"] label {
         color: #FF1B6B !important;
-        text-shadow: 0 0 5px #FF1B6B, 0 0 10px #FF1B6B !important;
+        text-shadow: 0 0 5px #FF1B6B, 0 0 15px #FF1B6B !important;
         animation: pulse-metric-force 2s infinite alternate !important;
-        display: block !important;
     }
 
     @keyframes pulse-metric-force {
-        0% { opacity: 0.7; filter: drop-shadow(0 0 2px #FF1B6B); }
-        100% { opacity: 1; filter: drop-shadow(0 0 15px #FF1B6B); }
+        0% { opacity: 0.8; filter: drop-shadow(0 0 2px #FF1B6B); transform: scale(1); }
+        100% { opacity: 1; filter: drop-shadow(0 0 12px #FF1B6B); transform: scale(1.02); }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -387,7 +370,7 @@ st.markdown("""
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='typewriter'>Compare Stock</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     st.markdown("---")
 
@@ -481,7 +464,7 @@ elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
         st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-        st.markdown("<h1>Stock Adjustment</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 class='typewriter'>Stock Adjustment</h1>", unsafe_allow_html=True)
         st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     with hdr_col2:
         st.markdown("<br>", unsafe_allow_html=True)
