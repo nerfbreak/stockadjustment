@@ -114,278 +114,164 @@ if 'app_page' not in st.session_state: st.session_state.app_page = "Reconcile"
 if 'reconcile_result' not in st.session_state: st.session_state.reconcile_result = None
 if 'reconcile_summary' not in st.session_state: st.session_state.reconcile_summary = None
 
-# CSS SUPER LOG: Update dengan warna teks #f0f6fc
+# --- CSS: Professional Minimalist ---
 st.markdown("""
     <style>
-    .terminal-box {
-        background-color: transparent; 
-        color: #f0f6fc; /* Teks default terminal (kalau ada yang bocor dari class) */
-        font-family: 'Consolas', 'Courier New', monospace;
-        font-size: 0.85rem;
-        padding: 5px 0px; 
-        border: none; 
-        box-shadow: none; 
-        height: 350px;
-        overflow-y: auto;
-        line-height: 1.7;
-        -ms-overflow-style: none;  
-        scrollbar-width: none;  
+
+    /* ── ACCENT COLOR ── */
+    :root {
+        --accent:       #3B82F6;
+        --accent-hover: #2563EB;
+        --accent-dim:   rgba(59, 130, 246, 0.15);
     }
-    .terminal-box::-webkit-scrollbar { display: none; }
-    .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #10b981; }
-    @keyframes blinker { 50% { opacity: 0; } }
-    
-    /* Log Styling Details (Aligned Columns) */
-    .log-time { display: inline-block; width: 85px; color: #64748b; }
-    .log-ms { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem;}
-    .log-tag { display: inline-block; width: 95px; font-weight: bold; }
-    
-    .tag-sys { color: #a855f7; }
-    .tag-auth { color: #eab308; }
-    .tag-nav { color: #3b82f6; }
-    .tag-inject { color: #06b6d4; }
-    .tag-success { color: #22c55e; }
-    .tag-error { color: #ef4444; }
-    .tag-server { color: #f43f5e; }
-    
-    /* Request Warna Teks Custom #f0f6fc */
-    .log-msg { color: #f0f6fc; font-weight: 500; }
-    
-    /* TOMBOL BYPASS (Secondary Button) NEON PINK */
-    button[kind="secondary"] {
-        background-color: #FF1B6B !important;
+
+    /* ── PAGE ENTRANCE ANIMATION (dipertahankan, subtle) ── */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0);    }
+    }
+    [data-testid="stVerticalBlock"] > div { animation: fadeSlideUp 0.5s ease-out backwards; }
+    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.05s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.10s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.15s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.20s; }
+
+    /* ── BUTTONS ── */
+    button[kind="primary"] {
+        background-color: var(--accent) !important;
         color: #ffffff !important;
         border: none !important;
         font-weight: 600 !important;
-        transition: all 0.3s ease !important;
+        border-radius: 8px !important;
+        transition: background-color 0.2s ease, transform 0.1s ease !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: var(--accent-hover) !important;
+        transform: translateY(-1px) !important;
+    }
+    button[kind="primary"]:active { transform: translateY(0) !important; }
+
+    button[kind="secondary"] {
+        background-color: transparent !important;
+        color: var(--accent) !important;
+        border: 1px solid var(--accent) !important;
+        font-weight: 500 !important;
+        border-radius: 8px !important;
+        transition: background-color 0.2s ease !important;
     }
     button[kind="secondary"]:hover {
-        background-color: #d41459 !important;
-        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important;
+        background-color: var(--accent-dim) !important;
     }
 
-    /* TOMBOL PROCEED (Primary Button) NEON PINK */
-    button[kind="primary"] {
-        background-color: #FF1B6B !important;
-        color: #ffffff !important;
+    /* ── DIVIDER ── */
+    hr {
         border: none !important;
-        font-weight: 700 !important;
-        letter-spacing: 1px !important;
-        text-transform: uppercase !important;
-        transition: all 0.3s ease !important;
+        height: 1px !important;
+        background: rgba(59, 130, 246, 0.25) !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
     }
 
-    button[kind="primary"]:hover {
-        background-color: #d41459 !important;
-        box-shadow: 0 0 20px rgba(255, 27, 107, 0.8) !important;
-        transform: translateY(-2px) !important;
+    /* ── HEADER ACCENT LINE ── */
+    header[data-testid="stHeader"] {
+        border-top: 2px solid var(--accent) !important;
     }
 
-    button[kind="primary"]:active {
-        transform: translateY(0px) !important;
+    /* ── STATUS WIDGET ── */
+    [data-testid="stStatusWidget"] {
+        border: 1px solid var(--accent) !important;
+        border-radius: 6px !important;
+        padding: 2px 10px !important;
+    }
+    [data-testid="stStatusWidget"] * {
+        color: var(--accent) !important;
+        font-weight: 500 !important;
     }
 
-    /* TYPEWRITER KHUSUS SUBTITLE (DENGAN JEDA 5 DETIK) */
-    .typewriter-sub {
-        font-family: 'JetBrainsMono', monospace;
-        font-size: 1rem;       
-        color: #8b949e;        
-        overflow: hidden;
-        border-right: 0.15em solid #FF1B6B; /* Ini kursornya */
-        white-space: nowrap;
-        margin: 0;
-        /* Pemanggilan 2 animasi sekaligus: ngetik & ngedip */
-        animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
+    /* ── METRIC VALUE ── */
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricValue"] > div {
+        color: var(--accent) !important;
+        font-weight: 600 !important;
+        display: block !important;
     }
 
-    /* 1. ANIMASI TEKS MAJU MUNDUR & JEDA */
-    @keyframes typing-sub {
-        /* 0% ke 30% (3 detik): Proses ngetik 29 karakter */
-        0%   { width: 0; animation-timing-function: steps(29, end); }
-        
-        /* 30% ke 80% (5 detik): Teks diem full 29 karakter */
-        30%  { width: 29ch; animation-timing-function: step-end; }
-        80%  { width: 29ch; animation-timing-function: steps(29, end); }
-        
-        /* 80% ke 100% (2 detik): Proses hapus karakter ke 0 */
-        100% { width: 0; }
-    }
-
-    /* 2. ANIMASI KURSOR KEDAP-KEDIP (INI YANG BIKIN NGEDIP BRE!) */
-    @keyframes blink-caret {
-        from, to { border-color: transparent; }
-        50% { border-color: #FF1B6B; }
-    }
-
-    /* 1. EFEK MUNCUL MULUS PAS HALAMAN DIBUKA */
-    @keyframes fadeSlideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Nerapin efek ke semua blok utama di Streamlit */
-    [data-testid="stVerticalBlock"] > div {
-        animation: fadeSlideUp 0.6s ease-out backwards;
-    }
-    
-    /* Bikin efek berurutan (cascade) biar munculnya gantian */
-    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.1s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.2s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
-
-    /* 3. LIVE STATUS RADAR */
+    /* ── LIVE INDICATOR DOT ── */
     .live-indicator {
         display: inline-flex;
         align-items: center;
-        color: #4ade80; /* Hijau matrix */
-        font-family: 'JetBrainsMono', monospace;
-        font-weight: 700;
-        font-size: 0.9rem;
+        color: #22c55e;
+        font-size: 0.85rem;
+        font-weight: 600;
     }
     .live-indicator::before {
         content: '';
         display: inline-block;
-        width: 10px; height: 10px;
-        background-color: #4ade80;
+        width: 8px; height: 8px;
+        background-color: #22c55e;
         border-radius: 50%;
-        margin-right: 8px;
-        box-shadow: 0 0 10px #4ade80;
-        animation: pulse-radar 1.2s infinite alternate;
+        margin-right: 7px;
+        animation: pulse-dot 2s ease-in-out infinite;
     }
-    @keyframes pulse-radar {
-        from { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 5px #4ade80; }
-        to { transform: scale(1.3); opacity: 1; box-shadow: 0 0 15px #4ade80; }
-    }
-
-    /* 2. NEON BREATHING DIVIDER */
-    hr {
-        border: none !important;
-        height: 2px !important;
-        background: linear-gradient(90deg, transparent, #FF1B6B, transparent) !important;
-        animation: pulse-divider 2s infinite alternate !important;
-        margin-top: 2rem !important;
-        margin-bottom: 2rem !important;
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1;   transform: scale(1);   }
+        50%       { opacity: 0.5; transform: scale(0.85); }
     }
 
-    @keyframes pulse-divider {
-        0% { opacity: 0.3; filter: drop-shadow(0 0 2px #FF1B6B); }
-        100% { opacity: 1; filter: drop-shadow(0 0 10px #FF1B6B); }
+    /* ── SUBTITLE ── */
+    .typewriter-sub {
+        font-size: 0.95rem;
+        color: #64748b;
+        margin: 0;
     }
 
-    /* 2. EFEK MONITOR TABUNG JADUL (SCANLINES) */
-    [data-testid="stAppViewContainer"] {
-        background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.15) 50%) !important;
-        background-size: 100% 4px !important;
+    /* ── TERMINAL LOG ── */
+    .terminal-box {
+        background-color: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.8rem;
+        padding: 12px 14px;
+        height: 350px;
+        overflow-y: auto;
+        line-height: 1.75;
+        scrollbar-width: thin;
+        scrollbar-color: #334155 #0f172a;
     }
+    .terminal-box::-webkit-scrollbar       { width: 5px; }
+    .terminal-box::-webkit-scrollbar-track { background: #0f172a; }
+    .terminal-box::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
 
-    /* 1. HACKER TEXT SELECTION */
-    ::selection {
-        background: #FF1B6B !important;
-        color: #000000 !important;
-        text-shadow: none !important;
-    }
-    ::-moz-selection { /* Buat yang pake Firefox */
-        background: #FF1B6B !important;
-        color: #000000 !important;
-        text-shadow: none !important;
-    }
+    /* Log columns */
+    .log-time  { display: inline-block; width: 80px;  color: #475569; }
+    .log-ms    { display: inline-block; width: 70px;  text-align: right; margin-right: 14px; color: #64748b; font-size: 0.73rem; }
+    .log-tag   { display: inline-block; width: 90px;  font-weight: 600; }
+    .log-msg   { color: #cbd5e1; }
 
-    /* 2. CYBERPUNK SCROLLBAR (BRUTE FORCE OVERRIDE) */
-    
-    /* Buat Chrome, Edge, Safari, Brave */
-    *::-webkit-scrollbar {
-        width: 8px !important;
-        height: 8px !important; /* Buat scroll bawah (horizontal) kalau ada */
-        background-color: #0d1117 !important;
-    }
-    *::-webkit-scrollbar-track {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 10px !important;
-    }
-    *::-webkit-scrollbar-thumb {
-        background-color: #FF1B6B !important;
-        border-radius: 10px !important;
-        border: 2px solid #0d1117 !important; /* Kasih ilusi jarak biar elegan */
-    }
-    *::-webkit-scrollbar-thumb:hover {
-        background-color: #d41459 !important;
-    }
+    /* Tag colors (dipertahankan, tetap informatif) */
+    .tag-sys     { color: #818cf8; }
+    .tag-auth    { color: #facc15; }
+    .tag-nav     { color: #38bdf8; }
+    .tag-inject  { color: #22d3ee; }
+    .tag-success { color: #4ade80; }
+    .tag-error   { color: #f87171; }
+    .tag-server  { color: #fb7185; }
 
-    /* Buat Firefox */
-    * {
-        scrollbar-width: thin !important;
-        scrollbar-color: #FF1B6B #0d1117 !important;
-    }
+    /* Cursor statis (ganti blink) */
+    .blink_me { color: #4ade80; font-weight: bold; }
 
-    /* 3. CYBERPUNK RUNNING STATUS (Pojok Kanan Atas) */
-    [data-testid="stStatusWidget"] {
-        background-color: #0d1117 !important; /* Warna gelap terminal */
-        border: 1px solid #FF1B6B !important;
-        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important; /* Glow neon pink */
-        border-radius: 4px !important;
-        padding: 2px 10px !important;
-        animation: status-pulse 1s infinite alternate !important;
-    }
+    /* ── SCROLLBAR GLOBAL ── */
+    *::-webkit-scrollbar       { width: 6px !important; height: 6px !important; }
+    *::-webkit-scrollbar-track { background: transparent !important; }
+    *::-webkit-scrollbar-thumb { background-color: #334155 !important; border-radius: 10px !important; }
+    *::-webkit-scrollbar-thumb:hover { background-color: var(--accent) !important; }
+    * { scrollbar-width: thin !important; scrollbar-color: #334155 transparent !important; }
 
-    /* Ubah warna teks dan icon loadingnya jadi pink */
-    [data-testid="stStatusWidget"] * {
-        color: #FF1B6B !important;
-        font-family: 'JetBrainsMono', monospace !important;
-        font-weight: bold !important;
-        letter-spacing: 1px !important;
-    }
+    /* ── TEXT SELECTION ── */
+    ::selection     { background: var(--accent-dim) !important; color: inherit !important; }
+    ::-moz-selection { background: var(--accent-dim) !important; color: inherit !important; }
 
-    @keyframes status-pulse {
-        from { box-shadow: 0 0 5px rgba(255, 27, 107, 0.4); }
-        to { box-shadow: 0 0 20px rgba(255, 27, 107, 0.8); }
-    }
-    
-    /* BONUS: Kasih garis laser statis di paling atas layar biar tetep sangar */
-    header[data-testid="stHeader"] {
-        border-top: 2px solid #FF1B6B !important;
-        box-shadow: 0 -5px 20px #FF1B6B !important;
-    }
-
-    /* 2. TYPEWRITER + FLICKER SYNC */
-    .typewriter {
-        font-family: 'JetBrainsMono', monospace;
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #f0f6fc;
-        overflow: hidden;
-        border-right: 0.15em solid #FF1B6B;
-        white-space: nowrap;
-        margin: 0; 
-        padding-right: 5px;
-        width: max-content; 
-        
-        /* Gabungin 3 animasi: ngetik, kursor ngedip, dan lampu rusak (flicker) */
-        animation: 
-            typing 3s steps(25, end) infinite alternate, 
-            blink-caret .75s step-end infinite,
-            flicker-force 5s linear infinite !important;
-    }
-
-    /* Keyframe Flicker yang lebih agresif biar kerasa rusaknya */
-    @keyframes flicker-force {
-        0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 10px #FF1B6B; }
-        20%, 24%, 55% { opacity: 0.2; text-shadow: none; }
-    }
-
-    /* 1. DATA PULSE BRUTE FORCE */
-    [data-testid="stMetricValue"], 
-    [data-testid="stMetricValue"] > div {
-        color: #FF1B6B !important;
-        text-shadow: 0 0 5px #FF1B6B, 0 0 10px #FF1B6B !important;
-        animation: pulse-metric-force 2s infinite alternate !important;
-        display: block !important;
-    }
-
-    @keyframes pulse-metric-force {
-        0% { opacity: 0.7; filter: drop-shadow(0 0 2px #FF1B6B); }
-        100% { opacity: 1; filter: drop-shadow(0 0 15px #FF1B6B); }
-    }
     </style>
 """, unsafe_allow_html=True)
 
