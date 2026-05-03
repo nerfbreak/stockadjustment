@@ -5,6 +5,7 @@ import csv
 import time
 import os
 import subprocess
+import asyncio
 import traceback
 import sys
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -52,28 +53,22 @@ TIMEOUT_MS       = 30_000
 
 # --- 3. HELPER FUNCTIONS ---
 def load_data(file):
-    if file is None:
-        return None
+    if file is None: return None
+    df = None
     filename = file.name.lower()
     try:
         if filename.endswith('.csv'):
-            # sep=None + engine='python' auto-detects tab or comma, no double-read needed
-            df = pd.read_csv(file, sep=None, engine='python', dtype=str)
+            df = pd.read_csv(file, sep='\t', dtype=str) 
+            if df.shape[1] <= 1: 
+                 file.seek(0); df = pd.read_csv(file, sep=',', dtype=str)
         elif filename.endswith(('.xls', '.xlsx')):
             df = pd.read_excel(file, dtype=str)
         elif filename.endswith('.zip'):
             with zipfile.ZipFile(file) as z:
-                names = z.namelist()
-                target = (
-                    next((n for n in names if "INVT_MASTER" in n and n.lower().endswith(".csv")), None)
-                    or next((n for n in names if n.lower().endswith(".csv")), None)
-                )
-                if not target:
-                    st.error("Tidak ada file CSV di dalam ZIP."); return None
-                with z.open(target) as f:
-                    df = pd.read_csv(f, sep=None, engine='python', dtype=str)
-        else:
-            st.error(f"Format file tidak didukung: {filename}"); return None
+                target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith(".csv")), None)
+                if not target: target = next((n for n in z.namelist() if n.lower().endswith(".csv")), None)
+                if target:
+                    with z.open(target) as f: df = pd.read_csv(f, sep='\t', dtype=str)
     except Exception as e:
         st.error(f"Error reading file: {e}"); return None
     return df
@@ -114,231 +109,278 @@ if 'app_page' not in st.session_state: st.session_state.app_page = "Reconcile"
 if 'reconcile_result' not in st.session_state: st.session_state.reconcile_result = None
 if 'reconcile_summary' not in st.session_state: st.session_state.reconcile_summary = None
 
-# --- CSS: Bootstrap-style Solid Professional ---
+# CSS SUPER LOG: Update dengan warna teks #f0f6fc
 st.markdown("""
     <style>
-
-    /* ── VARIABLES ── */
-    :root {
-        --bs-blue:        #0d6efd;
-        --bs-blue-hover:  #0b5ed7;
-        --bs-blue-dim:    rgba(13, 110, 253, 0.12);
-        --bs-success:     #198754;
-        --bs-danger:      #dc3545;
-        --bs-warning:     #ffc107;
-        --bs-dark:        #212529;
-        --bs-card:        #2b2f35;
-        --bs-border:      #3d4148;
-        --bs-muted:       #8a9099;
-        --bs-text:        #dee2e6;
+    .terminal-box {
+        background-color: transparent; 
+        color: #f0f6fc; /* Teks default terminal (kalau ada yang bocor dari class) */
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.85rem;
+        padding: 5px 0px; 
+        border: none; 
+        box-shadow: none; 
+        height: 350px;
+        overflow-y: auto;
+        line-height: 1.7;
+        -ms-overflow-style: none;  
+        scrollbar-width: none;  
     }
-
-    /* ── GLOBAL FONT ── */
-    html, body, [class*="css"] {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-    }
-
-    /* ── BUTTONS: PRIMARY ── */
-    button[kind="primary"] {
-        background-color: var(--bs-blue) !important;
-        color: #fff !important;
-        border: 1px solid var(--bs-blue) !important;
-        border-radius: 6px !important;
-        font-weight: 500 !important;
-        font-size: 0.9rem !important;
-        padding: 0.45rem 1rem !important;
-        transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
-    }
-    button[kind="primary"]:hover {
-        background-color: var(--bs-blue-hover) !important;
-        border-color: var(--bs-blue-hover) !important;
-        box-shadow: 0 2px 6px rgba(13,110,253,0.35) !important;
-    }
-    button[kind="primary"]:active {
-        background-color: #0a58ca !important;
-        box-shadow: none !important;
-    }
-
-    /* ── BUTTONS: SECONDARY ── */
+    .terminal-box::-webkit-scrollbar { display: none; }
+    .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #10b981; }
+    @keyframes blinker { 50% { opacity: 0; } }
+    
+    /* Log Styling Details (Aligned Columns) */
+    .log-time { display: inline-block; width: 85px; color: #64748b; }
+    .log-ms { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem;}
+    .log-tag { display: inline-block; width: 95px; font-weight: bold; }
+    
+    .tag-sys { color: #a855f7; }
+    .tag-auth { color: #eab308; }
+    .tag-nav { color: #3b82f6; }
+    .tag-inject { color: #06b6d4; }
+    .tag-success { color: #22c55e; }
+    .tag-error { color: #ef4444; }
+    .tag-server { color: #f43f5e; }
+    
+    /* Request Warna Teks Custom #f0f6fc */
+    .log-msg { color: #f0f6fc; font-weight: 500; }
+    
+    /* TOMBOL BYPASS (Secondary Button) NEON PINK */
     button[kind="secondary"] {
-        background-color: transparent !important;
-        color: var(--bs-blue) !important;
-        border: 1px solid var(--bs-blue) !important;
-        border-radius: 6px !important;
-        font-weight: 500 !important;
-        font-size: 0.9rem !important;
-        transition: background-color 0.15s ease-in-out !important;
+        background-color: #FF1B6B !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
     }
     button[kind="secondary"]:hover {
-        background-color: var(--bs-blue-dim) !important;
+        background-color: #d41459 !important;
+        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important;
     }
 
-    /* ── DIVIDER ── */
-    hr {
+    /* TOMBOL PROCEED (Primary Button) NEON PINK */
+    button[kind="primary"] {
+        background-color: #FF1B6B !important;
+        color: #ffffff !important;
         border: none !important;
-        border-top: 1px solid var(--bs-border) !important;
-        margin-top: 1.25rem !important;
-        margin-bottom: 1.25rem !important;
-        opacity: 1 !important;
-    }
-
-    /* ── HEADER TOP STRIPE ── */
-    header[data-testid="stHeader"] {
-        border-bottom: 2px solid var(--bs-blue) !important;
-        background-color: #1a1d21 !important;
-    }
-
-    /* ── STATUS WIDGET ── */
-    [data-testid="stStatusWidget"] {
-        background-color: var(--bs-card) !important;
-        border: 1px solid var(--bs-border) !important;
-        border-radius: 6px !important;
-        padding: 2px 10px !important;
-    }
-    [data-testid="stStatusWidget"] * {
-        color: var(--bs-blue) !important;
-        font-weight: 500 !important;
-        font-size: 0.8rem !important;
-    }
-
-    /* ── METRIC CARDS ── */
-    [data-testid="stMetric"] {
-        background-color: var(--bs-card) !important;
-        border: 1px solid var(--bs-border) !important;
-        border-radius: 8px !important;
-        padding: 1rem 1.25rem !important;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.25) !important;
-    }
-    [data-testid="stMetricValue"],
-    [data-testid="stMetricValue"] > div {
-        color: var(--bs-blue) !important;
-        font-size: 2rem !important;
-        font-weight: 600 !important;
-        display: block !important;
-    }
-    [data-testid="stMetricLabel"] {
-        color: var(--bs-muted) !important;
-        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 1px !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.05em !important;
-        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
     }
 
-    /* ── DATAFRAME ── */
-    [data-testid="stDataFrame"] {
-        border: 1px solid var(--bs-border) !important;
-        border-radius: 8px !important;
-        overflow: hidden !important;
+    button[kind="primary"]:hover {
+        background-color: #d41459 !important;
+        box-shadow: 0 0 20px rgba(255, 27, 107, 0.8) !important;
+        transform: translateY(-2px) !important;
     }
 
-    /* ── INPUT & SELECT ── */
-    input, select, textarea,
-    [data-baseweb="input"] input,
-    [data-baseweb="select"] div {
-        border-radius: 6px !important;
-        border: 1px solid var(--bs-border) !important;
-        font-size: 0.9rem !important;
-    }
-    input:focus, select:focus, textarea:focus {
-        border-color: var(--bs-blue) !important;
-        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2) !important;
-        outline: none !important;
+    button[kind="primary"]:active {
+        transform: translateY(0px) !important;
     }
 
-    /* ── LIVE INDICATOR ── */
+    /* TYPEWRITER KHUSUS SUBTITLE (DENGAN JEDA 5 DETIK) */
+    .typewriter-sub {
+        font-family: 'JetBrainsMono', monospace;
+        font-size: 1rem;       
+        color: #8b949e;        
+        overflow: hidden;
+        border-right: 0.15em solid #FF1B6B; /* Ini kursornya */
+        white-space: nowrap;
+        margin: 0;
+        /* Pemanggilan 2 animasi sekaligus: ngetik & ngedip */
+        animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
+    }
+
+    /* 1. ANIMASI TEKS MAJU MUNDUR & JEDA */
+    @keyframes typing-sub {
+        /* 0% ke 30% (3 detik): Proses ngetik 29 karakter */
+        0%   { width: 0; animation-timing-function: steps(29, end); }
+        
+        /* 30% ke 80% (5 detik): Teks diem full 29 karakter */
+        30%  { width: 29ch; animation-timing-function: step-end; }
+        80%  { width: 29ch; animation-timing-function: steps(29, end); }
+        
+        /* 80% ke 100% (2 detik): Proses hapus karakter ke 0 */
+        100% { width: 0; }
+    }
+
+    /* 2. ANIMASI KURSOR KEDAP-KEDIP (INI YANG BIKIN NGEDIP BRE!) */
+    @keyframes blink-caret {
+        from, to { border-color: transparent; }
+        50% { border-color: #FF1B6B; }
+    }
+
+    /* 1. EFEK MUNCUL MULUS PAS HALAMAN DIBUKA */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Nerapin efek ke semua blok utama di Streamlit */
+    [data-testid="stVerticalBlock"] > div {
+        animation: fadeSlideUp 0.6s ease-out backwards;
+    }
+    
+    /* Bikin efek berurutan (cascade) biar munculnya gantian */
+    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.1s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.2s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
+
+    /* 3. LIVE STATUS RADAR */
     .live-indicator {
         display: inline-flex;
         align-items: center;
-        color: var(--bs-success);
-        font-size: 0.78rem;
+        color: #4ade80; /* Hijau matrix */
+        font-family: 'JetBrainsMono', monospace;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        background-color: rgba(25, 135, 84, 0.15);
-        border: 1px solid rgba(25, 135, 84, 0.4);
-        border-radius: 20px;
-        padding: 2px 10px;
+        font-size: 0.9rem;
     }
     .live-indicator::before {
         content: '';
         display: inline-block;
-        width: 7px; height: 7px;
-        background-color: var(--bs-success);
+        width: 10px; height: 10px;
+        background-color: #4ade80;
         border-radius: 50%;
-        margin-right: 6px;
-        animation: blink-dot 1.4s ease-in-out infinite;
+        margin-right: 8px;
+        box-shadow: 0 0 10px #4ade80;
+        animation: pulse-radar 1.2s infinite alternate;
     }
-    @keyframes blink-dot {
-        0%, 100% { opacity: 1; }
-        50%       { opacity: 0.3; }
-    }
-
-    /* ── SUBTITLE ── */
-    .typewriter-sub {
-        font-size: 0.9rem;
-        color: var(--bs-muted);
-        margin: 2px 0 0 0;
+    @keyframes pulse-radar {
+        from { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 5px #4ade80; }
+        to { transform: scale(1.3); opacity: 1; box-shadow: 0 0 15px #4ade80; }
     }
 
-    /* ── TERMINAL LOG (Bootstrap "card" style) ── */
-    .terminal-box {
-        background-color: #1a1d21;
-        border: 1px solid var(--bs-border);
-        border-radius: 8px;
-        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-        font-size: 0.78rem;
-        padding: 12px 16px;
-        height: 320px;
-        overflow-y: auto;
-        line-height: 1.8;
-        scrollbar-width: thin;
-        scrollbar-color: var(--bs-border) #1a1d21;
+    /* 2. NEON BREATHING DIVIDER */
+    hr {
+        border: none !important;
+        height: 2px !important;
+        background: linear-gradient(90deg, transparent, #FF1B6B, transparent) !important;
+        animation: pulse-divider 2s infinite alternate !important;
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
     }
-    .terminal-box::-webkit-scrollbar       { width: 5px; }
-    .terminal-box::-webkit-scrollbar-track { background: #1a1d21; border-radius: 10px; }
-    .terminal-box::-webkit-scrollbar-thumb { background-color: #3d4148; border-radius: 10px; }
-    .terminal-box::-webkit-scrollbar-thumb:hover { background-color: var(--bs-blue); }
 
-    /* Log columns */
-    .log-time  { display: inline-block; width: 75px;  color: #5a626b; }
-    .log-ms    { display: inline-block; width: 68px;  text-align: right; margin-right: 12px; color: #5a626b; font-size: 0.72rem; }
-    .log-tag   { display: inline-block; width: 88px;  font-weight: 700; }
-    .log-msg   { color: #adb5bd; }
-
-    /* Log tag badge colors */
-    .tag-sys     { color: #9775fa; }
-    .tag-auth    { color: #fcc419; }
-    .tag-nav     { color: #4dabf7; }
-    .tag-inject  { color: #38d9a9; }
-    .tag-success { color: #51cf66; }
-    .tag-error   { color: #ff6b6b; }
-    .tag-server  { color: #f783ac; }
-
-    .blink_me { color: #51cf66; font-weight: bold; }
-
-    /* ── SCROLLBAR GLOBAL ── */
-    *::-webkit-scrollbar       { width: 6px !important; height: 6px !important; }
-    *::-webkit-scrollbar-track { background: transparent !important; }
-    *::-webkit-scrollbar-thumb { background-color: var(--bs-border) !important; border-radius: 10px !important; }
-    *::-webkit-scrollbar-thumb:hover { background-color: var(--bs-blue) !important; }
-    * { scrollbar-width: thin !important; scrollbar-color: var(--bs-border) transparent !important; }
-
-    /* ── TEXT SELECTION ── */
-    ::selection      { background: var(--bs-blue-dim) !important; color: inherit !important; }
-    ::-moz-selection { background: var(--bs-blue-dim) !important; color: inherit !important; }
-
-    /* ── PAGE FADE IN ── */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0); }
+    @keyframes pulse-divider {
+        0% { opacity: 0.3; filter: drop-shadow(0 0 2px #FF1B6B); }
+        100% { opacity: 1; filter: drop-shadow(0 0 10px #FF1B6B); }
     }
-    [data-testid="stVerticalBlock"] > div { animation: fadeIn 0.4s ease-out backwards; }
-    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.04s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.08s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.12s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.16s; }
 
+    /* 2. EFEK MONITOR TABUNG JADUL (SCANLINES) */
+    [data-testid="stAppViewContainer"] {
+        background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.15) 50%) !important;
+        background-size: 100% 4px !important;
+    }
+
+    /* 1. HACKER TEXT SELECTION */
+    ::selection {
+        background: #FF1B6B !important;
+        color: #000000 !important;
+        text-shadow: none !important;
+    }
+    ::-moz-selection { /* Buat yang pake Firefox */
+        background: #FF1B6B !important;
+        color: #000000 !important;
+        text-shadow: none !important;
+    }
+
+    /* 2. CYBERPUNK SCROLLBAR (BRUTE FORCE OVERRIDE) */
+    
+    /* Buat Chrome, Edge, Safari, Brave */
+    *::-webkit-scrollbar {
+        width: 8px !important;
+        height: 8px !important; /* Buat scroll bawah (horizontal) kalau ada */
+        background-color: #0d1117 !important;
+    }
+    *::-webkit-scrollbar-track {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 10px !important;
+    }
+    *::-webkit-scrollbar-thumb {
+        background-color: #FF1B6B !important;
+        border-radius: 10px !important;
+        border: 2px solid #0d1117 !important; /* Kasih ilusi jarak biar elegan */
+    }
+    *::-webkit-scrollbar-thumb:hover {
+        background-color: #d41459 !important;
+    }
+
+    /* Buat Firefox */
+    * {
+        scrollbar-width: thin !important;
+        scrollbar-color: #FF1B6B #0d1117 !important;
+    }
+
+    /* 3. CYBERPUNK RUNNING STATUS (Pojok Kanan Atas) */
+    [data-testid="stStatusWidget"] {
+        background-color: #0d1117 !important; /* Warna gelap terminal */
+        border: 1px solid #FF1B6B !important;
+        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important; /* Glow neon pink */
+        border-radius: 4px !important;
+        padding: 2px 10px !important;
+        animation: status-pulse 1s infinite alternate !important;
+    }
+
+    /* Ubah warna teks dan icon loadingnya jadi pink */
+    [data-testid="stStatusWidget"] * {
+        color: #FF1B6B !important;
+        font-family: 'JetBrainsMono', monospace !important;
+        font-weight: bold !important;
+        letter-spacing: 1px !important;
+    }
+
+    @keyframes status-pulse {
+        from { box-shadow: 0 0 5px rgba(255, 27, 107, 0.4); }
+        to { box-shadow: 0 0 20px rgba(255, 27, 107, 0.8); }
+    }
+    
+    /* BONUS: Kasih garis laser statis di paling atas layar biar tetep sangar */
+    header[data-testid="stHeader"] {
+        border-top: 2px solid #FF1B6B !important;
+        box-shadow: 0 -5px 20px #FF1B6B !important;
+    }
+
+    /* 2. TYPEWRITER + FLICKER SYNC */
+    .typewriter {
+        font-family: 'JetBrainsMono', monospace;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #f0f6fc;
+        overflow: hidden;
+        border-right: 0.15em solid #FF1B6B;
+        white-space: nowrap;
+        margin: 0; 
+        padding-right: 5px;
+        width: max-content; 
+        
+        /* Gabungin 3 animasi: ngetik, kursor ngedip, dan lampu rusak (flicker) */
+        animation: 
+            typing 3s steps(25, end) infinite alternate, 
+            blink-caret .75s step-end infinite,
+            flicker-force 5s linear infinite !important;
+    }
+
+    /* Keyframe Flicker yang lebih agresif biar kerasa rusaknya */
+    @keyframes flicker-force {
+        0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 10px #FF1B6B; }
+        20%, 24%, 55% { opacity: 0.2; text-shadow: none; }
+    }
+
+    /* 1. DATA PULSE BRUTE FORCE */
+    [data-testid="stMetricValue"], 
+    [data-testid="stMetricValue"] > div {
+        color: #FF1B6B !important;
+        text-shadow: 0 0 5px #FF1B6B, 0 0 10px #FF1B6B !important;
+        animation: pulse-metric-force 2s infinite alternate !important;
+        display: block !important;
+    }
+
+    @keyframes pulse-metric-force {
+        0% { opacity: 0.7; filter: drop-shadow(0 0 2px #FF1B6B); }
+        100% { opacity: 1; filter: drop-shadow(0 0 15px #FF1B6B); }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -581,142 +623,118 @@ elif st.session_state.app_page == "Bot":
         global_start_time = time.time()
         success_count, failed_count = 0, 0
         user_id = selected_account["user_id"]
-        password = user_password
-
-        # ID locator constants (defined once, used everywhere)
-        LOC_SKU     = "id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value"
-        LOC_QTY     = "id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value"
-        LOC_ADD     = "id=pag_I_StkAdj_NewGeneral_btn_Add_Value"
-        LOC_SAVE    = "id=pag_I_StkAdj_NewGeneral_btn_Save_Value"
-        LOC_REASON  = "id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value"
+        password = user_password  # Tarik password dari input teks, bukan dari file CSV lagi!
 
         ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
         try:
+            if sys.platform == "win32": 
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            asyncio.set_event_loop(asyncio.new_event_loop())
+
             with sync_playwright() as p:
                 ui_log("SYS", "Spawning browser context with isolated session...")
                 browser = p.chromium.launch(headless=True)
                 context = browser.new_context(no_viewport=True)
                 page = context.new_page()
-
+                
                 # --- Login ---
                 ui_log("AUTH", f"Resolving DNS and establishing connection to {URL_LOGIN}...")
                 page.goto(URL_LOGIN, wait_until="domcontentloaded")
-
+                
                 ui_log("AUTH", "DOM State: interactive. Parsing login nodes...")
                 page.locator("id=txtUserid").fill(user_id)
                 ui_log("AUTH", f"Injected credential payload for user ID: {user_id}")
                 page.locator("id=txtPasswd").fill(password)
                 page.locator("id=btnLogin").click(force=True)
-
+                
                 try:
                     ui_log("SYS", "Awaiting potential active-session interceptor...")
                     btn = page.locator("id=SYS_ASCX_btnContinue")
                     btn.wait_for(state="visible", timeout=5_000)
                     ui_log("AUTH", "Interceptor triggered. Bypassing active session warning...")
                     btn.click(force=True)
-                except PlaywrightTimeoutError:
+                except: 
                     ui_log("SYS", "No interceptor detected. Clean session acquired.")
-
+                    
                 page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
                 ui_log("AUTH", "Credentials verified. Password match confirmed!")
                 ui_log("SUCCESS", "Handshake verified. Session established.")
 
                 # --- Navigasi ---
-                # OPTIMIZED: replaced time.sleep(5) with explicit wait_for on the Add button
                 ui_log("NAV", "Dispatching click event to [Inventory -> Stock Adjustment] module...")
                 page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
-
+                time.sleep(5)
+                
                 ui_log("NAV", "Requesting new document interface [Add Value]...")
                 add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
-                add_btn.wait_for(state="visible", timeout=TIMEOUT_MS)  # replaces sleep(5)
+                add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
                 add_btn.click(force=True)
-
-                # OPTIMIZED: replaced time.sleep(2) with wait_for on warehouse link
+                time.sleep(2)
+                
                 ui_log("NAV", f"Targeting localized routing: {WAREHOUSE} node...")
-                wh_link = page.get_by_role("link", name=WAREHOUSE, exact=True)
-                wh_link.wait_for(state="visible", timeout=TIMEOUT_MS)  # replaces sleep(2)
-                wh_link.click(force=True)
-
-                sku_input = page.locator(LOC_SKU)
-                sku_input.wait_for(state="visible", timeout=TIMEOUT_MS)
-
+                page.get_by_role("link", name=WAREHOUSE, exact=True).wait_for(state="visible", timeout=TIMEOUT_MS)
+                page.get_by_role("link", name=WAREHOUSE, exact=True).click(force=True)
+                page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
+                
                 ui_log("SYS", f"Applying internal adjustment protocol: Code [{REASON_CODE}]")
-                dropdown = page.locator(LOC_REASON)
-                if dropdown.is_enabled():
-                    dropdown.select_option(REASON_CODE)
+                dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
+                if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
                 ui_log("SYS", "DOM fully rendered. Opening data stream for payload injection...")
 
                 # --- Looping Input ---
                 progress_bar = st.progress(0)
                 total_rows = len(df_view)
-
-                # Pre-cache locators that are constant across loop iterations
-                qty_input = page.locator(LOC_QTY)
-                add_item_btn = page.locator(LOC_ADD)
-
-                # Table refresh throttle: update UI every N rows to reduce overhead
-                TABLE_REFRESH_EVERY = 5
-
+                
                 for i, (idx, row) in enumerate(df_view.iterrows()):
                     sku = str(row['sku']).strip()
-                    try:
-                        qty = str(int(float(row['qty'])))
-                    except (ValueError, TypeError):
-                        qty = str(row['qty']).strip()
-
+                    try: qty = str(int(float(row['qty'])))
+                    except: qty = str(row['qty']).strip()
+                        
                     ui_log("INJECT", f"Fetching payload chunk {i+1}/{total_rows} -> Targeting Node: SKU [{sku}]")
                     try:
-                        # OPTIMIZED: use cached sku_input locator, removed time.sleep(1)
-                        sku_input.fill(sku)
-                        sku_input.press("Tab")
-
-                        # Wait for qty field to become visible (replaces sleep(1))
-                        qty_input.wait_for(state="visible", timeout=TIMEOUT_MS)
+                        page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").fill(sku)
+                        page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").press("Tab")
+                        time.sleep(1) 
+                        
+                        page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
                         ui_log("INJECT", f"Node resolved. Assigning Value: {qty}")
-                        qty_input.fill(qty)
-
-                        add_item_btn.click(force=True)
+                        page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").fill(qty)
+                        
+                        page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
                         ui_log("SYS", "Flushing buffer and awaiting system reset...")
-                        # Wait for SKU field to auto-clear (server confirmed)
-                        page.wait_for_function(
-                            f"document.getElementById('{LOC_SKU.replace('id=', '')}').value === ''",
-                            timeout=TIMEOUT_MS
-                        )
-
+                        page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
+                        
                         df_view.at[idx, 'Status'] = 'Success'
                         df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
                         success_count += 1
                         ui_log("SUCCESS", "Transaction committed successfully to local cache.")
-
-                    except Exception as row_err:
+                    except Exception:
                         df_view.at[idx, 'Status'] = 'Failed'
                         df_view.at[idx, 'Keterangan'] = 'Node Timeout'
                         failed_count += 1
                         ui_log("ERROR", f"CRITICAL: Timeout querying node SKU [{sku}]. Segment bypassed.")
-
+                        
                     progress_bar.progress((i + 1) / total_rows)
-
-                    # OPTIMIZED: throttle table re-render (every N rows, or on last row)
-                    if (i + 1) % TABLE_REFRESH_EVERY == 0 or (i + 1) == total_rows:
-                        table_placeholder.dataframe(df_view, use_container_width=True)
+                    table_placeholder.dataframe(df_view, use_container_width=True)
 
                 ui_log("SERVER", "Data stream closed. Requesting master server validation...")
-                page.locator(LOC_SAVE).click()
+                page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
                 try:
                     yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
                     yes_btn.wait_for(state="visible", timeout=5_000)
                     ui_log("SERVER", "Master server requested confirmation logic. Bypassing...")
                     yes_btn.click()
                     ui_log("SERVER", "Final validation passed. Document physically written to database.")
-                except PlaywrightTimeoutError:
+                except: 
                     ui_log("SERVER", "Automatic validation passed. Document physically written to database.")
-
+                
                 ui_log("SYS", "Shutting down Chromium instances and clearing memory allocation...")
                 browser.close()
                 elapsed = int(time.time() - global_start_time)
                 ui_log("SUCCESS", f"EXECUTION TERMINATED NORMALLY. Total runtime: {elapsed//60}m {elapsed%60}s")
                 st.success(f"Success: {success_count} - Failed: {failed_count} - Elapsed Time: {elapsed//60}m {elapsed%60}s")
                 if success_count > 0:
+                    # Efek notif melayang (Toast)
                     st.toast('Connection Terminated')
                     time.sleep(0.5)
                     st.toast('Data Injected Successfully')
@@ -724,11 +742,15 @@ elif st.session_state.app_page == "Bot":
                     st.toast('System Override Complete!')
                     st.session_state.reconcile_result = None
 
-        except PlaywrightTimeoutError:
+        except PlaywrightTimeoutError as e:
+            # Error khusus kalau nunggu loading kelamaan (biasanya karena password salah)
             st.error("Login Gagal: Password salah atau server target sedang tidak merespon (Timeout 30s).")
             ui_log("ERROR", "ACCESS DENIED: Handshake timeout. Invalid credentials or node unreachable.")
-
+            
         except Exception as e:
+            error_detail = traceback.format_exc()
             st.error("System halted due to an unexpected error.")
+            
+            # Bersihin pesan error bawaan Playwright biar nggak kepanjangan
             clean_error = str(e).split('===')[0].strip()
             ui_log("ERROR", f"SYSTEM FAILURE: {clean_error}")
