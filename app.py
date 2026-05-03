@@ -324,6 +324,12 @@ elif st.session_state.app_page == "Bot":
                 placeholder="Password Accenture..."
             )
             
+            # Pake notifikasi bawaan Streamlit biar lebih rapi dan elegan
+            if len(user_password) > 3:
+                st.success("Password ready! (Validate while bot is running)")
+            else:
+                st.warning("Please enter your password to continue.")
+            
             # Badge Account Active muncul kalau password udah diisi (minimal 3 karakter)
             if len(user_password) > 3:
                 st.markdown(f"<div style='background-color: #143521; color: #4ade80; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Password Set (Validation on Run): {selected_account['Distributor']}</div>", unsafe_allow_html=True)
