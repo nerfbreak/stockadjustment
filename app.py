@@ -341,6 +341,35 @@ st.markdown("""
         border-top: 2px solid #FF1B6B !important;
         box-shadow: 0 -5px 20px #FF1B6B !important;
     }
+
+    /* 3. SUBTLE NEON FLICKER */
+    @keyframes flicker {
+        0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% {
+            opacity: 1;
+        }
+        20%, 21.999%, 63%, 63.999%, 65%, 69.999% {
+            opacity: 0.4;
+            text-shadow: none;
+        }
+    }
+
+    .typewriter {
+        animation: typing 3s steps(25, end) infinite alternate, 
+                   blink-caret .75s step-end infinite,
+                   flicker 8s infinite !important; /* Tambahin flicker di sini */
+    }
+
+    /* 1. DATA PULSE UNTUK ANGKA/METRIC */
+    [data-testid="stMetricValue"] {
+        color: #FF1B6B !important;
+        text-shadow: 0 0 10px rgba(255, 27, 107, 0.5) !important;
+        animation: pulse-metric 2s infinite alternate !important;
+    }
+
+    @keyframes pulse-metric {
+        0% { opacity: 0.8; text-shadow: 0 0 5px #FF1B6B; }
+        100% { opacity: 1; text-shadow: 0 0 20px #FF1B6B, 0 0 30px #FF1B6B; }
+    }
     </style>
 """, unsafe_allow_html=True)
 
