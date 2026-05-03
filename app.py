@@ -275,7 +275,8 @@ st.markdown("""
 
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
-    st.title("<div class='live-indicator'>Compare Stock</div>", unsafe_allow_html=True)
+    st.markdown("<div class='live-indicator'>SYSTEM ONLINE & ENCRYPTED</div>", unsafe_allow_html=True)
+    st.markdown("<h1>Stock Adjustment</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     st.markdown("---")
 
