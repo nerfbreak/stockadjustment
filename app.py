@@ -510,7 +510,15 @@ elif st.session_state.app_page == "Bot":
 
                 st.session_state.reconcile_result = None
 
+        except PlaywrightTimeoutError as e:
+            # Error khusus kalau nunggu loading kelamaan (biasanya karena password salah)
+            st.error("Login Gagal: Password salah atau server target sedang tidak merespon (Timeout 30s).")
+            ui_log("ERROR", "ACCESS DENIED: Handshake timeout. Invalid credentials or node unreachable.")
+            
         except Exception as e:
             error_detail = traceback.format_exc()
             st.error("System halted due to an unexpected error.")
-            ui_log("ERROR", f"FATAL SYSTEM CRASH: {str(e)}")
+            
+            # Bersihin pesan error bawaan Playwright biar nggak kepanjangan
+            clean_error = str(e).split('===')[0].strip()
+            ui_log("ERROR", f"SYSTEM FAILURE: {clean_error}")
