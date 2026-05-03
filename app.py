@@ -180,14 +180,19 @@ st.markdown("""
         transform: translateY(0px) !important;
     }
 
-    /* TYPEWRITER EFFECT */
+    /* TYPEWRITER EFFECT (UKURAN LEBIH PAS) */
     .typewriter {
+        font-family: 'JetBrainsMono', monospace;
+        font-size: 1.6rem; /* <-- ATUR UKURAN DI SINI (Coba 1.4rem s/d 1.8rem) */
+        font-weight: 700;
+        color: #f0f6fc;
         overflow: hidden;
         border-right: 0.15em solid #FF1B6B; /* Kursor warna pink */
         white-space: nowrap;
-        margin: 0 auto;
-        letter-spacing: .15em;
-        animation: typing 2.5s steps(30, end), blink-caret .75s step-end infinite;
+        margin: 0; /* Biar rata kiri, nggak ngaco ke tengah */
+        padding-right: 5px;
+        width: max-content; /* Biar kursornya nempel pas di huruf terakhir */
+        animation: typing 2s steps(25, end), blink-caret .75s step-end infinite;
     }
     @keyframes typing {
         from { width: 0 }
@@ -203,7 +208,7 @@ st.markdown("""
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
     st.title("Compare Stock")
-    st.markdown("<h1 class='typewriter'>Inspired by Kopi Mang Toni</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='typewriter'>Inspired by Kopi Mang Toni</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -296,7 +301,7 @@ elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
         st.title("Stock Adjustment")
-        st.markdown("<h1 class='typewriter'>Inspired by Kopi Mang Toni</h1>", unsafe_allow_html=True)
+        st.markdown("<div class='typewriter'>Inspired by Kopi Mang Toni</div>", unsafe_allow_html=True)
     with hdr_col2:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Compare Stock", use_container_width=True):
@@ -549,11 +554,11 @@ elif st.session_state.app_page == "Bot":
                 st.success(f"Success: {success_count} - Failed: {failed_count} - Elapsed Time: {elapsed//60}m {elapsed%60}s")
                 if success_count > 0:
                     # Efek notif melayang (Toast)
-                    st.toast('Connection Terminated', icon='🔌')
+                    st.toast('Connection Terminated')
                     time.sleep(0.5)
-                    st.toast('Data Injected Successfully', icon='💉')
+                    st.toast('Data Injected Successfully')
                     time.sleep(0.5)
-                    st.toast('System Override Complete!', icon='☠️')
+                    st.toast('System Override Complete!')
                     st.session_state.reconcile_result = None
 
         except PlaywrightTimeoutError as e:
