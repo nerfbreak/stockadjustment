@@ -18,88 +18,22 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    # Center the login card vertically
-    st.markdown("""
-    <style>
-    .login-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 1.6rem;
-        padding-bottom: 1.2rem;
-        border-bottom: 1px solid #1a2d50;
-    }
-    .login-icon {
-        width: 34px; height: 34px;
-        background: #3b82f6;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        flex-shrink: 0;
-    }
-    .login-brand {
-        font-family: 'Outfit', sans-serif;
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: #e8eef8;
-        letter-spacing: -0.01em;
-    }
-    .login-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.55rem;
-        font-weight: 800;
-        color: #e8eef8;
-        letter-spacing: -0.02em;
-        margin: 0 0 4px;
-        line-height: 1.2;
-    }
-    .login-sub {
-        font-family: 'Outfit', sans-serif;
-        font-size: 0.83rem;
-        color: #4a6080;
-        margin: 0 0 1.4rem;
-    }
-    /* Style the form container as the card */
-    [data-testid="stForm"] {
-        background: #0d1526 !important;
-        border: 1px solid #1a2d50 !important;
-        border-radius: 14px !important;
-        padding: 2rem 2rem 1.6rem !important;
-    }
-    /* Push content down to vertically center */
-    section[data-testid="stMain"] > div:first-child {
-        padding-top: 6vh !important;
-    }
-    </style>
-    <div style="height:4vh"></div>
-    """, unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        st.markdown("<h2 style='text-align:center;color:#3b82f6;'>Login</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center;color:#64748b;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
 
-    _, col, _ = st.columns([1, 1.4, 1])
-    with col:
         with st.form("login_form"):
-            # Branding INSIDE the form so it's inside the card
-            st.markdown("""
-            <div class='login-header'>
-                <span class='login-icon'>⚡</span>
-                <span class='login-brand'>StockEngine</span>
-            </div>
-            <div class='login-title'>Welcome back</div>
-            <div class='login-sub'>Sign in to access the adjustment engine</div>
-            """, unsafe_allow_html=True)
-
-            username = st.text_input("Username", placeholder="Enter username...")
-            password = st.text_input("Password", type="password", placeholder="Enter password...")
-            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-            submit = st.form_submit_button("Sign In →", use_container_width=True)
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submit = st.form_submit_button("Login", use_container_width=True)
 
             if submit:
                 if username == st.secrets["admin_user"] and password == st.secrets["admin_pass"]:
                     st.session_state.logged_in = True
                     st.rerun()
                 else:
-                    st.error("Access denied — invalid credentials.")
+                    st.error("Access Denied! Incorrect username or password.")
 
     st.stop()
 
@@ -176,9 +110,8 @@ def ensure_playwright():
 def make_badge(text: str, bg_color: str, text_color: str) -> str:
     return (
         f"<div style='background-color:{bg_color};color:{text_color};"
-        f"padding:7px 14px;border-radius:6px;font-weight:500;"
-        f"font-family:Outfit,sans-serif;font-size:0.82rem;"
-        f"margin-top:6px;border:1px solid {text_color}22;'>{text}</div>"
+        f"padding:8px 12px;border-radius:6px;font-weight:500;"
+        f"font-size:0.9rem;margin-top:4px;'>{text}</div>"
     )
 
 
@@ -190,524 +123,219 @@ if 'reconcile_result' not in st.session_state:
 if 'reconcile_summary' not in st.session_state:
     st.session_state.reconcile_summary = None
 
-# --- 5. CUSTOM CSS ---
+# --- 5. CUSTOM CSS: Modern Tailwind-style blue theme ---
+# Changes from original:
+#   - All #FF1B6B (neon pink) → #3b82f6 (blue-500)
+#   - All #d41459 (dark pink) → #1d4ed8 (blue-700)
+#   - Removed CRT scanlines background effect
+#   - Removed flicker animation from typewriter
+#   - Removed pulsing glow on metric values
+#   - HR → thin 1px subtle gradient, no animation
+#   - Scrollbar → blue
+#   - Buttons → clean Tailwind blue style
 st.markdown("""
-<style>
-/* ══════════════════════════════════════════════════════════════════
-   FONTS
-══════════════════════════════════════════════════════════════════ */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-/* ══════════════════════════════════════════════════════════════════
-   TOKENS
-══════════════════════════════════════════════════════════════════ */
-:root {
-    --c-bg:       #070d1a;
-    --c-surface:  #0d1526;
-    --c-raised:   #111d35;
-    --c-border:   #1a2d50;
-    --c-accent:   #3b82f6;
-    --c-hover:    #2563eb;
-    --c-success:  #10b981;
-    --c-error:    #ef4444;
-    --c-warn:     #f59e0b;
-    --c-text:     #e8eef8;
-    --c-muted:    #4a6080;
-    --c-dim:      #2a3d5a;
-    --f-sans:     'Outfit', sans-serif;
-    --f-mono:     'JetBrains Mono', monospace;
-    --r:          8px;
-    --r-sm:       6px;
-}
+    /* Terminal log box */
+    .terminal-box {
+        background-color: transparent;
+        color: #f0f6fc;
+        font-family: 'IBM Plex Mono', 'Consolas', 'Courier New', monospace;
+        font-size: 0.82rem;
+        padding: 5px 0;
+        border: none;
+        box-shadow: none;
+        height: 350px;
+        overflow-y: auto;
+        line-height: 1.8;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .terminal-box::-webkit-scrollbar { display: none; }
 
-/* ══════════════════════════════════════════════════════════════════
-   GLOBAL
-══════════════════════════════════════════════════════════════════ */
-html, body,
-[data-testid="stApp"],
-[data-testid="stAppViewContainer"],
-[data-testid="stMain"] {
-    background-color: var(--c-bg) !important;
-    color: var(--c-text) !important;
-    font-family: var(--f-sans) !important;
-}
-.main .block-container {
-    background-color: transparent !important;
-    padding-top: 1.8rem !important;
-}
-* { box-sizing: border-box; }
+    .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #10b981; }
+    @keyframes blinker { 50% { opacity: 0; } }
 
-/* ══════════════════════════════════════════════════════════════════
-   HEADER / TOOLBAR
-══════════════════════════════════════════════════════════════════ */
-header[data-testid="stHeader"] {
-    background-color: var(--c-bg) !important;
-    border-bottom: 1px solid var(--c-border) !important;
-}
+    /* Log column alignment */
+    .log-time   { display: inline-block; width: 85px; color: #64748b; }
+    .log-ms     { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem; }
+    .log-tag    { display: inline-block; width: 95px; font-weight: bold; }
+    .log-msg    { color: #f0f6fc; font-weight: 500; }
 
-/* ══════════════════════════════════════════════════════════════════
-   BUTTONS  — scoped to kind-attributed buttons only
-   File uploader's internal button is explicitly excluded
-══════════════════════════════════════════════════════════════════ */
-button[kind] {
-    font-family: var(--f-sans) !important;
-    border-radius: var(--r-sm) !important;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease,
-                transform 0.1s ease !important;
-    cursor: pointer !important;
-}
+    .tag-sys     { color: #a855f7; }
+    .tag-auth    { color: #eab308; }
+    .tag-nav     { color: #3b82f6; }
+    .tag-inject  { color: #06b6d4; }
+    .tag-success { color: #22c55e; }
+    .tag-error   { color: #ef4444; }
+    .tag-server  { color: #f43f5e; }
 
-/* Primary */
-button[kind="primary"] {
-    background-color: var(--c-accent) !important;
-    color: #fff !important;
-    border: none !important;
-    font-weight: 700 !important;
-    font-size: 0.78rem !important;
-    letter-spacing: 0.1em !important;
-    text-transform: uppercase !important;
-}
-button[kind="primary"]:hover {
-    background-color: var(--c-hover) !important;
-    box-shadow: 0 4px 16px rgba(37,99,235,0.4) !important;
-    transform: translateY(-1px) !important;
-}
-button[kind="primary"]:active  { transform: none !important; box-shadow: none !important; }
-button[kind="primary"]:disabled {
-    background-color: var(--c-raised) !important;
-    color: var(--c-muted) !important;
-    box-shadow: none !important;
-}
+    /* Primary button: blue-600 */
+    button[kind="primary"] {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px !important;
+        text-transform: uppercase !important;
+        transition: all 0.2s ease !important;
+        border-radius: 6px !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #1d4ed8 !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+        transform: translateY(-1px) !important;
+    }
+    button[kind="primary"]:active {
+        transform: translateY(0) !important;
+    }
 
-/* Secondary */
-button[kind="secondary"] {
-    background-color: transparent !important;
-    color: var(--c-accent) !important;
-    border: 1px solid var(--c-border) !important;
-    font-weight: 600 !important;
-    font-size: 0.78rem !important;
-    letter-spacing: 0.06em !important;
-}
-button[kind="secondary"]:hover {
-    background-color: var(--c-raised) !important;
-    border-color: var(--c-accent) !important;
-    color: #fff !important;
-}
+    /* Secondary button: blue outline */
+    button[kind="secondary"] {
+        background-color: transparent !important;
+        color: #3b82f6 !important;
+        border: 1.5px solid #3b82f6 !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+        border-radius: 6px !important;
+    }
+    button[kind="secondary"]:hover {
+        background-color: #eff6ff !important;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.2) !important;
+    }
 
-/* Form submit (login) — same as primary */
-button[kind="formSubmit"] {
-    background-color: var(--c-accent) !important;
-    color: #fff !important;
-    border: none !important;
-    font-weight: 700 !important;
-    font-size: 0.78rem !important;
-    letter-spacing: 0.1em !important;
-    text-transform: uppercase !important;
-}
-button[kind="formSubmit"]:hover {
-    background-color: var(--c-hover) !important;
-    box-shadow: 0 4px 16px rgba(37,99,235,0.4) !important;
-}
+    /* Typewriter subtitle — no flicker, just clean type + caret */
+    .typewriter-sub {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 1rem;
+        color: #8b949e;
+        overflow: hidden;
+        border-right: 0.12em solid #3b82f6;
+        white-space: nowrap;
+        margin: 0;
+        animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
+    }
 
-/* ── FILE UPLOADER BROWSE BUTTON — restore icon + style cleanly ── */
-[data-testid="stFileUploaderDropzone"] button {
-    background-color: var(--c-raised) !important;
-    color: var(--c-text) !important;
-    border: 1px solid var(--c-border) !important;
-    border-radius: var(--r-sm) !important;
-    font-family: var(--f-sans) !important;
-    font-size: 0.82rem !important;
-    font-weight: 500 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    padding: 6px 14px !important;
-    transition: background-color 0.15s, border-color 0.15s !important;
-    letter-spacing: normal !important;
-    text-transform: none !important;
-}
-[data-testid="stFileUploaderDropzone"] button:hover {
-    background-color: var(--c-surface) !important;
-    border-color: var(--c-accent) !important;
-    color: #fff !important;
-}
-/* Keep the upload SVG icon visible */
-[data-testid="stFileUploaderDropzone"] button svg {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    fill: currentColor !important;
-    width: 16px !important;
-    height: 16px !important;
-}
+    @keyframes typing-sub {
+        0%   { width: 0; animation-timing-function: steps(29, end); }
+        30%  { width: 29ch; animation-timing-function: step-end; }
+        80%  { width: 29ch; animation-timing-function: steps(29, end); }
+        100% { width: 0; }
+    }
 
-/* ══════════════════════════════════════════════════════════════════
-   TEXT INPUTS
-══════════════════════════════════════════════════════════════════ */
-[data-testid="stTextInput"] input,
-[data-testid="stTextArea"] textarea,
-[data-testid="stNumberInput"] input {
-    background-color: var(--c-raised) !important;
-    border: 1px solid var(--c-border) !important;
-    border-radius: var(--r-sm) !important;
-    color: var(--c-text) !important;
-    font-family: var(--f-sans) !important;
-    font-size: 0.88rem !important;
-    transition: border-color 0.15s, box-shadow 0.15s !important;
-}
-[data-testid="stTextInput"] input:focus,
-[data-testid="stTextArea"] textarea:focus {
-    border-color: var(--c-accent) !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
-    outline: none !important;
-}
-[data-testid="stTextInput"] input:disabled {
-    opacity: 0.5 !important;
-    cursor: not-allowed !important;
-}
-input::placeholder, textarea::placeholder {
-    color: var(--c-muted) !important;
-    font-size: 0.85rem !important;
-}
+    @keyframes blink-caret {
+        from, to { border-color: transparent; }
+        50%       { border-color: #3b82f6; }
+    }
 
-/* Input labels */
-[data-testid="stTextInput"] label,
-[data-testid="stTextArea"] label,
-[data-testid="stSelectbox"] label,
-[data-testid="stFileUploader"] label {
-    color: var(--c-muted) !important;
-    font-family: var(--f-sans) !important;
-    font-size: 0.72rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
-}
+    /* Page-load stagger */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    [data-testid="stVerticalBlock"] > div {
+        animation: fadeSlideUp 0.5s ease-out backwards;
+    }
+    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.05s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.10s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.15s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.20s; }
 
-/* ══════════════════════════════════════════════════════════════════
-   SELECTBOX  — targeting the actual BaseWeb DOM nodes
-══════════════════════════════════════════════════════════════════ */
+    /* LIVE dot indicator */
+    .live-indicator {
+        display: inline-flex;
+        align-items: center;
+        color: #4ade80;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+    }
+    .live-indicator::before {
+        content: '';
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #4ade80;
+        border-radius: 50%;
+        margin-right: 7px;
+        box-shadow: 0 0 6px #4ade80;
+        animation: pulse-radar 1.4s infinite alternate;
+    }
+    @keyframes pulse-radar {
+        from { transform: scale(0.8); opacity: 0.6; }
+        to   { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #4ade80; }
+    }
 
-/* The visible trigger control */
-[data-baseweb="select"] [data-baseweb="control"] {
-    background-color: var(--c-raised) !important;
-    border: 1px solid var(--c-border) !important;
-    border-radius: var(--r-sm) !important;
-    transition: border-color 0.15s !important;
-    min-height: 38px !important;
-}
-[data-baseweb="select"] [data-baseweb="control"]:hover,
-[data-baseweb="select"] [data-baseweb="control"]:focus-within {
-    border-color: var(--c-accent) !important;
-}
+    /* Divider: thin, no animation */
+    hr {
+        border: none !important;
+        height: 1px !important;
+        background: linear-gradient(90deg, transparent, #3b82f6, transparent) !important;
+        opacity: 0.35 !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
+    }
 
-/* Selected value text */
-[data-baseweb="select"] [data-baseweb="single-value"],
-[data-baseweb="select"] [data-baseweb="placeholder"] {
-    color: var(--c-text) !important;
-    font-family: var(--f-sans) !important;
-    font-size: 0.88rem !important;
-}
-[data-baseweb="select"] [data-baseweb="placeholder"] {
-    color: var(--c-muted) !important;
-}
+    /* Text selection */
+    ::selection      { background: #3b82f6 !important; color: #ffffff !important; }
+    ::-moz-selection { background: #3b82f6 !important; color: #ffffff !important; }
 
-/* Dropdown arrow */
-[data-baseweb="select"] svg { fill: var(--c-muted) !important; }
+    /* Scrollbar */
+    *::-webkit-scrollbar       { width: 6px !important; height: 6px !important; background-color: transparent !important; }
+    *::-webkit-scrollbar-track { background-color: rgba(255,255,255,0.04) !important; border-radius: 10px !important; }
+    *::-webkit-scrollbar-thumb { background-color: #3b82f6 !important; border-radius: 10px !important; }
+    *::-webkit-scrollbar-thumb:hover { background-color: #2563eb !important; }
+    * { scrollbar-width: thin !important; scrollbar-color: #3b82f6 transparent !important; }
 
-/* ── DROPDOWN POPUP ───────────────────────────────────────────── */
-/* The outer popover layer */
-[data-baseweb="popover"] > div,
-[data-baseweb="popover"] [data-baseweb="menu"] {
-    background-color: var(--c-surface) !important;
-    border: 1px solid var(--c-border) !important;
-    border-radius: var(--r) !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-    overflow: hidden !important;
-}
+    /* Status widget */
+    [data-testid="stStatusWidget"] {
+        background-color: #0f172a !important;
+        border: 1px solid #3b82f6 !important;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.25) !important;
+        border-radius: 4px !important;
+        padding: 2px 10px !important;
+    }
+    [data-testid="stStatusWidget"] * {
+        color: #3b82f6 !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-weight: bold !important;
+        letter-spacing: 0.5px !important;
+    }
 
-/* Each option row */
-[data-baseweb="menu"] li,
-[data-baseweb="menu"] [role="option"] {
-    background-color: var(--c-surface) !important;
-    color: var(--c-text) !important;
-    font-family: var(--f-sans) !important;
-    font-size: 0.88rem !important;
-    padding: 9px 14px !important;
-    border-radius: 0 !important;
-    transition: background-color 0.1s !important;
-}
-/* Hover state */
-[data-baseweb="menu"] li:hover,
-[data-baseweb="menu"] [role="option"]:hover {
-    background-color: var(--c-raised) !important;
-    color: #fff !important;
-}
-/* Selected / active state */
-[data-baseweb="menu"] [aria-selected="true"],
-[data-baseweb="menu"] li[aria-selected="true"] {
-    background-color: var(--c-accent) !important;
-    color: #fff !important;
-}
-[data-baseweb="menu"] [aria-selected="true"]:hover {
-    background-color: var(--c-hover) !important;
-}
+    /* Header accent */
+    header[data-testid="stHeader"] {
+        border-bottom: 1px solid rgba(59, 130, 246, 0.25) !important;
+    }
 
-/* ══════════════════════════════════════════════════════════════════
-   FILE UPLOADER DROPZONE
-══════════════════════════════════════════════════════════════════ */
-[data-testid="stFileUploaderDropzone"] {
-    background-color: var(--c-raised) !important;
-    border: 1px dashed var(--c-border) !important;
-    border-radius: var(--r) !important;
-    transition: border-color 0.15s, background-color 0.15s !important;
-}
-[data-testid="stFileUploaderDropzone"]:hover {
-    border-color: var(--c-accent) !important;
-    background-color: #0d1e38 !important;
-}
-[data-testid="stFileUploaderDropzone"] span,
-[data-testid="stFileUploaderDropzone"] small,
-[data-testid="stFileUploaderDropzone"] p {
-    color: var(--c-muted) !important;
-    font-family: var(--f-sans) !important;
-    font-size: 0.83rem !important;
-}
-/* Uploaded file name chip */
-[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] {
-    background-color: var(--c-surface) !important;
-    border: 1px solid var(--c-border) !important;
-    border-radius: var(--r-sm) !important;
-    color: var(--c-text) !important;
-    font-family: var(--f-sans) !important;
-}
+    /* Main typewriter — clean, no flicker */
+    .typewriter {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #f0f6fc;
+        overflow: hidden;
+        border-right: 0.12em solid #3b82f6;
+        white-space: nowrap;
+        margin: 0;
+        padding-right: 5px;
+        width: max-content;
+        animation: typing 3s steps(25, end) infinite alternate, blink-caret .75s step-end infinite;
+    }
+    @keyframes typing {
+        from { width: 0; }
+        to   { width: 100%; }
+    }
 
-/* ══════════════════════════════════════════════════════════════════
-   METRICS
-══════════════════════════════════════════════════════════════════ */
-[data-testid="stMetric"] {
-    background-color: var(--c-surface) !important;
-    border: 1px solid var(--c-border) !important;
-    border-radius: var(--r) !important;
-    padding: 1rem 1.4rem !important;
-}
-[data-testid="stMetricValue"],
-[data-testid="stMetricValue"] > div {
-    color: var(--c-accent) !important;
-    font-weight: 700 !important;
-    font-family: var(--f-sans) !important;
-    display: block !important;
-}
-[data-testid="stMetricLabel"] {
-    color: var(--c-muted) !important;
-    font-size: 0.7rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    font-family: var(--f-sans) !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   ALERTS
-══════════════════════════════════════════════════════════════════ */
-[data-testid="stAlert"] {
-    border-radius: var(--r-sm) !important;
-    font-family: var(--f-sans) !important;
-    font-size: 0.85rem !important;
-    border-width: 1px !important;
-    border-style: solid !important;
-}
-/* Success */
-[data-testid="stAlert"][data-baseweb="notification"] {
-    background-color: #071e14 !important;
-    border-color: #134d2e !important;
-    color: #6ee7b7 !important;
-}
-/* Error */
-div[data-testid="stException"],
-.stException {
-    background-color: #1a0a0a !important;
-    border: 1px solid #5c1c1c !important;
-    border-radius: var(--r-sm) !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   PROGRESS BAR
-══════════════════════════════════════════════════════════════════ */
-[data-testid="stProgress"] > div {
-    background-color: var(--c-raised) !important;
-    border-radius: 99px !important;
-    height: 4px !important;
-}
-[data-testid="stProgress"] > div > div {
-    background-color: var(--c-accent) !important;
-    border-radius: 99px !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   DATAFRAME
-══════════════════════════════════════════════════════════════════ */
-[data-testid="stDataFrame"] {
-    border: 1px solid var(--c-border) !important;
-    border-radius: var(--r) !important;
-    overflow: hidden !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   DIVIDER / HR
-══════════════════════════════════════════════════════════════════ */
-hr {
-    border: none !important;
-    height: 1px !important;
-    background-color: var(--c-border) !important;
-    opacity: 1 !important;
-    margin: 1.5rem 0 !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   SCROLLBAR
-══════════════════════════════════════════════════════════════════ */
-*::-webkit-scrollbar       { width: 4px; height: 4px; }
-*::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background-color: var(--c-border); border-radius: 99px; }
-*::-webkit-scrollbar-thumb:hover { background-color: var(--c-accent); }
-* { scrollbar-width: thin; scrollbar-color: var(--c-border) transparent; }
-
-/* ══════════════════════════════════════════════════════════════════
-   TEXT SELECTION
-══════════════════════════════════════════════════════════════════ */
-::selection      { background: var(--c-accent); color: #fff; }
-::-moz-selection { background: var(--c-accent); color: #fff; }
-
-/* ══════════════════════════════════════════════════════════════════
-   STATUS WIDGET (top-right running indicator)
-══════════════════════════════════════════════════════════════════ */
-[data-testid="stStatusWidget"] {
-    background-color: var(--c-surface) !important;
-    border: 1px solid var(--c-border) !important;
-    border-radius: var(--r-sm) !important;
-}
-[data-testid="stStatusWidget"] * {
-    color: var(--c-accent) !important;
-    font-family: var(--f-mono) !important;
-    font-size: 0.72rem !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   HEADINGS & TYPOGRAPHY
-══════════════════════════════════════════════════════════════════ */
-h1, h2, h3, h4 {
-    font-family: var(--f-sans) !important;
-    color: var(--c-text) !important;
-    letter-spacing: -0.02em !important;
-}
-h1 { font-size: 1.9rem !important; font-weight: 800 !important; margin-bottom: 0.2rem !important; }
-h2 { font-size: 1.25rem !important; font-weight: 700 !important; }
-h3 { font-size: 1rem !important; font-weight: 600 !important; }
-p, li, span { font-family: var(--f-sans) !important; }
-
-/* ══════════════════════════════════════════════════════════════════
-   PAGE LOAD ANIMATION
-══════════════════════════════════════════════════════════════════ */
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-[data-testid="stVerticalBlock"] > div {
-    animation: fadeUp 0.35s ease backwards;
-}
-[data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.04s; }
-[data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.08s; }
-[data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.12s; }
-[data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.16s; }
-
-/* ══════════════════════════════════════════════════════════════════
-   LIVE INDICATOR BADGE
-══════════════════════════════════════════════════════════════════ */
-.live-indicator {
-    display: inline-flex;
-    align-items: center;
-    color: var(--c-success);
-    font-family: var(--f-mono);
-    font-weight: 700;
-    font-size: 0.68rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    background: #071e14;
-    border: 1px solid #134d2e;
-    padding: 3px 10px;
-    border-radius: 99px;
-    margin-bottom: 0.5rem;
-}
-.live-indicator::before {
-    content: '';
-    display: inline-block;
-    width: 6px; height: 6px;
-    background-color: var(--c-success);
-    border-radius: 50%;
-    margin-right: 7px;
-    animation: pulse-live 1.6s ease-in-out infinite;
-}
-@keyframes pulse-live {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.4; transform: scale(0.65); }
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   TERMINAL LOG BOX
-══════════════════════════════════════════════════════════════════ */
-.terminal-box {
-    background-color: transparent;
-    color: var(--c-text);
-    font-family: var(--f-mono);
-    font-size: 0.76rem;
-    padding: 4px 0;
-    border: none;
-    height: 360px;
-    overflow-y: auto;
-    line-height: 1.9;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-.terminal-box::-webkit-scrollbar { display: none; }
-.blink_me { animation: blinker 1s linear infinite; color: var(--c-success); }
-@keyframes blinker { 50% { opacity: 0; } }
-
-.log-time   { display: inline-block; width: 82px;  color: var(--c-dim); }
-.log-ms     { display: inline-block; width: 68px;  text-align: right; margin-right: 14px; color: #9a6a3a; font-size: 0.7rem; }
-.log-tag    { display: inline-block; width: 92px;  font-weight: 600; }
-.log-msg    { color: #b0c4de; }
-
-.tag-sys     { color: #a78bfa; }
-.tag-auth    { color: #fbbf24; }
-.tag-nav     { color: #60a5fa; }
-.tag-inject  { color: #22d3ee; }
-.tag-success { color: #34d399; }
-.tag-error   { color: #f87171; }
-.tag-server  { color: #fb7185; }
-
-/* ══════════════════════════════════════════════════════════════════
-   TYPEWRITER SUBTITLE
-══════════════════════════════════════════════════════════════════ */
-.typewriter-sub {
-    font-family: var(--f-mono);
-    font-size: 0.78rem;
-    color: var(--c-muted);
-    overflow: hidden;
-    border-right: 2px solid var(--c-accent);
-    white-space: nowrap;
-    margin: 0.1rem 0 0;
-    animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
-}
-@keyframes typing-sub {
-    0%   { width: 0; animation-timing-function: steps(29, end); }
-    30%  { width: 29ch; animation-timing-function: step-end; }
-    80%  { width: 29ch; animation-timing-function: steps(29, end); }
-    100% { width: 0; }
-}
-@keyframes blink-caret {
-    from, to { border-color: transparent; }
-    50%       { border-color: var(--c-accent); }
-}
-</style>
+    /* Metric values: static blue, no pulsing glow */
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricValue"] > div {
+        color: #3b82f6 !important;
+        font-weight: 700 !important;
+        display: block !important;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
 
