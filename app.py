@@ -364,6 +364,16 @@ st.markdown("""
         0% { opacity: 0.8; filter: drop-shadow(0 0 2px #FF1B6B); transform: scale(1); }
         100% { opacity: 1; filter: drop-shadow(0 0 12px #FF1B6B); transform: scale(1.02); }
     }
+
+    /* EFEK MONITOR MELENGKUNG (VIGNETTE) */
+    [data-testid="stAppViewContainer"]::before {
+        content: " ";
+        position: fixed;
+        top: 0; left: 0; bottom: 0; right: 0;
+        background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.4) 100%);
+        pointer-events: none;
+        z-index: 10;
+    }
     </style>
 """, unsafe_allow_html=True)
 
