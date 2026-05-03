@@ -43,7 +43,7 @@ CREDENTIALS_FILE      = "users_2.csv"
 REASON_CODE           = "SA2"
 WAREHOUSE             = "GOOD_WHS"
 TIMEOUT_MS            = 30_000
-TABLE_UPDATE_INTERVAL = 5  # FIX: throttle table re-renders (was every row)
+TABLE_UPDATE_INTERVAL = 5  # throttle table re-renders (was every row)
 
 # --- 3. HELPER FUNCTIONS ---
 
@@ -106,12 +106,13 @@ def ensure_playwright():
         st.error(f"Failed to install browser engine: {e}")
 
 
-# FIX: Extracted repeated inline badge HTML into a single reusable helper.
-def make_badge(text: str, bg_color: str, text_color: str) -> str:
+# FIX: Reusable solid-color box helper (modern badge)
+def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
     return (
         f"<div style='background-color:{bg_color};color:{text_color};"
-        f"padding:8px 12px;border-radius:6px;font-weight:500;"
-        f"font-size:0.9rem;margin-top:4px;'>{text}</div>"
+        f"padding:12px 16px;border-radius:8px;font-weight:600;"
+        f"font-size:0.92rem;margin:8px 0;text-align:center;"
+        f"box-shadow:0 2px 8px rgba(0,0,0,0.3);display:block;width:100%;'>{text}</div>"
     )
 
 
@@ -133,15 +134,16 @@ if 'reconcile_summary' not in st.session_state:
 #   - HR → thin 1px subtle gradient, no animation
 #   - Scrollbar → blue
 #   - Buttons → clean Tailwind blue style
+#   - Fonts: Inter for body, JetBrains Mono for terminal/code
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
     /* Terminal log box */
     .terminal-box {
         background-color: transparent;
         color: #f0f6fc;
-        font-family: 'IBM Plex Mono', 'Consolas', 'Courier New', monospace;
+        font-family: 'JetBrains Mono', monospace;
         font-size: 0.82rem;
         padding: 5px 0;
         border: none;
@@ -158,10 +160,10 @@ st.markdown("""
     @keyframes blinker { 50% { opacity: 0; } }
 
     /* Log column alignment */
-    .log-time   { display: inline-block; width: 85px; color: #64748b; }
-    .log-ms     { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem; }
-    .log-tag    { display: inline-block; width: 95px; font-weight: bold; }
-    .log-msg    { color: #f0f6fc; font-weight: 500; }
+    .log-time   { display: inline-block; width: 85px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+    .log-ms     { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
+    .log-tag    { display: inline-block; width: 95px; font-weight: bold; font-family: 'JetBrains Mono', monospace; }
+    .log-msg    { color: #f0f6fc; font-weight: 500; font-family: 'Inter', sans-serif; }
 
     .tag-sys     { color: #a855f7; }
     .tag-auth    { color: #eab308; }
@@ -181,6 +183,7 @@ st.markdown("""
         text-transform: uppercase !important;
         transition: all 0.2s ease !important;
         border-radius: 6px !important;
+        font-family: 'Inter', sans-serif !important;
     }
     button[kind="primary"]:hover {
         background-color: #1d4ed8 !important;
@@ -199,6 +202,7 @@ st.markdown("""
         font-weight: 600 !important;
         transition: all 0.2s ease !important;
         border-radius: 6px !important;
+        font-family: 'Inter', sans-serif !important;
     }
     button[kind="secondary"]:hover {
         background-color: #eff6ff !important;
@@ -207,7 +211,7 @@ st.markdown("""
 
     /* Typewriter subtitle — no flicker, just clean type + caret */
     .typewriter-sub {
-        font-family: 'IBM Plex Mono', monospace;
+        font-family: 'JetBrains Mono', monospace;
         font-size: 1rem;
         color: #8b949e;
         overflow: hidden;
@@ -247,7 +251,7 @@ st.markdown("""
         display: inline-flex;
         align-items: center;
         color: #4ade80;
-        font-family: 'IBM Plex Mono', monospace;
+        font-family: 'JetBrains Mono', monospace;
         font-weight: 700;
         font-size: 0.85rem;
         letter-spacing: 0.08em;
@@ -299,7 +303,7 @@ st.markdown("""
     }
     [data-testid="stStatusWidget"] * {
         color: #3b82f6 !important;
-        font-family: 'IBM Plex Mono', monospace !important;
+        font-family: 'JetBrains Mono', monospace !important;
         font-weight: bold !important;
         letter-spacing: 0.5px !important;
     }
@@ -311,7 +315,7 @@ st.markdown("""
 
     /* Main typewriter — clean, no flicker */
     .typewriter {
-        font-family: 'IBM Plex Mono', monospace;
+        font-family: 'JetBrains Mono', monospace;
         font-size: 1.6rem;
         font-weight: 700;
         color: #f0f6fc;
@@ -334,6 +338,11 @@ st.markdown("""
         color: #3b82f6 !important;
         font-weight: 700 !important;
         display: block !important;
+    }
+
+    /* Global font fallback */
+    body, .stMarkdown, p, span, div {
+        font-family: 'Inter', sans-serif;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -511,12 +520,12 @@ elif st.session_state.app_page == "Bot":
                 placeholder="Enter password..."
             )
             if len(user_password) > 3:
-                st.markdown(make_badge(
+                st.markdown(make_solid_box(
                     f"Password set — {selected_account['Distributor']} (validated on run)",
                     "#0f2f1d", "#4ade80"
                 ), unsafe_allow_html=True)
             else:
-                st.markdown(make_badge(
+                st.markdown(make_solid_box(
                     "Waiting for password...",
                     "#1e1b4b", "#a5b4fc"
                 ), unsafe_allow_html=True)
@@ -526,7 +535,7 @@ elif st.session_state.app_page == "Bot":
         if st.session_state.reconcile_result is not None:
             st.text_input("Data source", value="Auto-loaded from Compare Stock", disabled=True)
             df_to_process = st.session_state.reconcile_result
-            st.markdown(make_badge(
+            st.markdown(make_solid_box(
                 f"{len(df_to_process)} products ready to process",
                 "#082f49", "#38bdf8"
             ), unsafe_allow_html=True)
@@ -541,7 +550,7 @@ elif st.session_state.app_page == "Bot":
                         df_to_process = pd.read_excel(uploaded_file, dtype=str)
                     df_to_process.columns = [str(c).strip().lower() for c in df_to_process.columns]
                     if 'sku' in df_to_process.columns and 'qty' in df_to_process.columns:
-                        st.markdown(make_badge(
+                        st.markdown(make_solid_box(
                             f"{len(df_to_process)} products ready to process",
                             "#082f49", "#38bdf8"
                         ), unsafe_allow_html=True)
@@ -630,7 +639,6 @@ elif st.session_state.app_page == "Bot":
                 page.locator("id=txtPasswd").fill(password)
                 page.locator("id=btnLogin").click(force=True)
 
-                # FIX: bare except → except Exception
                 try:
                     btn = page.locator("id=SYS_ASCX_btnContinue")
                     btn.wait_for(state="visible", timeout=5_000)
@@ -647,14 +655,12 @@ elif st.session_state.app_page == "Bot":
                 ui_log("NAV", "Navigating to Inventory > Stock Adjustment...")
                 page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
 
-                # FIX: replaced time.sleep(5) with an explicit element wait
                 add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
                 add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
 
                 ui_log("NAV", "Opening new document [Add Value]...")
                 add_btn.click(force=True)
 
-                # FIX: replaced time.sleep(2) + duplicate locator call with a single stored variable
                 warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True)
                 warehouse_link.wait_for(state="visible", timeout=TIMEOUT_MS)
                 warehouse_link.click(force=True)
@@ -712,14 +718,12 @@ elif st.session_state.app_page == "Bot":
 
                     progress_bar.progress((i + 1) / total_rows)
 
-                    # FIX: only re-render the table every N rows to reduce Streamlit overhead
                     if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows - 1:
                         table_placeholder.dataframe(df_view, use_container_width=True)
 
                 ui_log("SERVER", "Saving document to server...")
                 page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
 
-                # FIX: bare except → except Exception
                 try:
                     yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
                     yes_btn.wait_for(state="visible", timeout=5_000)
@@ -733,10 +737,14 @@ elif st.session_state.app_page == "Bot":
                 browser.close()
                 elapsed = int(time.time() - global_start_time)
                 ui_log("SUCCESS", f"Complete. Total runtime: {elapsed // 60}m {elapsed % 60}s")
-                st.success(
-                    f"Done — Success: {success_count} | Failed: {failed_count} | "
-                    f"Time: {elapsed // 60}m {elapsed % 60}s"
-                )
+
+                # Solid‑color success box instead of st.success()
+                st.markdown(make_solid_box(
+                    f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed // 60}m {elapsed % 60}s",
+                    "#166534",  # green-800
+                    "#ffffff"
+                ), unsafe_allow_html=True)
+
                 if success_count > 0:
                     st.toast('Connection terminated')
                     time.sleep(0.5)
