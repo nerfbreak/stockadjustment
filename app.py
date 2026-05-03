@@ -437,8 +437,10 @@ st.markdown("""
         font-family: 'JetBrainsMono', monospace !important;
     }
     </style>
-    
-    st.components.v1.html(
+)
+""", unsafe_allow_html=True)
+
+st.components.v1.html(
     """
     <script>
     var root = window.parent.document.querySelector('body');
@@ -449,8 +451,6 @@ st.markdown("""
     </script>
     """,
     height=0,
-)
-""", unsafe_allow_html=True)
 
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
