@@ -211,6 +211,48 @@ st.markdown("""
         from, to { border-color: transparent; }
         50% { border-color: #FF1B6B; }
     }
+
+    /* 1. EFEK MUNCUL MULUS PAS HALAMAN DIBUKA */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Nerapin efek ke semua blok utama di Streamlit */
+    [data-testid="stVerticalBlock"] > div {
+        animation: fadeSlideUp 0.6s ease-out backwards;
+    }
+    
+    /* Bikin efek berurutan (cascade) biar munculnya gantian */
+    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.1s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.2s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
+
+    /* 2. EFEK GLOW PINK PAS KOLOM INPUT DI-KLIK */
+    div[data-baseweb="input"] > div:focus-within {
+        border-color: #FF1B6B !important;
+        box-shadow: 0 0 12px rgba(255, 27, 107, 0.4) !important;
+        transition: all 0.3s ease-in-out !important;
+    }
+    
+    /* Bikin border bawah warna pink ngambang pas di-hover */
+    div[data-baseweb="input"] > div:hover {
+        border-bottom: 2px solid #FF1B6B !important;
+        background-color: rgba(255, 27, 107, 0.05) !important;
+    }
+
+    /* 3. EFEK MELAYANG PADA FORM/CONTAINER SAAT DI-HOVER */
+    div[data-testid="stForm"] {
+        transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Border tipis bawaan */
+    }
+    
+    div[data-testid="stForm"]:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 27, 107, 0.2) !important;
+        border: 1px solid #FF1B6B !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
