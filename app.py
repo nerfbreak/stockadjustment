@@ -285,6 +285,33 @@ st.markdown("""
         0% { opacity: 0.3; filter: drop-shadow(0 0 2px #FF1B6B); }
         100% { opacity: 1; filter: drop-shadow(0 0 10px #FF1B6B); }
     }
+
+    /* 2. EFEK MONITOR TABUNG JADUL (SCANLINES) */
+    [data-testid="stAppViewContainer"] {
+        background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.15) 50%) !important;
+        background-size: 100% 4px !important;
+    }
+
+    /* 3. KOTAK PERINGATAN/ERROR BERDENYUT */
+    div[data-testid="stAlert"] {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    div[data-testid="stAlert"]::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0;
+        width: 4px; height: 100%;
+        background-color: #FF1B6B;
+        box-shadow: 0 0 15px #FF1B6B;
+        animation: alert-pulse 1.5s infinite alternate;
+    }
+
+    @keyframes alert-pulse {
+        0% { opacity: 0.2; box-shadow: 0 0 2px #FF1B6B; }
+        100% { opacity: 1; box-shadow: 0 0 15px #FF1B6B, 0 0 30px #FF1B6B; }
+    }
     </style>
 """, unsafe_allow_html=True)
 
