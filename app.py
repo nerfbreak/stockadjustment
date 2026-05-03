@@ -10,72 +10,76 @@ import traceback
 import sys
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
-# --- 1. KONFIGURASI HALAMAN ---
+# --- 1. PAGE CONFIG ---
 st.set_page_config(page_title="Stock Adjustment Newspage", page_icon="icon.png", layout="wide")
-# os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
 
-# ==========================================
-# --- 1.5. SISTEM KEMANAN LOGIN (GATEKEEPER) ---
-# ==========================================
+# --- 1.5. LOGIN GATEKEEPER ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    # Bikin tampilan form login agak ke tengah biar rapi
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        st.markdown("<h2 style='text-align: center; color: #FF1B6B;'>Login</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
-        
+        st.markdown("<h2 style='text-align:center;color:#3b82f6;'>Login</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center;color:#64748b;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
+
         with st.form("login_form"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
             submit = st.form_submit_button("Login", use_container_width=True)
-            
+
             if submit:
-                # Validasi ngecek ke Streamlit Secrets
                 if username == st.secrets["admin_user"] and password == st.secrets["admin_pass"]:
                     st.session_state.logged_in = True
-                    st.rerun()  # Refresh halaman biar masuk ke aplikasi
+                    st.rerun()
                 else:
                     st.error("Access Denied! Incorrect username or password.")
-                    
-    # HENTIKAN EKSEKUSI DI SINI JIKA BELUM LOGIN
-    st.stop() 
-# ==========================================
+
+    st.stop()
 
 # --- 2. CONSTANTS ---
-URL_LOGIN        = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
-CREDENTIALS_FILE = "users_2.csv"
-REASON_CODE      = "SA2"
-WAREHOUSE        = "GOOD_WHS"
-TIMEOUT_MS       = 30_000
+URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
+CREDENTIALS_FILE      = "users_2.csv"
+REASON_CODE           = "SA2"
+WAREHOUSE             = "GOOD_WHS"
+TIMEOUT_MS            = 30_000
+TABLE_UPDATE_INTERVAL = 5  # FIX: throttle table re-renders (was every row)
 
 # --- 3. HELPER FUNCTIONS ---
+
 def load_data(file):
-    if file is None: return None
+    if file is None:
+        return None
     df = None
     filename = file.name.lower()
     try:
         if filename.endswith('.csv'):
-            df = pd.read_csv(file, sep='\t', dtype=str) 
-            if df.shape[1] <= 1: 
-                 file.seek(0); df = pd.read_csv(file, sep=',', dtype=str)
+            df = pd.read_csv(file, sep='\t', dtype=str)
+            if df.shape[1] <= 1:
+                file.seek(0)
+                df = pd.read_csv(file, sep=',', dtype=str)
         elif filename.endswith(('.xls', '.xlsx')):
             df = pd.read_excel(file, dtype=str)
         elif filename.endswith('.zip'):
             with zipfile.ZipFile(file) as z:
                 target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith(".csv")), None)
-                if not target: target = next((n for n in z.namelist() if n.lower().endswith(".csv")), None)
+                if not target:
+                    target = next((n for n in z.namelist() if n.lower().endswith(".csv")), None)
                 if target:
-                    with z.open(target) as f: df = pd.read_csv(f, sep='\t', dtype=str)
+                    with z.open(target) as f:
+                        df = pd.read_csv(f, sep='\t', dtype=str)
     except Exception as e:
-        st.error(f"Error reading file: {e}"); return None
+        st.error(f"Error reading file: {e}")
+        return None
     return df
 
+
+# FIX: Added @st.cache_data to prevent re-reading the CSV on every Streamlit rerun.
+@st.cache_data(ttl=300)
 def load_accounts():
     accounts = []
-    if not os.path.exists(CREDENTIALS_FILE): return accounts
+    if not os.path.exists(CREDENTIALS_FILE):
+        return accounts
     for enc in ['utf-8-sig', 'cp1252', 'iso-8859-1']:
         try:
             with open(CREDENTIALS_FILE, mode="r", encoding=enc) as f:
@@ -83,308 +87,259 @@ def load_accounts():
                 reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
                 for row in reader:
                     cleaned_row = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
-                    
-                    # ---> YANG DIUBAH DI SINI: Nggak perlu ngecek kolom password lagi
                     if "user_id" in cleaned_row and "Distributor" in cleaned_row:
                         accounts.append(cleaned_row)
-                        
                 return accounts
         except (UnicodeDecodeError, TypeError):
             continue
     return accounts
 
+
 @st.cache_resource
 def ensure_playwright():
-    try: 
-        # Panggil installer pakai sys.executable biar sistem nggak nyasar nyari path-nya
+    try:
         subprocess.run(
-            [sys.executable, "-m", "playwright", "install", "chromium"], 
+            [sys.executable, "-m", "playwright", "install", "chromium"],
             check=True
         )
-    except Exception as e: 
-        st.error(f"Gagal install engine browser: {e}")
+    except Exception as e:
+        st.error(f"Failed to install browser engine: {e}")
 
-# --- 4. STATE MANAGEMENT & CUSTOM CSS ANIMATION ---
-if 'app_page' not in st.session_state: st.session_state.app_page = "Reconcile"
-if 'reconcile_result' not in st.session_state: st.session_state.reconcile_result = None
-if 'reconcile_summary' not in st.session_state: st.session_state.reconcile_summary = None
 
-# CSS SUPER LOG: Update dengan warna teks #f0f6fc
+# FIX: Extracted repeated inline badge HTML into a single reusable helper.
+def make_badge(text: str, bg_color: str, text_color: str) -> str:
+    return (
+        f"<div style='background-color:{bg_color};color:{text_color};"
+        f"padding:8px 12px;border-radius:6px;font-weight:500;"
+        f"font-size:0.9rem;margin-top:4px;'>{text}</div>"
+    )
+
+
+# --- 4. STATE MANAGEMENT ---
+if 'app_page' not in st.session_state:
+    st.session_state.app_page = "Reconcile"
+if 'reconcile_result' not in st.session_state:
+    st.session_state.reconcile_result = None
+if 'reconcile_summary' not in st.session_state:
+    st.session_state.reconcile_summary = None
+
+# --- 5. CUSTOM CSS: Modern Tailwind-style blue theme ---
+# Changes from original:
+#   - All #FF1B6B (neon pink) → #3b82f6 (blue-500)
+#   - All #d41459 (dark pink) → #1d4ed8 (blue-700)
+#   - Removed CRT scanlines background effect
+#   - Removed flicker animation from typewriter
+#   - Removed pulsing glow on metric values
+#   - HR → thin 1px subtle gradient, no animation
+#   - Scrollbar → blue
+#   - Buttons → clean Tailwind blue style
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+    /* Terminal log box */
     .terminal-box {
-        background-color: transparent; 
-        color: #f0f6fc; /* Teks default terminal (kalau ada yang bocor dari class) */
-        font-family: 'Consolas', 'Courier New', monospace;
-        font-size: 0.85rem;
-        padding: 5px 0px; 
-        border: none; 
-        box-shadow: none; 
+        background-color: transparent;
+        color: #f0f6fc;
+        font-family: 'IBM Plex Mono', 'Consolas', 'Courier New', monospace;
+        font-size: 0.82rem;
+        padding: 5px 0;
+        border: none;
+        box-shadow: none;
         height: 350px;
         overflow-y: auto;
-        line-height: 1.7;
-        -ms-overflow-style: none;  
-        scrollbar-width: none;  
+        line-height: 1.8;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
     }
     .terminal-box::-webkit-scrollbar { display: none; }
+
     .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #10b981; }
     @keyframes blinker { 50% { opacity: 0; } }
-    
-    /* Log Styling Details (Aligned Columns) */
-    .log-time { display: inline-block; width: 85px; color: #64748b; }
-    .log-ms { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem;}
-    .log-tag { display: inline-block; width: 95px; font-weight: bold; }
-    
-    .tag-sys { color: #a855f7; }
-    .tag-auth { color: #eab308; }
-    .tag-nav { color: #3b82f6; }
-    .tag-inject { color: #06b6d4; }
-    .tag-success { color: #22c55e; }
-    .tag-error { color: #ef4444; }
-    .tag-server { color: #f43f5e; }
-    
-    /* Request Warna Teks Custom #f0f6fc */
-    .log-msg { color: #f0f6fc; font-weight: 500; }
-    
-    /* TOMBOL BYPASS (Secondary Button) NEON PINK */
-    button[kind="secondary"] {
-        background-color: #FF1B6B !important;
-        color: #ffffff !important;
-        border: none !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
-    }
-    button[kind="secondary"]:hover {
-        background-color: #d41459 !important;
-        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important;
-    }
 
-    /* TOMBOL PROCEED (Primary Button) NEON PINK */
+    /* Log column alignment */
+    .log-time   { display: inline-block; width: 85px; color: #64748b; }
+    .log-ms     { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem; }
+    .log-tag    { display: inline-block; width: 95px; font-weight: bold; }
+    .log-msg    { color: #f0f6fc; font-weight: 500; }
+
+    .tag-sys     { color: #a855f7; }
+    .tag-auth    { color: #eab308; }
+    .tag-nav     { color: #3b82f6; }
+    .tag-inject  { color: #06b6d4; }
+    .tag-success { color: #22c55e; }
+    .tag-error   { color: #ef4444; }
+    .tag-server  { color: #f43f5e; }
+
+    /* Primary button: blue-600 */
     button[kind="primary"] {
-        background-color: #FF1B6B !important;
+        background-color: #2563eb !important;
         color: #ffffff !important;
         border: none !important;
         font-weight: 700 !important;
-        letter-spacing: 1px !important;
+        letter-spacing: 0.5px !important;
         text-transform: uppercase !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.2s ease !important;
+        border-radius: 6px !important;
     }
-
     button[kind="primary"]:hover {
-        background-color: #d41459 !important;
-        box-shadow: 0 0 20px rgba(255, 27, 107, 0.8) !important;
-        transform: translateY(-2px) !important;
+        background-color: #1d4ed8 !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+        transform: translateY(-1px) !important;
     }
-
     button[kind="primary"]:active {
-        transform: translateY(0px) !important;
+        transform: translateY(0) !important;
     }
 
-    /* TYPEWRITER KHUSUS SUBTITLE (DENGAN JEDA 5 DETIK) */
+    /* Secondary button: blue outline */
+    button[kind="secondary"] {
+        background-color: transparent !important;
+        color: #3b82f6 !important;
+        border: 1.5px solid #3b82f6 !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+        border-radius: 6px !important;
+    }
+    button[kind="secondary"]:hover {
+        background-color: #eff6ff !important;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.2) !important;
+    }
+
+    /* Typewriter subtitle — no flicker, just clean type + caret */
     .typewriter-sub {
-        font-family: 'JetBrainsMono', monospace;
-        font-size: 1rem;       
-        color: #8b949e;        
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 1rem;
+        color: #8b949e;
         overflow: hidden;
-        border-right: 0.15em solid #FF1B6B; /* Ini kursornya */
+        border-right: 0.12em solid #3b82f6;
         white-space: nowrap;
         margin: 0;
-        /* Pemanggilan 2 animasi sekaligus: ngetik & ngedip */
         animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
     }
 
-    /* 1. ANIMASI TEKS MAJU MUNDUR & JEDA */
     @keyframes typing-sub {
-        /* 0% ke 30% (3 detik): Proses ngetik 29 karakter */
         0%   { width: 0; animation-timing-function: steps(29, end); }
-        
-        /* 30% ke 80% (5 detik): Teks diem full 29 karakter */
         30%  { width: 29ch; animation-timing-function: step-end; }
         80%  { width: 29ch; animation-timing-function: steps(29, end); }
-        
-        /* 80% ke 100% (2 detik): Proses hapus karakter ke 0 */
         100% { width: 0; }
     }
 
-    /* 2. ANIMASI KURSOR KEDAP-KEDIP (INI YANG BIKIN NGEDIP BRE!) */
     @keyframes blink-caret {
         from, to { border-color: transparent; }
-        50% { border-color: #FF1B6B; }
+        50%       { border-color: #3b82f6; }
     }
 
-    /* 1. EFEK MUNCUL MULUS PAS HALAMAN DIBUKA */
+    /* Page-load stagger */
     @keyframes fadeSlideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
-    
-    /* Nerapin efek ke semua blok utama di Streamlit */
     [data-testid="stVerticalBlock"] > div {
-        animation: fadeSlideUp 0.6s ease-out backwards;
+        animation: fadeSlideUp 0.5s ease-out backwards;
     }
-    
-    /* Bikin efek berurutan (cascade) biar munculnya gantian */
-    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.1s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.2s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.05s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.10s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.15s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.20s; }
 
-    /* 3. LIVE STATUS RADAR */
+    /* LIVE dot indicator */
     .live-indicator {
         display: inline-flex;
         align-items: center;
-        color: #4ade80; /* Hijau matrix */
-        font-family: 'JetBrainsMono', monospace;
+        color: #4ade80;
+        font-family: 'IBM Plex Mono', monospace;
         font-weight: 700;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
     }
     .live-indicator::before {
         content: '';
         display: inline-block;
-        width: 10px; height: 10px;
+        width: 8px;
+        height: 8px;
         background-color: #4ade80;
         border-radius: 50%;
-        margin-right: 8px;
-        box-shadow: 0 0 10px #4ade80;
-        animation: pulse-radar 1.2s infinite alternate;
+        margin-right: 7px;
+        box-shadow: 0 0 6px #4ade80;
+        animation: pulse-radar 1.4s infinite alternate;
     }
     @keyframes pulse-radar {
-        from { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 5px #4ade80; }
-        to { transform: scale(1.3); opacity: 1; box-shadow: 0 0 15px #4ade80; }
+        from { transform: scale(0.8); opacity: 0.6; }
+        to   { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #4ade80; }
     }
 
-    /* 2. NEON BREATHING DIVIDER */
+    /* Divider: thin, no animation */
     hr {
         border: none !important;
-        height: 2px !important;
-        background: linear-gradient(90deg, transparent, #FF1B6B, transparent) !important;
-        animation: pulse-divider 2s infinite alternate !important;
-        margin-top: 2rem !important;
-        margin-bottom: 2rem !important;
+        height: 1px !important;
+        background: linear-gradient(90deg, transparent, #3b82f6, transparent) !important;
+        opacity: 0.35 !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
     }
 
-    @keyframes pulse-divider {
-        0% { opacity: 0.3; filter: drop-shadow(0 0 2px #FF1B6B); }
-        100% { opacity: 1; filter: drop-shadow(0 0 10px #FF1B6B); }
-    }
+    /* Text selection */
+    ::selection      { background: #3b82f6 !important; color: #ffffff !important; }
+    ::-moz-selection { background: #3b82f6 !important; color: #ffffff !important; }
 
-    /* 2. EFEK MONITOR TABUNG JADUL (SCANLINES) */
-    [data-testid="stAppViewContainer"] {
-        background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.15) 50%) !important;
-        background-size: 100% 4px !important;
-    }
+    /* Scrollbar */
+    *::-webkit-scrollbar       { width: 6px !important; height: 6px !important; background-color: transparent !important; }
+    *::-webkit-scrollbar-track { background-color: rgba(255,255,255,0.04) !important; border-radius: 10px !important; }
+    *::-webkit-scrollbar-thumb { background-color: #3b82f6 !important; border-radius: 10px !important; }
+    *::-webkit-scrollbar-thumb:hover { background-color: #2563eb !important; }
+    * { scrollbar-width: thin !important; scrollbar-color: #3b82f6 transparent !important; }
 
-    /* 1. HACKER TEXT SELECTION */
-    ::selection {
-        background: #FF1B6B !important;
-        color: #000000 !important;
-        text-shadow: none !important;
-    }
-    ::-moz-selection { /* Buat yang pake Firefox */
-        background: #FF1B6B !important;
-        color: #000000 !important;
-        text-shadow: none !important;
-    }
-
-    /* 2. CYBERPUNK SCROLLBAR (BRUTE FORCE OVERRIDE) */
-    
-    /* Buat Chrome, Edge, Safari, Brave */
-    *::-webkit-scrollbar {
-        width: 8px !important;
-        height: 8px !important; /* Buat scroll bawah (horizontal) kalau ada */
-        background-color: #0d1117 !important;
-    }
-    *::-webkit-scrollbar-track {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 10px !important;
-    }
-    *::-webkit-scrollbar-thumb {
-        background-color: #FF1B6B !important;
-        border-radius: 10px !important;
-        border: 2px solid #0d1117 !important; /* Kasih ilusi jarak biar elegan */
-    }
-    *::-webkit-scrollbar-thumb:hover {
-        background-color: #d41459 !important;
-    }
-
-    /* Buat Firefox */
-    * {
-        scrollbar-width: thin !important;
-        scrollbar-color: #FF1B6B #0d1117 !important;
-    }
-
-    /* 3. CYBERPUNK RUNNING STATUS (Pojok Kanan Atas) */
+    /* Status widget */
     [data-testid="stStatusWidget"] {
-        background-color: #0d1117 !important; /* Warna gelap terminal */
-        border: 1px solid #FF1B6B !important;
-        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important; /* Glow neon pink */
+        background-color: #0f172a !important;
+        border: 1px solid #3b82f6 !important;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.25) !important;
         border-radius: 4px !important;
         padding: 2px 10px !important;
-        animation: status-pulse 1s infinite alternate !important;
     }
-
-    /* Ubah warna teks dan icon loadingnya jadi pink */
     [data-testid="stStatusWidget"] * {
-        color: #FF1B6B !important;
-        font-family: 'JetBrainsMono', monospace !important;
+        color: #3b82f6 !important;
+        font-family: 'IBM Plex Mono', monospace !important;
         font-weight: bold !important;
-        letter-spacing: 1px !important;
+        letter-spacing: 0.5px !important;
     }
 
-    @keyframes status-pulse {
-        from { box-shadow: 0 0 5px rgba(255, 27, 107, 0.4); }
-        to { box-shadow: 0 0 20px rgba(255, 27, 107, 0.8); }
-    }
-    
-    /* BONUS: Kasih garis laser statis di paling atas layar biar tetep sangar */
+    /* Header accent */
     header[data-testid="stHeader"] {
-        border-top: 2px solid #FF1B6B !important;
-        box-shadow: 0 -5px 20px #FF1B6B !important;
+        border-bottom: 1px solid rgba(59, 130, 246, 0.25) !important;
     }
 
-    /* 2. TYPEWRITER + FLICKER SYNC */
+    /* Main typewriter — clean, no flicker */
     .typewriter {
-        font-family: 'JetBrainsMono', monospace;
+        font-family: 'IBM Plex Mono', monospace;
         font-size: 1.6rem;
         font-weight: 700;
         color: #f0f6fc;
         overflow: hidden;
-        border-right: 0.15em solid #FF1B6B;
+        border-right: 0.12em solid #3b82f6;
         white-space: nowrap;
-        margin: 0; 
+        margin: 0;
         padding-right: 5px;
-        width: max-content; 
-        
-        /* Gabungin 3 animasi: ngetik, kursor ngedip, dan lampu rusak (flicker) */
-        animation: 
-            typing 3s steps(25, end) infinite alternate, 
-            blink-caret .75s step-end infinite,
-            flicker-force 5s linear infinite !important;
+        width: max-content;
+        animation: typing 3s steps(25, end) infinite alternate, blink-caret .75s step-end infinite;
+    }
+    @keyframes typing {
+        from { width: 0; }
+        to   { width: 100%; }
     }
 
-    /* Keyframe Flicker yang lebih agresif biar kerasa rusaknya */
-    @keyframes flicker-force {
-        0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 10px #FF1B6B; }
-        20%, 24%, 55% { opacity: 0.2; text-shadow: none; }
-    }
-
-    /* 1. DATA PULSE BRUTE FORCE */
-    [data-testid="stMetricValue"], 
+    /* Metric values: static blue, no pulsing glow */
+    [data-testid="stMetricValue"],
     [data-testid="stMetricValue"] > div {
-        color: #FF1B6B !important;
-        text-shadow: 0 0 5px #FF1B6B, 0 0 10px #FF1B6B !important;
-        animation: pulse-metric-force 2s infinite alternate !important;
+        color: #3b82f6 !important;
+        font-weight: 700 !important;
         display: block !important;
-    }
-
-    @keyframes pulse-metric-force {
-        0% { opacity: 0.7; filter: drop-shadow(0 0 2px #FF1B6B); }
-        100% { opacity: 1; filter: drop-shadow(0 0 15px #FF1B6B); }
     }
     </style>
 """, unsafe_allow_html=True)
 
-# ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
+
+# ─── 6. PAGE: RECONCILE ──────────────────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
     st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
@@ -392,8 +347,10 @@ if st.session_state.app_page == "Reconcile":
     st.markdown("---")
 
     col1, col2 = st.columns(2)
-    with col1: file1 = st.file_uploader("Upload File Stock Newspage", type=['csv', 'xlsx', 'zip'])
-    with col2: file2 = st.file_uploader("Upload File Stock Distributor", type=['csv', 'xlsx'])
+    with col1:
+        file1 = st.file_uploader("Upload Newspage stock file", type=['csv', 'xlsx', 'zip'])
+    with col2:
+        file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
 
     if file1 and file2:
         st.divider()
@@ -403,28 +360,42 @@ if st.session_state.app_page == "Reconcile":
         if df1 is not None and df2 is not None:
             c1, c2 = st.columns(2)
             with c1:
-                st.subheader("Newspage Setup")
+                st.subheader("Newspage setup")
                 idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
-                
-                if 'Product Description' in df1.columns: idx_desc1 = df1.columns.get_loc('Product Description')
-                elif 'Product Name' in df1.columns: idx_desc1 = df1.columns.get_loc('Product Name')
-                else: idx_desc1 = 1 if len(df1.columns) > 1 else 0
-                    
-                idx_qty1 = df1.columns.get_loc('Stock Available') if 'Stock Available' in df1.columns else (2 if len(df1.columns) > 2 else 0)
-                
-                sku_col1 = st.selectbox("Kolom SKU (NP)", df1.columns, index=idx_sku1)
-                desc_col1 = st.selectbox("Kolom Deskripsi (NP)", df1.columns, index=idx_desc1)
-                qty_col1 = st.selectbox("Kolom Qty (NP)", df1.columns, index=idx_qty1)
-            
+
+                if 'Product Description' in df1.columns:
+                    idx_desc1 = df1.columns.get_loc('Product Description')
+                elif 'Product Name' in df1.columns:
+                    idx_desc1 = df1.columns.get_loc('Product Name')
+                else:
+                    idx_desc1 = 1 if len(df1.columns) > 1 else 0
+
+                idx_qty1 = (
+                    df1.columns.get_loc('Stock Available')
+                    if 'Stock Available' in df1.columns
+                    else (2 if len(df1.columns) > 2 else 0)
+                )
+
+                sku_col1  = st.selectbox("SKU column (NP)", df1.columns, index=idx_sku1)
+                desc_col1 = st.selectbox("Description column (NP)", df1.columns, index=idx_desc1)
+                qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
+
             with c2:
-                st.subheader("Distributor Setup")
+                st.subheader("Distributor setup")
+                # Fallback index 20: typical SKU position in distributor export format
                 idx_sku2 = 20 if len(df2.columns) > 20 else 0
-                qty2_col_match = next((col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"), None)
-                if qty2_col_match: idx_qty2 = df2.columns.get_loc(qty2_col_match)
-                else: idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
-                
-                sku_col2 = st.selectbox("Kolom SKU (Dist)", df2.columns, index=idx_sku2)
-                qty_col2 = st.selectbox("Kolom Qty (Dist)", df2.columns, index=idx_qty2)
+                qty2_col_match = next(
+                    (col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"),
+                    None
+                )
+                if qty2_col_match:
+                    idx_qty2 = df2.columns.get_loc(qty2_col_match)
+                else:
+                    # Fallback index 71: typical closing stock position in distributor export
+                    idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
+
+                sku_col2 = st.selectbox("SKU column (Dist)", df2.columns, index=idx_sku2)
+                qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
 
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Compare Stock", type="primary", use_container_width=True):
@@ -433,8 +404,12 @@ if st.session_state.app_page == "Reconcile":
                 d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
                 d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
                 d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
-                
-                d1_agg = d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Deskripsi', qty_col1: 'Newspage'})
+                d1_agg = (
+                    d1.groupby(sku_col1)
+                    .agg({desc_col1: 'first', qty_col1: 'sum'})
+                    .reset_index()
+                    .rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'})
+                )
 
                 d2 = df2[[sku_col2, qty_col2]].copy()
                 d2 = d2.dropna(subset=[sku_col2])
@@ -442,41 +417,47 @@ if st.session_state.app_page == "Reconcile":
                 d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
                 d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
                 d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0)
-                
-                d2_agg = d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'})
+                d2_agg = (
+                    d2.groupby(sku_col2)[qty_col2]
+                    .sum()
+                    .reset_index()
+                    .rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'})
+                )
 
                 merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
                 merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
-                merged['Deskripsi'] = merged['Deskripsi'].fillna('ITEM NOT IN MASTER')
+                merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
                 merged['Selisih'] = merged['Distributor'] - merged['Newspage']
                 merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
 
                 mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
-                
+
                 if len(mismatches) == 0:
-                    st.success("Analysis Complete: Semua data Match!")
+                    st.success("Analysis complete: all items matched!")
                 else:
-                    valid_mismatches = mismatches[mismatches['Deskripsi'] != 'ITEM NOT IN MASTER'].copy()
+                    valid_mismatches = mismatches[mismatches['Description'] != 'ITEM NOT IN MASTER'].copy()
                     st.session_state.reconcile_summary = {
-                        'total_match': len(merged[merged['Selisih'] == 0]),
+                        'total_match':    len(merged[merged['Selisih'] == 0]),
                         'total_mismatch': len(mismatches),
-                        'df_view': mismatches[['SKU', 'Deskripsi', 'Newspage', 'Distributor', 'Selisih', 'Status']]
+                        'df_view':        mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]
                     }
-                    
                     valid_mismatches['Selisih_Clean'] = valid_mismatches['Selisih'].astype(int)
-                    transfer_df = valid_mismatches[['SKU', 'Selisih_Clean']].rename(columns={'SKU': 'sku', 'Selisih_Clean': 'qty'})
+                    transfer_df = (
+                        valid_mismatches[['SKU', 'Selisih_Clean']]
+                        .rename(columns={'SKU': 'sku', 'Selisih_Clean': 'qty'})
+                    )
                     st.session_state.reconcile_result = transfer_df
                     st.session_state.app_page = "Bot"
                     st.rerun()
 
-    # st.markdown("---")
     if st.button("Stock Adjustment"):
         st.session_state.reconcile_result = None
         st.session_state.reconcile_summary = None
         st.session_state.app_page = "Bot"
         st.rerun()
 
-# ─── 6. HALAMAN STEP 2: STOCK ADJUSTMENT BOT ────────────────────────────────
+
+# ─── 7. PAGE: STOCK ADJUSTMENT BOT ───────────────────────────────────────────
 elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
@@ -488,22 +469,22 @@ elif st.session_state.app_page == "Bot":
         if st.button("Compare Stock", use_container_width=True):
             st.session_state.app_page = "Reconcile"
             st.rerun()
-            
+
     st.markdown("---")
 
     if st.session_state.reconcile_summary is not None:
-        st.subheader("Review Data Stock")
+        st.subheader("Stock review")
         m1, m2 = st.columns(2)
         m1.metric("Match", st.session_state.reconcile_summary['total_match'])
-        m2.metric("Stock Difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
+        m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
         st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True)
         st.markdown("---")
 
     st.subheader("Configuration")
     accounts = load_accounts()
-    
+
     if not accounts:
-        st.error(f"Data akun kosong. Pastikan file '{CREDENTIALS_FILE}' ada di sistem.")
+        st.error(f"No account data found. Ensure '{CREDENTIALS_FILE}' exists in the app directory.")
         st.stop()
 
     cfg_col1, cfg_col2 = st.columns(2)
@@ -512,122 +493,126 @@ elif st.session_state.app_page == "Bot":
         selected_acc_str = st.selectbox(
             "Select Distributor / User ID",
             options=[f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts],
-            index=None, placeholder="-- Select Account --"
+            index=None,
+            placeholder="-- Select account --"
         )
-        
+
         selected_account = None
-        user_password = "" # Bikin variabel nampung password
+        user_password = ""
 
         if selected_acc_str:
-            selected_account = next(acc for acc in accounts if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str)
-            
-            # --- TAMBAHAN BARU: INPUT PASSWORD MUNCUL SETELAH AKUN DIPILIH ---
-            user_password = st.text_input(
-                f"Enter Password for {selected_account['user_id']}:", 
-                type="password", 
-                placeholder="Password Accenture..."
+            selected_account = next(
+                acc for acc in accounts
+                if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str
             )
-            
-            # Badge Account Active muncul kalau password udah diisi (minimal 3 karakter)
+            user_password = st.text_input(
+                f"Password for {selected_account['user_id']}:",
+                type="password",
+                placeholder="Enter password..."
+            )
             if len(user_password) > 3:
-                st.markdown(f"<div style='background-color: #143521; color: #4ade80; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Password Set : {selected_account['Distributor']} (Validation Password on Run)</div>", unsafe_allow_html=True)
+                st.markdown(make_badge(
+                    f"Password set — {selected_account['Distributor']} (validated on run)",
+                    "#0f2f1d", "#4ade80"
+                ), unsafe_allow_html=True)
             else:
-                 st.markdown(f"<div style='background-color: #fbbf24; color: #713f12; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; margin-top: 4px;'>Waiting for Password to be entered...</div>", unsafe_allow_html=True)
+                st.markdown(make_badge(
+                    "Waiting for password...",
+                    "#1e1b4b", "#a5b4fc"
+                ), unsafe_allow_html=True)
 
     with cfg_col2:
         df_to_process = None
         if st.session_state.reconcile_result is not None:
-            st.text_input("Data Source", value="Data is automatically loaded from Compare Stock", disabled=True)
+            st.text_input("Data source", value="Auto-loaded from Compare Stock", disabled=True)
             df_to_process = st.session_state.reconcile_result
-            st.markdown(f"<div style='background-color: #082f49; color: #38bdf8; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Total Item: {len(df_to_process)} Product is ready to be processed</div>", unsafe_allow_html=True)
+            st.markdown(make_badge(
+                f"{len(df_to_process)} products ready to process",
+                "#082f49", "#38bdf8"
+            ), unsafe_allow_html=True)
         else:
-            uploaded_file = st.file_uploader("Data Source (Upload CSV/Excel)", type=["csv", "xlsx", "xls"])
+            uploaded_file = st.file_uploader("Data source (CSV / Excel)", type=["csv", "xlsx", "xls"])
             if uploaded_file is not None:
-                try: 
-                    # Baca format sesuai ekstensi file
+                try:
                     filename = uploaded_file.name.lower()
                     if filename.endswith('.csv'):
                         df_to_process = pd.read_csv(uploaded_file, dtype=str)
                     else:
                         df_to_process = pd.read_excel(uploaded_file, dtype=str)
-                    
-                    # Auto-fix: paksa semua nama kolom jadi huruf kecil & buang spasi
                     df_to_process.columns = [str(c).strip().lower() for c in df_to_process.columns]
-                    
-                    # Validasi wajib ada kolom sku & qty
                     if 'sku' in df_to_process.columns and 'qty' in df_to_process.columns:
-                        st.markdown(f"<div style='background-color: #082f49; color: #38bdf8; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Total Item: {len(df_to_process)} Product is ready to be processed</div>", unsafe_allow_html=True)
+                        st.markdown(make_badge(
+                            f"{len(df_to_process)} products ready to process",
+                            "#082f49", "#38bdf8"
+                        ), unsafe_allow_html=True)
                     else:
-                        st.error("Format salah! Header kolom harus bernama 'sku' dan 'qty'.")
+                        st.error("Invalid format — column headers must be named 'sku' and 'qty'.")
                         df_to_process = None
-                        
-                except Exception as e: 
-                    st.error(f"Gagal membaca file: {e}")
+                except Exception as e:
+                    st.error(f"Failed to read file: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    # Tambahin syarat user_password nggak boleh kosong
     is_ready = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
-    # st.markdown("---")
-    st.subheader("Product Table")
+    st.subheader("Product table")
 
     if not is_ready:
-        st.warning("Select an account and make sure the data is available before running the bot.")
+        st.warning("Select an account and ensure data is available before running the bot.")
         st.stop()
 
     df_view = df_to_process.copy()
-    if 'Status' not in df_view.columns: df_view['Status'] = 'Pending'
-    if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = '-'
+    if 'Status' not in df_view.columns:
+        df_view['Status'] = 'Pending'
+    if 'Keterangan' not in df_view.columns:
+        df_view['Keterangan'] = '-'
 
     table_placeholder = st.dataframe(df_view, use_container_width=True)
-    
+
     st.markdown("Log:")
     log_placeholder = st.empty()
 
     if run_button:
-        with st.spinner("Initializing Chromium engine..."): 
+        with st.spinner("Initializing Chromium engine..."):
             ensure_playwright()
-            
+
         logs_history = []
         last_log_time = [time.time()]
-        
+
         def ui_log(module, msg):
             now = time.time()
             diff_ms = int((now - last_log_time[0]) * 1000)
             last_log_time[0] = now
-            
             timestamp = time.strftime('%H:%M:%S')
             tag_class = f"tag-{module.lower()}"
-            
-            new_log = f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>"
-            
+            new_log = (
+                f"<span class='log-time'>[{timestamp}]</span>"
+                f"<span class='log-ms'>[+{diff_ms}ms]</span>"
+                f"<span class='log-tag {tag_class}'>[{module}]</span>"
+                f"<span class='log-msg'>{msg}</span>"
+            )
             logs_history.append(new_log)
             display_logs = "<br>".join(logs_history[-100:])
-            
             html_content = f"""
             <div class="terminal-box" id="term_box">
                 {display_logs}
-                <br><span class="blink_me">█</span>
+                <br><span class="blink_me">&#9608;</span>
             </div>
             <script>
-                var termBox = window.parent.document.getElementById('term_box');
-                if (!termBox) termBox = document.getElementById('term_box');
-                if (termBox) {{
-                    termBox.scrollTop = termBox.scrollHeight;
-                }}
+                var t = window.parent.document.getElementById('term_box') || document.getElementById('term_box');
+                if (t) t.scrollTop = t.scrollHeight;
             </script>
             """
             log_placeholder.markdown(html_content, unsafe_allow_html=True)
 
         global_start_time = time.time()
         success_count, failed_count = 0, 0
-        user_id = selected_account["user_id"]
-        password = user_password  # Tarik password dari input teks, bukan dari file CSV lagi!
+        user_id  = selected_account["user_id"]
+        password = user_password
 
         ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
         try:
-            if sys.platform == "win32": 
+            if sys.platform == "win32":
                 asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
             asyncio.set_event_loop(asyncio.new_event_loop())
 
@@ -636,121 +621,136 @@ elif st.session_state.app_page == "Bot":
                 browser = p.chromium.launch(headless=True)
                 context = browser.new_context(no_viewport=True)
                 page = context.new_page()
-                
+
                 # --- Login ---
-                ui_log("AUTH", f"Resolving DNS and establishing connection to {URL_LOGIN}...")
+                ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
                 page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                
-                ui_log("AUTH", "DOM State: interactive. Parsing login nodes...")
+                ui_log("AUTH", "DOM ready. Filling credentials...")
                 page.locator("id=txtUserid").fill(user_id)
-                ui_log("AUTH", f"Injected credential payload for user ID: {user_id}")
                 page.locator("id=txtPasswd").fill(password)
                 page.locator("id=btnLogin").click(force=True)
-                
+
+                # FIX: bare except → except Exception
                 try:
-                    ui_log("SYS", "Awaiting potential active-session interceptor...")
                     btn = page.locator("id=SYS_ASCX_btnContinue")
                     btn.wait_for(state="visible", timeout=5_000)
-                    ui_log("AUTH", "Interceptor triggered. Bypassing active session warning...")
+                    ui_log("AUTH", "Active session interceptor detected. Bypassing...")
                     btn.click(force=True)
-                except: 
+                except Exception:
                     ui_log("SYS", "No interceptor detected. Clean session acquired.")
-                    
-                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
-                ui_log("AUTH", "Credentials verified. Password match confirmed!")
-                ui_log("SUCCESS", "Handshake verified. Session established.")
 
-                # --- Navigasi ---
-                ui_log("NAV", "Dispatching click event to [Inventory -> Stock Adjustment] module...")
+                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                ui_log("AUTH", "Login successful. Session established.")
+                ui_log("SUCCESS", "Handshake verified.")
+
+                # --- Navigation ---
+                ui_log("NAV", "Navigating to Inventory > Stock Adjustment...")
                 page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
-                time.sleep(5)
-                
-                ui_log("NAV", "Requesting new document interface [Add Value]...")
+
+                # FIX: replaced time.sleep(5) with an explicit element wait
                 add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
                 add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
-                add_btn.click(force=True)
-                time.sleep(2)
-                
-                ui_log("NAV", f"Targeting localized routing: {WAREHOUSE} node...")
-                page.get_by_role("link", name=WAREHOUSE, exact=True).wait_for(state="visible", timeout=TIMEOUT_MS)
-                page.get_by_role("link", name=WAREHOUSE, exact=True).click(force=True)
-                page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
-                
-                ui_log("SYS", f"Applying internal adjustment protocol: Code [{REASON_CODE}]")
-                dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
-                if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
-                ui_log("SYS", "DOM fully rendered. Opening data stream for payload injection...")
 
-                # --- Looping Input ---
+                ui_log("NAV", "Opening new document [Add Value]...")
+                add_btn.click(force=True)
+
+                # FIX: replaced time.sleep(2) + duplicate locator call with a single stored variable
+                warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True)
+                warehouse_link.wait_for(state="visible", timeout=TIMEOUT_MS)
+                warehouse_link.click(force=True)
+
+                page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(
+                    state="visible", timeout=TIMEOUT_MS
+                )
+
+                ui_log("SYS", f"Applying adjustment protocol: code [{REASON_CODE}]...")
+                dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
+                if dropdown.is_enabled():
+                    dropdown.select_option(REASON_CODE)
+                ui_log("SYS", "Ready. Opening data stream for payload injection...")
+
+                # --- Main loop ---
                 progress_bar = st.progress(0)
                 total_rows = len(df_view)
-                
+
                 for i, (idx, row) in enumerate(df_view.iterrows()):
                     sku = str(row['sku']).strip()
-                    try: qty = str(int(float(row['qty'])))
-                    except: qty = str(row['qty']).strip()
-                        
-                    ui_log("INJECT", f"Fetching payload chunk {i+1}/{total_rows} -> Targeting Node: SKU [{sku}]")
                     try:
-                        page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").fill(sku)
-                        page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").press("Tab")
-                        time.sleep(1) 
-                        
-                        page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
-                        ui_log("INJECT", f"Node resolved. Assigning Value: {qty}")
+                        qty = str(int(float(row['qty'])))
+                    except Exception:
+                        qty = str(row['qty']).strip()
+
+                    ui_log("INJECT", f"Payload {i + 1}/{total_rows} -> SKU [{sku}]")
+                    try:
+                        sku_input = page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value")
+                        sku_input.fill(sku)
+                        sku_input.press("Tab")
+                        time.sleep(1)
+
+                        page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").wait_for(
+                            state="visible", timeout=TIMEOUT_MS
+                        )
+                        ui_log("INJECT", f"Assigning qty: {qty}")
                         page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").fill(qty)
-                        
                         page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
-                        ui_log("SYS", "Flushing buffer and awaiting system reset...")
-                        page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
-                        
+
+                        ui_log("SYS", "Awaiting form reset...")
+                        page.wait_for_function(
+                            "document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''",
+                            timeout=TIMEOUT_MS
+                        )
                         df_view.at[idx, 'Status'] = 'Success'
                         df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
                         success_count += 1
-                        ui_log("SUCCESS", "Transaction committed successfully to local cache.")
+                        ui_log("SUCCESS", "Row committed.")
+
                     except Exception:
                         df_view.at[idx, 'Status'] = 'Failed'
                         df_view.at[idx, 'Keterangan'] = 'Node Timeout'
                         failed_count += 1
-                        ui_log("ERROR", f"CRITICAL: Timeout querying node SKU [{sku}]. Segment bypassed.")
-                        
-                    progress_bar.progress((i + 1) / total_rows)
-                    table_placeholder.dataframe(df_view, use_container_width=True)
+                        ui_log("ERROR", f"Timeout on SKU [{sku}]. Skipping.")
 
-                ui_log("SERVER", "Data stream closed. Requesting master server validation...")
+                    progress_bar.progress((i + 1) / total_rows)
+
+                    # FIX: only re-render the table every N rows to reduce Streamlit overhead
+                    if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows - 1:
+                        table_placeholder.dataframe(df_view, use_container_width=True)
+
+                ui_log("SERVER", "Saving document to server...")
                 page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
+
+                # FIX: bare except → except Exception
                 try:
                     yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
                     yes_btn.wait_for(state="visible", timeout=5_000)
-                    ui_log("SERVER", "Master server requested confirmation logic. Bypassing...")
+                    ui_log("SERVER", "Confirming save dialog...")
                     yes_btn.click()
-                    ui_log("SERVER", "Final validation passed. Document physically written to database.")
-                except: 
-                    ui_log("SERVER", "Automatic validation passed. Document physically written to database.")
-                
-                ui_log("SYS", "Shutting down Chromium instances and clearing memory allocation...")
+                    ui_log("SERVER", "Document physically written to database.")
+                except Exception:
+                    ui_log("SERVER", "Auto-save confirmed. Document written to database.")
+
+                ui_log("SYS", "Closing browser and releasing memory...")
                 browser.close()
                 elapsed = int(time.time() - global_start_time)
-                ui_log("SUCCESS", f"EXECUTION TERMINATED NORMALLY. Total runtime: {elapsed//60}m {elapsed%60}s")
-                st.success(f"Success: {success_count} - Failed: {failed_count} - Elapsed Time: {elapsed//60}m {elapsed%60}s")
+                ui_log("SUCCESS", f"Complete. Total runtime: {elapsed // 60}m {elapsed % 60}s")
+                st.success(
+                    f"Done — Success: {success_count} | Failed: {failed_count} | "
+                    f"Time: {elapsed // 60}m {elapsed % 60}s"
+                )
                 if success_count > 0:
-                    # Efek notif melayang (Toast)
-                    st.toast('Connection Terminated')
+                    st.toast('Connection terminated')
                     time.sleep(0.5)
-                    st.toast('Data Injected Successfully')
+                    st.toast('Data injected successfully')
                     time.sleep(0.5)
-                    st.toast('System Override Complete!')
+                    st.toast('System override complete!')
                     st.session_state.reconcile_result = None
 
-        except PlaywrightTimeoutError as e:
-            # Error khusus kalau nunggu loading kelamaan (biasanya karena password salah)
-            st.error("Login Gagal: Password salah atau server target sedang tidak merespon (Timeout 30s).")
+        except PlaywrightTimeoutError:
+            st.error("Login failed: incorrect password or server timeout (30s).")
             ui_log("ERROR", "ACCESS DENIED: Handshake timeout. Invalid credentials or node unreachable.")
-            
+
         except Exception as e:
-            error_detail = traceback.format_exc()
             st.error("System halted due to an unexpected error.")
-            
-            # Bersihin pesan error bawaan Playwright biar nggak kepanjangan
             clean_error = str(e).split('===')[0].strip()
             ui_log("ERROR", f"SYSTEM FAILURE: {clean_error}")
+            ui_log("ERROR", traceback.format_exc().splitlines()[-1])
