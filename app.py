@@ -246,9 +246,10 @@ header[data-testid="stHeader"] {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   BUTTONS  — single solid system, no exceptions
+   BUTTONS  — scoped to kind-attributed buttons only
+   File uploader's internal button is explicitly excluded
 ══════════════════════════════════════════════════════════════════ */
-button {
+button[kind] {
     font-family: var(--f-sans) !important;
     border-radius: var(--r-sm) !important;
     transition: background-color 0.15s ease, box-shadow 0.15s ease,
@@ -306,6 +307,38 @@ button[kind="formSubmit"] {
 button[kind="formSubmit"]:hover {
     background-color: var(--c-hover) !important;
     box-shadow: 0 4px 16px rgba(37,99,235,0.4) !important;
+}
+
+/* ── FILE UPLOADER BROWSE BUTTON — restore icon + style cleanly ── */
+[data-testid="stFileUploaderDropzone"] button {
+    background-color: var(--c-raised) !important;
+    color: var(--c-text) !important;
+    border: 1px solid var(--c-border) !important;
+    border-radius: var(--r-sm) !important;
+    font-family: var(--f-sans) !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 14px !important;
+    transition: background-color 0.15s, border-color 0.15s !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover {
+    background-color: var(--c-surface) !important;
+    border-color: var(--c-accent) !important;
+    color: #fff !important;
+}
+/* Keep the upload SVG icon visible */
+[data-testid="stFileUploaderDropzone"] button svg {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    fill: currentColor !important;
+    width: 16px !important;
+    height: 16px !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -420,7 +453,7 @@ input::placeholder, textarea::placeholder {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   FILE UPLOADER
+   FILE UPLOADER DROPZONE
 ══════════════════════════════════════════════════════════════════ */
 [data-testid="stFileUploaderDropzone"] {
     background-color: var(--c-raised) !important;
@@ -433,8 +466,18 @@ input::placeholder, textarea::placeholder {
     background-color: #0d1e38 !important;
 }
 [data-testid="stFileUploaderDropzone"] span,
-[data-testid="stFileUploaderDropzone"] small {
+[data-testid="stFileUploaderDropzone"] small,
+[data-testid="stFileUploaderDropzone"] p {
     color: var(--c-muted) !important;
+    font-family: var(--f-sans) !important;
+    font-size: 0.83rem !important;
+}
+/* Uploaded file name chip */
+[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] {
+    background-color: var(--c-surface) !important;
+    border: 1px solid var(--c-border) !important;
+    border-radius: var(--r-sm) !important;
+    color: var(--c-text) !important;
     font-family: var(--f-sans) !important;
 }
 
