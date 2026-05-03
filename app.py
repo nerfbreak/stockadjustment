@@ -342,121 +342,52 @@ st.markdown("""
         box-shadow: 0 -5px 20px #FF1B6B !important;
     }
 
-    /* 2. FLICKER KHUSUS JUDUL (Efek Lampu Neon Rusak) */
-    .typewriter, h1 {
-        animation: flicker-force 5s linear infinite !important;
+    /* 2. TYPEWRITER + FLICKER SYNC */
+    .typewriter {
+        font-family: 'JetBrainsMono', monospace;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #f0f6fc;
+        overflow: hidden;
+        border-right: 0.15em solid #FF1B6B;
+        white-space: nowrap;
+        margin: 0; 
+        padding-right: 5px;
+        width: max-content; 
+        
+        /* Gabungin 3 animasi: ngetik, kursor ngedip, dan lampu rusak (flicker) */
+        animation: 
+            typing 3s steps(25, end) infinite alternate, 
+            blink-caret .75s step-end infinite,
+            flicker-force 5s linear infinite !important;
     }
 
+    /* Keyframe Flicker yang lebih agresif biar kerasa rusaknya */
     @keyframes flicker-force {
         0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 10px #FF1B6B; }
-        20%, 24%, 55% { opacity: 0.3; text-shadow: none; filter: blur(0.5px); }
+        20%, 24%, 55% { opacity: 0.2; text-shadow: none; }
     }
 
-    /* 1. DATA PULSE BRUTE FORCE (Hajar sampai ke akar) */
-    [data-testid="stMetricValue"] > div:nth-child(1), 
-    [data-testid="stMetric"] label {
+    /* 1. DATA PULSE BRUTE FORCE */
+    [data-testid="stMetricValue"], 
+    [data-testid="stMetricValue"] > div {
         color: #FF1B6B !important;
-        text-shadow: 0 0 5px #FF1B6B, 0 0 15px #FF1B6B !important;
+        text-shadow: 0 0 5px #FF1B6B, 0 0 10px #FF1B6B !important;
         animation: pulse-metric-force 2s infinite alternate !important;
+        display: block !important;
     }
 
     @keyframes pulse-metric-force {
-        0% { opacity: 0.8; filter: drop-shadow(0 0 2px #FF1B6B); transform: scale(1); }
-        100% { opacity: 1; filter: drop-shadow(0 0 12px #FF1B6B); transform: scale(1.02); }
-    }
-
-    /* EFEK MONITOR MELENGKUNG (VIGNETTE) */
-    [data-testid="stAppViewContainer"]::before {
-        content: " ";
-        position: fixed;
-        top: 0; left: 0; bottom: 0; right: 0;
-        background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.4) 100%);
-        pointer-events: none;
-        z-index: 10;
-    }
-
-    /* 1. BACKGROUND CODE RAIN (SUBTLE) */
-    [data-testid="stAppViewContainer"]::before {
-        content: "01010110 10010101 11010100 01010110 10010101 11010100";
-        position: fixed;
-        font-family: 'JetBrainsMono', monospace;
-        font-size: 10px;
-        color: rgba(255, 27, 107, 0.03); /* Pink super samar */
-        top: 0; left: 0; width: 100%; height: 100%;
-        white-space: pre-wrap;
-        word-break: break-all;
-        pointer-events: none;
-        z-index: -1;
-        animation: rain 20s linear infinite;
-    }
-
-    @keyframes rain {
-        from { transform: translateY(-10%); }
-        to { transform: translateY(10%); }
-    }
-
-    /* 2. DATAFRAME ROW GLITCH HOVER */
-    [data-testid="stDataFrame"] tr:hover {
-        background-color: rgba(255, 27, 107, 0.1) !important;
-        transition: all 0.2s ease;
-        box-shadow: inset 0 0 10px rgba(255, 27, 107, 0.2);
-    }
-    
-    [data-testid="stDataFrame"] td:hover {
-        color: #FF1B6B !important;
-        font-weight: bold !important;
-    }
-
-    /* 3. NEON PROGRESS BAR */
-    div[data-testid="stProgress"] > div > div > div > div {
-        background: linear-gradient(90deg, #FF1B6B, #a855f7) !important;
-        box-shadow: 0 0 15px rgba(255, 27, 107, 0.7) !important;
-        height: 6px !important;
-    }
-
-    /* 4. MOUSE GLOW FOLLOW (Hanya jalan di browser modern) */
-    html {
-        cursor: crosshair; /* Ganti cursor jadi target bidik */
-    }
-
-    body {
-        background-attachment: fixed;
-        background-image: radial-gradient(
-            circle at var(--mouse-x, 50%) var(--mouse-y, 50%), 
-            rgba(255, 27, 107, 0.08) 0%, 
-            transparent 20%
-        ) !important;
-    }
-
-    /* 5. NEON TOOLTIP */
-    div[data-testid="stTooltipContent"] {
-        background-color: #0d1117 !important;
-        color: #FF1B6B !important;
-        border: 1px solid #FF1B6B !important;
-        box-shadow: 0 0 10px rgba(255, 27, 107, 0.5) !important;
-        font-family: 'JetBrainsMono', monospace !important;
+        0% { opacity: 0.7; filter: drop-shadow(0 0 2px #FF1B6B); }
+        100% { opacity: 1; filter: drop-shadow(0 0 15px #FF1B6B); }
     }
     </style>
-)
 """, unsafe_allow_html=True)
-
-st.components.v1.html(
-    """
-    <script>
-    var root = window.parent.document.querySelector('body');
-    window.parent.addEventListener('mousemove', e => {
-        root.style.setProperty('--mouse-x', e.clientX + 'px');
-        root.style.setProperty('--mouse-y', e.clientY + 'px');
-    });
-    </script>
-    """,
-    height=0,
-)
 
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1 class='typewriter'>Compare Stock</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     st.markdown("---")
 
@@ -550,7 +481,7 @@ elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
         st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-        st.markdown("<h1 class='typewriter'>Stock Adjustment</h1>", unsafe_allow_html=True)
+        st.markdown("<h1>Stock Adjustment</h1>", unsafe_allow_html=True)
         st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     with hdr_col2:
         st.markdown("<br>", unsafe_allow_html=True)
