@@ -1,52 +1,34 @@
-[server]
-enableStaticServing = true
-
-[[theme.fontFaces]]
-family = "Inter"
-url = "app/static/Inter_18pt-Regular.ttf"
-style = "normal"
-weight = 400
-
-[[theme.fontFaces]]
-family = "Inter"
-url = "app/static/Inter_18pt-Medium.ttf"
-style = "normal"
-weight = 500
-
-[[theme.fontFaces]]
-family = "Inter"
-url = "app/static/Inter_18pt-SemiBold.ttf"
-style = "normal"
-weight = 600
-
-[[theme.fontFaces]]
-family = "Inter"
-url = "app/static/Inter_18pt-Bold.ttf"
-style = "normal"
-weight = 700
-
-[[theme.fontFaces]]
-family = "JetBrainsMono"
-url = "app/static/JetBrainsMono-Regular.ttf"
-style = "normal"
-weight = 400
-
-[[theme.fontFaces]]
-family = "JetBrainsMono"
-url = "app/static/JetBrainsMono-Medium.ttf"
-style = "normal"
-weight = 500
-
-[[theme.fontFaces]]
-family = "JetBrainsMono"
-url = "app/static/JetBrainsMono-Bold.ttf"
-style = "normal"
-weight = 700
+# ─────────────────────────────────────────────────────────────────────────────
+#  Streamlit config.toml  —  StockEngine Dark Blue Theme
+#  Place this file at:  .streamlit/config.toml
+# ─────────────────────────────────────────────────────────────────────────────
 
 [theme]
-primaryColor = "#FF1B6B"              
-backgroundColor = "#0d1117"           
-secondaryBackgroundColor = "#161b22"  
-textColor = "#f0f6fc"                 
-linkColor = "#58a6ff"                 
-borderColor = "#30363d"
+
+# ── Base ──────────────────────────────────────────────────────────────────────
+base              = "dark"
+
+# ── Colors ────────────────────────────────────────────────────────────────────
+primaryColor      = "#3b82f6"      # Blue-500  — buttons, links, accents
+backgroundColor   = "#070d1a"      # Deep navy — main background
+secondaryBackgroundColor = "#0d1526"  # Surface — sidebar, cards, inputs
+textColor         = "#e8eef8"      # Off-white — primary text
+
+# ── Font ──────────────────────────────────────────────────────────────────────
+# "sans serif" = uses your custom @import in the CSS (Outfit).
+# If you want Streamlit's native fallback, set to "monospace" (shows JetBrains Mono).
+font              = "sans serif"
+
+
+[server]
+# ── Performance ───────────────────────────────────────────────────────────────
+runOnSave         = false
+maxUploadSize     = 200           # MB — raise if ZIP uploads are large
+enableCORS        = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats  = false
+
+[runner]
+fastReruns        = true
