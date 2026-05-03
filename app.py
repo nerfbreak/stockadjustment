@@ -43,7 +43,7 @@ CREDENTIALS_FILE      = "users_2.csv"
 REASON_CODE           = "SA2"
 WAREHOUSE             = "GOOD_WHS"
 TIMEOUT_MS            = 30_000
-TABLE_UPDATE_INTERVAL = 5  # throttle table re-renders (was every row)
+TABLE_UPDATE_INTERVAL = 5
 
 # --- 3. HELPER FUNCTIONS ---
 
@@ -74,7 +74,6 @@ def load_data(file):
     return df
 
 
-# FIX: Added @st.cache_data to prevent re-reading the CSV on every Streamlit rerun.
 @st.cache_data(ttl=300)
 def load_accounts():
     accounts = []
@@ -106,7 +105,6 @@ def ensure_playwright():
         st.error(f"Failed to install browser engine: {e}")
 
 
-# FIX: Reusable solid-color box helper (modern badge)
 def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
     return (
         f"<div style='background-color:{bg_color};color:{text_color};"
@@ -124,22 +122,11 @@ if 'reconcile_result' not in st.session_state:
 if 'reconcile_summary' not in st.session_state:
     st.session_state.reconcile_summary = None
 
-# --- 5. CUSTOM CSS: Modern Tailwind-style blue theme ---
-# Changes from original:
-#   - All #FF1B6B (neon pink) → #3b82f6 (blue-500)
-#   - All #d41459 (dark pink) → #1d4ed8 (blue-700)
-#   - Removed CRT scanlines background effect
-#   - Removed flicker animation from typewriter
-#   - Removed pulsing glow on metric values
-#   - HR → thin 1px subtle gradient, no animation
-#   - Scrollbar → blue
-#   - Buttons → clean Tailwind blue style
-#   - Fonts: Inter for body, JetBrains Mono for terminal/code
+# --- 5. CUSTOM CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-    /* Terminal log box */
     .terminal-box {
         background-color: transparent;
         color: #f0f6fc;
@@ -159,7 +146,6 @@ st.markdown("""
     .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #10b981; }
     @keyframes blinker { 50% { opacity: 0; } }
 
-    /* Log column alignment */
     .log-time   { display: inline-block; width: 85px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
     .log-ms     { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
     .log-tag    { display: inline-block; width: 95px; font-weight: bold; font-family: 'JetBrains Mono', monospace; }
@@ -173,7 +159,6 @@ st.markdown("""
     .tag-error   { color: #ef4444; }
     .tag-server  { color: #f43f5e; }
 
-    /* Primary button: blue-600 */
     button[kind="primary"] {
         background-color: #2563eb !important;
         color: #ffffff !important;
@@ -190,11 +175,8 @@ st.markdown("""
         box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
         transform: translateY(-1px) !important;
     }
-    button[kind="primary"]:active {
-        transform: translateY(0) !important;
-    }
+    button[kind="primary"]:active { transform: translateY(0) !important; }
 
-    /* Secondary button: blue outline */
     button[kind="secondary"] {
         background-color: transparent !important;
         color: #3b82f6 !important;
@@ -209,7 +191,6 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(59, 130, 246, 0.2) !important;
     }
 
-    /* Typewriter subtitle — no flicker, just clean type + caret */
     .typewriter-sub {
         font-family: 'JetBrains Mono', monospace;
         font-size: 1rem;
@@ -220,20 +201,17 @@ st.markdown("""
         margin: 0;
         animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
     }
-
     @keyframes typing-sub {
         0%   { width: 0; animation-timing-function: steps(29, end); }
         30%  { width: 29ch; animation-timing-function: step-end; }
         80%  { width: 29ch; animation-timing-function: steps(29, end); }
         100% { width: 0; }
     }
-
     @keyframes blink-caret {
         from, to { border-color: transparent; }
         50%       { border-color: #3b82f6; }
     }
 
-    /* Page-load stagger */
     @keyframes fadeSlideUp {
         from { opacity: 0; transform: translateY(16px); }
         to   { opacity: 1; transform: translateY(0); }
@@ -246,7 +224,6 @@ st.markdown("""
     [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.15s; }
     [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.20s; }
 
-    /* LIVE dot indicator */
     .live-indicator {
         display: inline-flex;
         align-items: center;
@@ -272,7 +249,6 @@ st.markdown("""
         to   { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #4ade80; }
     }
 
-    /* Divider: thin, no animation */
     hr {
         border: none !important;
         height: 1px !important;
@@ -282,18 +258,15 @@ st.markdown("""
         margin-bottom: 1.5rem !important;
     }
 
-    /* Text selection */
     ::selection      { background: #3b82f6 !important; color: #ffffff !important; }
     ::-moz-selection { background: #3b82f6 !important; color: #ffffff !important; }
 
-    /* Scrollbar */
     *::-webkit-scrollbar       { width: 6px !important; height: 6px !important; background-color: transparent !important; }
     *::-webkit-scrollbar-track { background-color: rgba(255,255,255,0.04) !important; border-radius: 10px !important; }
     *::-webkit-scrollbar-thumb { background-color: #3b82f6 !important; border-radius: 10px !important; }
     *::-webkit-scrollbar-thumb:hover { background-color: #2563eb !important; }
     * { scrollbar-width: thin !important; scrollbar-color: #3b82f6 transparent !important; }
 
-    /* Status widget */
     [data-testid="stStatusWidget"] {
         background-color: #0f172a !important;
         border: 1px solid #3b82f6 !important;
@@ -308,12 +281,10 @@ st.markdown("""
         letter-spacing: 0.5px !important;
     }
 
-    /* Header accent */
     header[data-testid="stHeader"] {
         border-bottom: 1px solid rgba(59, 130, 246, 0.25) !important;
     }
 
-    /* Main typewriter — clean, no flicker */
     .typewriter {
         font-family: 'JetBrains Mono', monospace;
         font-size: 1.6rem;
@@ -332,7 +303,6 @@ st.markdown("""
         to   { width: 100%; }
     }
 
-    /* Metric values: static blue, no pulsing glow */
     [data-testid="stMetricValue"],
     [data-testid="stMetricValue"] > div {
         color: #3b82f6 !important;
@@ -340,7 +310,14 @@ st.markdown("""
         display: block !important;
     }
 
-    /* Global font fallback */
+    /* Container border styling agar blok kiri-kanan rapi */
+    div[data-testid="stContainer"] {
+        border: 1px solid rgba(59, 130, 246, 0.25);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+
     body, .stMarkdown, p, span, div {
         font-family: 'Inter', sans-serif;
     }
@@ -371,27 +348,23 @@ if st.session_state.app_page == "Reconcile":
             with c1:
                 st.subheader("Newspage setup")
                 idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
-
                 if 'Product Description' in df1.columns:
                     idx_desc1 = df1.columns.get_loc('Product Description')
                 elif 'Product Name' in df1.columns:
                     idx_desc1 = df1.columns.get_loc('Product Name')
                 else:
                     idx_desc1 = 1 if len(df1.columns) > 1 else 0
-
                 idx_qty1 = (
                     df1.columns.get_loc('Stock Available')
                     if 'Stock Available' in df1.columns
                     else (2 if len(df1.columns) > 2 else 0)
                 )
-
                 sku_col1  = st.selectbox("SKU column (NP)", df1.columns, index=idx_sku1)
                 desc_col1 = st.selectbox("Description column (NP)", df1.columns, index=idx_desc1)
                 qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
 
             with c2:
                 st.subheader("Distributor setup")
-                # Fallback index 20: typical SKU position in distributor export format
                 idx_sku2 = 20 if len(df2.columns) > 20 else 0
                 qty2_col_match = next(
                     (col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"),
@@ -400,9 +373,7 @@ if st.session_state.app_page == "Reconcile":
                 if qty2_col_match:
                     idx_qty2 = df2.columns.get_loc(qty2_col_match)
                 else:
-                    # Fallback index 71: typical closing stock position in distributor export
                     idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
-
                 sku_col2 = st.selectbox("SKU column (Dist)", df2.columns, index=idx_sku2)
                 qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
 
@@ -419,7 +390,6 @@ if st.session_state.app_page == "Reconcile":
                     .reset_index()
                     .rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'})
                 )
-
                 d2 = df2[[sku_col2, qty_col2]].copy()
                 d2 = d2.dropna(subset=[sku_col2])
                 d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
@@ -432,13 +402,11 @@ if st.session_state.app_page == "Reconcile":
                     .reset_index()
                     .rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'})
                 )
-
                 merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
                 merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
                 merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
                 merged['Selisih'] = merged['Distributor'] - merged['Newspage']
                 merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
-
                 mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
 
                 if len(mismatches) == 0:
@@ -491,81 +459,81 @@ elif st.session_state.app_page == "Bot":
 
     st.subheader("Configuration")
     accounts = load_accounts()
-
     if not accounts:
         st.error(f"No account data found. Ensure '{CREDENTIALS_FILE}' exists in the app directory.")
         st.stop()
 
     cfg_col1, cfg_col2 = st.columns(2)
 
+    # --- Kiri: container border agar rapi ---
     with cfg_col1:
-        selected_acc_str = st.selectbox(
-            "Select Distributor / User ID",
-            options=[f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts],
-            index=None,
-            placeholder="-- Select account --"
-        )
-
-        selected_account = None
-        user_password = ""
-
-        if selected_acc_str:
-            selected_account = next(
-                acc for acc in accounts
-                if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str
+        with st.container(border=True):
+            selected_acc_str = st.selectbox(
+                "Select Distributor / User ID",
+                options=[f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts],
+                index=None,
+                placeholder="-- Select account --"
             )
-            user_password = st.text_input(
-                f"Password for {selected_account['user_id']}:",
-                type="password",
-                placeholder="Enter password..."
-            )
-            if len(user_password) > 3:
+            selected_account = None
+            user_password = ""
+            if selected_acc_str:
+                selected_account = next(
+                    acc for acc in accounts
+                    if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str
+                )
+                user_password = st.text_input(
+                    f"Password for {selected_account['user_id']}:",
+                    type="password",
+                    placeholder="Enter password..."
+                )
+                if len(user_password) > 3:
+                    st.markdown(make_solid_box(
+                        f"Password set — {selected_account['Distributor']} (validated on run)",
+                        "#0f2f1d", "#4ade80"
+                    ), unsafe_allow_html=True)
+                else:
+                    st.markdown(make_solid_box(
+                        "Waiting for password...",
+                        "#1e1b4b", "#a5b4fc"
+                    ), unsafe_allow_html=True)
+
+    # --- Kanan: container border agar rapi ---
+    with cfg_col2:
+        with st.container(border=True):
+            df_to_process = None
+            if st.session_state.reconcile_result is not None:
+                st.text_input("Data source", value="Auto-loaded from Compare Stock", disabled=True)
+                df_to_process = st.session_state.reconcile_result
                 st.markdown(make_solid_box(
-                    f"Password set — {selected_account['Distributor']} (validated on run)",
-                    "#0f2f1d", "#4ade80"
+                    f"{len(df_to_process)} products ready to process",
+                    "#082f49", "#38bdf8"
                 ), unsafe_allow_html=True)
             else:
-                st.markdown(make_solid_box(
-                    "Waiting for password...",
-                    "#1e1b4b", "#a5b4fc"
-                ), unsafe_allow_html=True)
-
-    with cfg_col2:
-        df_to_process = None
-        if st.session_state.reconcile_result is not None:
-            st.text_input("Data source", value="Auto-loaded from Compare Stock", disabled=True)
-            df_to_process = st.session_state.reconcile_result
-            st.markdown(make_solid_box(
-                f"{len(df_to_process)} products ready to process",
-                "#082f49", "#38bdf8"
-            ), unsafe_allow_html=True)
-        else:
-            uploaded_file = st.file_uploader("Data source (CSV / Excel)", type=["csv", "xlsx", "xls"])
-            if uploaded_file is not None:
-                try:
-                    filename = uploaded_file.name.lower()
-                    if filename.endswith('.csv'):
-                        df_to_process = pd.read_csv(uploaded_file, dtype=str)
-                    else:
-                        df_to_process = pd.read_excel(uploaded_file, dtype=str)
-                    df_to_process.columns = [str(c).strip().lower() for c in df_to_process.columns]
-                    if 'sku' in df_to_process.columns and 'qty' in df_to_process.columns:
-                        st.markdown(make_solid_box(
-                            f"{len(df_to_process)} products ready to process",
-                            "#082f49", "#38bdf8"
-                        ), unsafe_allow_html=True)
-                    else:
-                        st.error("Invalid format — column headers must be named 'sku' and 'qty'.")
-                        df_to_process = None
-                except Exception as e:
-                    st.error(f"Failed to read file: {e}")
+                uploaded_file = st.file_uploader("Data source (CSV / Excel)", type=["csv", "xlsx", "xls"])
+                if uploaded_file is not None:
+                    try:
+                        filename = uploaded_file.name.lower()
+                        if filename.endswith('.csv'):
+                            df_to_process = pd.read_csv(uploaded_file, dtype=str)
+                        else:
+                            df_to_process = pd.read_excel(uploaded_file, dtype=str)
+                        df_to_process.columns = [str(c).strip().lower() for c in df_to_process.columns]
+                        if 'sku' in df_to_process.columns and 'qty' in df_to_process.columns:
+                            st.markdown(make_solid_box(
+                                f"{len(df_to_process)} products ready to process",
+                                "#082f49", "#38bdf8"
+                            ), unsafe_allow_html=True)
+                        else:
+                            st.error("Invalid format — column headers must be named 'sku' and 'qty'.")
+                            df_to_process = None
+                    except Exception as e:
+                        st.error(f"Failed to read file: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
     is_ready = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
     st.subheader("Product table")
-
     if not is_ready:
         st.warning("Select an account and ensure data is available before running the bot.")
         st.stop()
@@ -575,7 +543,6 @@ elif st.session_state.app_page == "Bot":
         df_view['Status'] = 'Pending'
     if 'Keterangan' not in df_view.columns:
         df_view['Keterangan'] = '-'
-
     table_placeholder = st.dataframe(df_view, use_container_width=True)
 
     st.markdown("Log:")
@@ -631,7 +598,6 @@ elif st.session_state.app_page == "Bot":
                 context = browser.new_context(no_viewport=True)
                 page = context.new_page()
 
-                # --- Login ---
                 ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
                 page.goto(URL_LOGIN, wait_until="domcontentloaded")
                 ui_log("AUTH", "DOM ready. Filling credentials...")
@@ -651,20 +617,16 @@ elif st.session_state.app_page == "Bot":
                 ui_log("AUTH", "Login successful. Session established.")
                 ui_log("SUCCESS", "Handshake verified.")
 
-                # --- Navigation ---
                 ui_log("NAV", "Navigating to Inventory > Stock Adjustment...")
                 page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
-
                 add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
                 add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
-
                 ui_log("NAV", "Opening new document [Add Value]...")
                 add_btn.click(force=True)
 
                 warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True)
                 warehouse_link.wait_for(state="visible", timeout=TIMEOUT_MS)
                 warehouse_link.click(force=True)
-
                 page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(
                     state="visible", timeout=TIMEOUT_MS
                 )
@@ -675,10 +637,8 @@ elif st.session_state.app_page == "Bot":
                     dropdown.select_option(REASON_CODE)
                 ui_log("SYS", "Ready. Opening data stream for payload injection...")
 
-                # --- Main loop ---
                 progress_bar = st.progress(0)
                 total_rows = len(df_view)
-
                 for i, (idx, row) in enumerate(df_view.iterrows()):
                     sku = str(row['sku']).strip()
                     try:
@@ -692,14 +652,12 @@ elif st.session_state.app_page == "Bot":
                         sku_input.fill(sku)
                         sku_input.press("Tab")
                         time.sleep(1)
-
                         page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").wait_for(
                             state="visible", timeout=TIMEOUT_MS
                         )
                         ui_log("INJECT", f"Assigning qty: {qty}")
                         page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").fill(qty)
                         page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
-
                         ui_log("SYS", "Awaiting form reset...")
                         page.wait_for_function(
                             "document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''",
@@ -709,7 +667,6 @@ elif st.session_state.app_page == "Bot":
                         df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
                         success_count += 1
                         ui_log("SUCCESS", "Row committed.")
-
                     except Exception:
                         df_view.at[idx, 'Status'] = 'Failed'
                         df_view.at[idx, 'Keterangan'] = 'Node Timeout'
@@ -717,13 +674,11 @@ elif st.session_state.app_page == "Bot":
                         ui_log("ERROR", f"Timeout on SKU [{sku}]. Skipping.")
 
                     progress_bar.progress((i + 1) / total_rows)
-
                     if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows - 1:
                         table_placeholder.dataframe(df_view, use_container_width=True)
 
                 ui_log("SERVER", "Saving document to server...")
                 page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
-
                 try:
                     yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
                     yes_btn.wait_for(state="visible", timeout=5_000)
@@ -737,14 +692,10 @@ elif st.session_state.app_page == "Bot":
                 browser.close()
                 elapsed = int(time.time() - global_start_time)
                 ui_log("SUCCESS", f"Complete. Total runtime: {elapsed // 60}m {elapsed % 60}s")
-
-                # Solid‑color success box instead of st.success()
                 st.markdown(make_solid_box(
                     f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed // 60}m {elapsed % 60}s",
-                    "#166534",  # green-800
-                    "#ffffff"
+                    "#166534", "#ffffff"
                 ), unsafe_allow_html=True)
-
                 if success_count > 0:
                     st.toast('Connection terminated')
                     time.sleep(0.5)
@@ -756,7 +707,6 @@ elif st.session_state.app_page == "Bot":
         except PlaywrightTimeoutError:
             st.error("Login failed: incorrect password or server timeout (30s).")
             ui_log("ERROR", "ACCESS DENIED: Handshake timeout. Invalid credentials or node unreachable.")
-
         except Exception as e:
             st.error("System halted due to an unexpected error.")
             clean_error = str(e).split('===')[0].strip()
