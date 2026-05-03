@@ -286,10 +286,25 @@ elif st.session_state.app_page == "Bot":
             options=[f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts],
             index=None, placeholder="-- Select Account --"
         )
+        
         selected_account = None
+        user_password = "" # Bikin variabel nampung password
+
         if selected_acc_str:
             selected_account = next(acc for acc in accounts if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str)
-            st.markdown(f"<div style='background-color: #143521; color: #4ade80; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Account Active: {selected_account['Distributor']}</div>", unsafe_allow_html=True)
+            
+            # --- TAMBAHAN BARU: INPUT PASSWORD MUNCUL SETELAH AKUN DIPILIH ---
+            user_password = st.text_input(
+                f"Enter Password for {selected_account['user_id']}:", 
+                type="password", 
+                placeholder="Password Accenture..."
+            )
+            
+            # Badge Account Active muncul kalau password udah diisi (minimal 3 karakter)
+            if len(user_password) > 3:
+                st.markdown(f"<div style='background-color: #4ade80; color: #143521; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; margin-top: 4px;'>Account Ready: {selected_account['Distributor']}</div>", unsafe_allow_html=True)
+            else:
+                 st.markdown(f"<div style='background-color: #fbbf24; color: #713f12; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; margin-top: 4px;'>Waiting for Password to be entered...</div>", unsafe_allow_html=True)
 
     with cfg_col2:
         df_to_process = None
@@ -322,7 +337,8 @@ elif st.session_state.app_page == "Bot":
                     st.error(f"Gagal membaca file: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    is_ready = (selected_account is not None) and (df_to_process is not None)
+    # Tambahin syarat user_password nggak boleh kosong
+    is_ready = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
     # st.markdown("---")
@@ -378,7 +394,8 @@ elif st.session_state.app_page == "Bot":
 
         global_start_time = time.time()
         success_count, failed_count = 0, 0
-        user_id, password = selected_account["user_id"], selected_account["password"]
+        user_id = selected_account["user_id"]
+        password = user_password  # Tarik password dari input teks, bukan dari file CSV lagi!
 
         ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
         try:
