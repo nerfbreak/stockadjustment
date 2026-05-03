@@ -83,8 +83,11 @@ def load_accounts():
                 reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
                 for row in reader:
                     cleaned_row = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
-                    if "user_id" in cleaned_row and "password" in cleaned_row and "Distributor" in cleaned_row:
+                    
+                    # ---> YANG DIUBAH DI SINI: Nggak perlu ngecek kolom password lagi
+                    if "user_id" in cleaned_row and "Distributor" in cleaned_row:
                         accounts.append(cleaned_row)
+                        
                 return accounts
         except (UnicodeDecodeError, TypeError):
             continue
