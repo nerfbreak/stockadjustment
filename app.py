@@ -179,13 +179,31 @@ st.markdown("""
     button[kind="primary"]:active {
         transform: translateY(0px) !important;
     }
+
+    /* TYPEWRITER EFFECT */
+    .typewriter {
+        overflow: hidden;
+        border-right: 0.15em solid #FF1B6B; /* Kursor warna pink */
+        white-space: nowrap;
+        margin: 0 auto;
+        letter-spacing: .15em;
+        animation: typing 2.5s steps(30, end), blink-caret .75s step-end infinite;
+    }
+    @keyframes typing {
+        from { width: 0 }
+        to { width: 100% }
+    }
+    @keyframes blink-caret {
+        from, to { border-color: transparent }
+        50% { border-color: #FF1B6B; }
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
     st.title("Compare Stock")
-    st.markdown("Inspired by Kopi Mang Toni")
+    st.markdown("<h1 class='typewriter'>Inspired by Kopi Mang Toni</h1>", unsafe_allow_html=True)
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -278,7 +296,7 @@ elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
         st.title("Stock Adjustment")
-        st.markdown("Inspired by Kopi Mang Toni")
+        st.markdown("<h1 class='typewriter'>Inspired by Kopi Mang Toni</h1>", unsafe_allow_html=True)
     with hdr_col2:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Compare Stock", use_container_width=True):
@@ -530,8 +548,13 @@ elif st.session_state.app_page == "Bot":
                 ui_log("SUCCESS", f"EXECUTION TERMINATED NORMALLY. Total runtime: {elapsed//60}m {elapsed%60}s")
                 st.success(f"Success: {success_count} - Failed: {failed_count} - Elapsed Time: {elapsed//60}m {elapsed%60}s")
                 if success_count > 0:
-                    st.balloons()
-                st.session_state.reconcile_result = None
+                    # Efek notif melayang (Toast)
+                    st.toast('Connection Terminated', icon='🔌')
+                    time.sleep(0.5)
+                    st.toast('Data Injected Successfully', icon='💉')
+                    time.sleep(0.5)
+                    st.toast('System Override Complete!', icon='☠️')
+                    st.session_state.reconcile_result = None
 
         except PlaywrightTimeoutError as e:
             # Error khusus kalau nunggu loading kelamaan (biasanya karena password salah)
