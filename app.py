@@ -451,6 +451,7 @@ st.components.v1.html(
     </script>
     """,
     height=0,
+)
 
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
