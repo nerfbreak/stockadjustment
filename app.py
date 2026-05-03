@@ -13,6 +13,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Stock Adjustment Newspage", page_icon="icon.png", layout="wide")
 # os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+
 # ==========================================
 # --- 1.5. SISTEM KEMANAN LOGIN (GATEKEEPER) ---
 # ==========================================
@@ -23,8 +24,8 @@ if not st.session_state.logged_in:
     # Bikin tampilan form login agak ke tengah biar rapi
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        st.markdown("<h2 style='text-align: center; color: #FF1B6B;'>🔐 Restricted Access</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b;'>Enter credentials to access the Bot Engine</p>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #FF1B6B;'>Login</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
         
         with st.form("login_form"):
             username = st.text_input("Username")
