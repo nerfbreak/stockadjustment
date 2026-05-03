@@ -3,12 +3,11 @@
 # ─────────────────────────────────────────────────────────────
 
 [theme]
-base                     = "dark"
-primaryColor             = "#3b82f6"
-backgroundColor          = "#070d1a"
-secondaryBackgroundColor = "#0d1526"
-textColor                = "#e8eef8"
-font                     = "sans serif"
+primaryColor = "#2563eb"
+backgroundColor = "#0f172a"
+secondaryBackgroundColor = "#1e293b"
+textColor = "#f0f6fc"
+font = "sans serif"
 
 [server]
 maxUploadSize            = 200
