@@ -431,7 +431,7 @@ elif st.session_state.app_page == "Bot":
                 except: 
                     ui_log("SYS", "No interceptor detected. Clean session acquired.")
                     
-                page.wait_for_url("**/Default.aspx", timeout=0, wait_until="domcontentloaded")
+                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
                 ui_log("SUCCESS", "Handshake verified. Access token granted.")
 
                 # --- Navigasi ---
