@@ -158,6 +158,27 @@ st.markdown("""
         background-color: #d41459 !important;
         box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important;
     }
+
+    /* TOMBOL PROCEED (Primary Button) NEON PINK */
+    button[kind="primary"] {
+        background-color: #FF1B6B !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 700 !important;
+        letter-spacing: 1px !important;
+        text-transform: uppercase !important;
+        transition: all 0.3s ease !important;
+    }
+
+    button[kind="primary"]:hover {
+        background-color: #d41459 !important;
+        box-shadow: 0 0 20px rgba(255, 27, 107, 0.8) !important;
+        transform: translateY(-2px) !important;
+    }
+
+    button[kind="primary"]:active {
+        transform: translateY(0px) !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
