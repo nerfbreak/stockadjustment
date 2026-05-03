@@ -183,7 +183,7 @@ st.markdown("""
     /* TYPEWRITER EFFECT (UKURAN LEBIH PAS) */
     .typewriter {
         font-family: 'JetBrainsMono', monospace;
-        font-size: 1.6rem; /* <-- ATUR UKURAN DI SINI (Coba 1.4rem s/d 1.8rem) */
+        font-size: 1rem; /* <-- ATUR UKURAN DI SINI (Coba 1.4rem s/d 1.8rem) */
         font-weight: 700;
         color: #f0f6fc;
         overflow: hidden;
