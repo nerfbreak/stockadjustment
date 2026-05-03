@@ -1,34 +1,23 @@
-# ─────────────────────────────────────────────────────────────────────────────
-#  Streamlit config.toml  —  StockEngine Dark Blue Theme
-#  Place this file at:  .streamlit/config.toml
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+#  .streamlit/config.toml  —  StockEngine Dark Blue Theme
+# ─────────────────────────────────────────────────────────────
 
 [theme]
-
-# ── Base ──────────────────────────────────────────────────────────────────────
-base              = "dark"
-
-# ── Colors ────────────────────────────────────────────────────────────────────
-primaryColor      = "#3b82f6"      # Blue-500  — buttons, links, accents
-backgroundColor   = "#070d1a"      # Deep navy — main background
-secondaryBackgroundColor = "#0d1526"  # Surface — sidebar, cards, inputs
-textColor         = "#e8eef8"      # Off-white — primary text
-
-# ── Font ──────────────────────────────────────────────────────────────────────
-# "sans serif" = uses your custom @import in the CSS (Outfit).
-# If you want Streamlit's native fallback, set to "monospace" (shows JetBrains Mono).
-font              = "sans serif"
-
+base                     = "dark"
+primaryColor             = "#3b82f6"
+backgroundColor          = "#070d1a"
+secondaryBackgroundColor = "#0d1526"
+textColor                = "#e8eef8"
+font                     = "sans serif"
 
 [server]
-# ── Performance ───────────────────────────────────────────────────────────────
-runOnSave         = false
-maxUploadSize     = 200           # MB — raise if ZIP uploads are large
-enableCORS        = false
-enableXsrfProtection = true
+maxUploadSize            = 200
+enableCORS               = false
+enableXsrfProtection     = true
+runOnSave                = false
 
 [browser]
-gatherUsageStats  = false
+gatherUsageStats         = false
 
 [runner]
-fastReruns        = true
+fastReruns               = true
