@@ -11,7 +11,7 @@ import sys
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 # --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Inventory ToolKit", layout="wide")
+st.set_page_config(page_title="Stock Adjustment Newspage", page_icon="icon.png", layout="wide")
 # os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
 
 # --- 2. CONSTANTS ---
