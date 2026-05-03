@@ -114,163 +114,230 @@ if 'app_page' not in st.session_state: st.session_state.app_page = "Reconcile"
 if 'reconcile_result' not in st.session_state: st.session_state.reconcile_result = None
 if 'reconcile_summary' not in st.session_state: st.session_state.reconcile_summary = None
 
-# --- CSS: Professional Minimalist ---
+# --- CSS: Bootstrap-style Solid Professional ---
 st.markdown("""
     <style>
 
-    /* ── ACCENT COLOR ── */
+    /* ── VARIABLES ── */
     :root {
-        --accent:       #3B82F6;
-        --accent-hover: #2563EB;
-        --accent-dim:   rgba(59, 130, 246, 0.15);
+        --bs-blue:        #0d6efd;
+        --bs-blue-hover:  #0b5ed7;
+        --bs-blue-dim:    rgba(13, 110, 253, 0.12);
+        --bs-success:     #198754;
+        --bs-danger:      #dc3545;
+        --bs-warning:     #ffc107;
+        --bs-dark:        #212529;
+        --bs-card:        #2b2f35;
+        --bs-border:      #3d4148;
+        --bs-muted:       #8a9099;
+        --bs-text:        #dee2e6;
     }
 
-    /* ── PAGE ENTRANCE ANIMATION (dipertahankan, subtle) ── */
-    @keyframes fadeSlideUp {
-        from { opacity: 0; transform: translateY(16px); }
-        to   { opacity: 1; transform: translateY(0);    }
+    /* ── GLOBAL FONT ── */
+    html, body, [class*="css"] {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
     }
-    [data-testid="stVerticalBlock"] > div { animation: fadeSlideUp 0.5s ease-out backwards; }
-    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.05s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.10s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.15s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.20s; }
 
-    /* ── BUTTONS ── */
+    /* ── BUTTONS: PRIMARY ── */
     button[kind="primary"] {
-        background-color: var(--accent) !important;
-        color: #ffffff !important;
-        border: none !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        transition: background-color 0.2s ease, transform 0.1s ease !important;
+        background-color: var(--bs-blue) !important;
+        color: #fff !important;
+        border: 1px solid var(--bs-blue) !important;
+        border-radius: 6px !important;
+        font-weight: 500 !important;
+        font-size: 0.9rem !important;
+        padding: 0.45rem 1rem !important;
+        transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
     }
     button[kind="primary"]:hover {
-        background-color: var(--accent-hover) !important;
-        transform: translateY(-1px) !important;
+        background-color: var(--bs-blue-hover) !important;
+        border-color: var(--bs-blue-hover) !important;
+        box-shadow: 0 2px 6px rgba(13,110,253,0.35) !important;
     }
-    button[kind="primary"]:active { transform: translateY(0) !important; }
+    button[kind="primary"]:active {
+        background-color: #0a58ca !important;
+        box-shadow: none !important;
+    }
 
+    /* ── BUTTONS: SECONDARY ── */
     button[kind="secondary"] {
         background-color: transparent !important;
-        color: var(--accent) !important;
-        border: 1px solid var(--accent) !important;
+        color: var(--bs-blue) !important;
+        border: 1px solid var(--bs-blue) !important;
+        border-radius: 6px !important;
         font-weight: 500 !important;
-        border-radius: 8px !important;
-        transition: background-color 0.2s ease !important;
+        font-size: 0.9rem !important;
+        transition: background-color 0.15s ease-in-out !important;
     }
     button[kind="secondary"]:hover {
-        background-color: var(--accent-dim) !important;
+        background-color: var(--bs-blue-dim) !important;
     }
 
     /* ── DIVIDER ── */
     hr {
         border: none !important;
-        height: 1px !important;
-        background: rgba(59, 130, 246, 0.25) !important;
-        margin-top: 1.5rem !important;
-        margin-bottom: 1.5rem !important;
+        border-top: 1px solid var(--bs-border) !important;
+        margin-top: 1.25rem !important;
+        margin-bottom: 1.25rem !important;
+        opacity: 1 !important;
     }
 
-    /* ── HEADER ACCENT LINE ── */
+    /* ── HEADER TOP STRIPE ── */
     header[data-testid="stHeader"] {
-        border-top: 2px solid var(--accent) !important;
+        border-bottom: 2px solid var(--bs-blue) !important;
+        background-color: #1a1d21 !important;
     }
 
     /* ── STATUS WIDGET ── */
     [data-testid="stStatusWidget"] {
-        border: 1px solid var(--accent) !important;
+        background-color: var(--bs-card) !important;
+        border: 1px solid var(--bs-border) !important;
         border-radius: 6px !important;
         padding: 2px 10px !important;
     }
     [data-testid="stStatusWidget"] * {
-        color: var(--accent) !important;
+        color: var(--bs-blue) !important;
         font-weight: 500 !important;
+        font-size: 0.8rem !important;
     }
 
-    /* ── METRIC VALUE ── */
+    /* ── METRIC CARDS ── */
+    [data-testid="stMetric"] {
+        background-color: var(--bs-card) !important;
+        border: 1px solid var(--bs-border) !important;
+        border-radius: 8px !important;
+        padding: 1rem 1.25rem !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.25) !important;
+    }
     [data-testid="stMetricValue"],
     [data-testid="stMetricValue"] > div {
-        color: var(--accent) !important;
+        color: var(--bs-blue) !important;
+        font-size: 2rem !important;
         font-weight: 600 !important;
         display: block !important;
     }
+    [data-testid="stMetricLabel"] {
+        color: var(--bs-muted) !important;
+        font-size: 0.8rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
+        font-weight: 600 !important;
+    }
 
-    /* ── LIVE INDICATOR DOT ── */
+    /* ── DATAFRAME ── */
+    [data-testid="stDataFrame"] {
+        border: 1px solid var(--bs-border) !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+    }
+
+    /* ── INPUT & SELECT ── */
+    input, select, textarea,
+    [data-baseweb="input"] input,
+    [data-baseweb="select"] div {
+        border-radius: 6px !important;
+        border: 1px solid var(--bs-border) !important;
+        font-size: 0.9rem !important;
+    }
+    input:focus, select:focus, textarea:focus {
+        border-color: var(--bs-blue) !important;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2) !important;
+        outline: none !important;
+    }
+
+    /* ── LIVE INDICATOR ── */
     .live-indicator {
         display: inline-flex;
         align-items: center;
-        color: #22c55e;
-        font-size: 0.85rem;
-        font-weight: 600;
+        color: var(--bs-success);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background-color: rgba(25, 135, 84, 0.15);
+        border: 1px solid rgba(25, 135, 84, 0.4);
+        border-radius: 20px;
+        padding: 2px 10px;
     }
     .live-indicator::before {
         content: '';
         display: inline-block;
-        width: 8px; height: 8px;
-        background-color: #22c55e;
+        width: 7px; height: 7px;
+        background-color: var(--bs-success);
         border-radius: 50%;
-        margin-right: 7px;
-        animation: pulse-dot 2s ease-in-out infinite;
+        margin-right: 6px;
+        animation: blink-dot 1.4s ease-in-out infinite;
     }
-    @keyframes pulse-dot {
-        0%, 100% { opacity: 1;   transform: scale(1);   }
-        50%       { opacity: 0.5; transform: scale(0.85); }
+    @keyframes blink-dot {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.3; }
     }
 
     /* ── SUBTITLE ── */
     .typewriter-sub {
-        font-size: 0.95rem;
-        color: #64748b;
-        margin: 0;
+        font-size: 0.9rem;
+        color: var(--bs-muted);
+        margin: 2px 0 0 0;
     }
 
-    /* ── TERMINAL LOG ── */
+    /* ── TERMINAL LOG (Bootstrap "card" style) ── */
     .terminal-box {
-        background-color: #0f172a;
-        border: 1px solid #1e293b;
+        background-color: #1a1d21;
+        border: 1px solid var(--bs-border);
         border-radius: 8px;
-        font-family: 'Consolas', 'Courier New', monospace;
-        font-size: 0.8rem;
-        padding: 12px 14px;
-        height: 350px;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.78rem;
+        padding: 12px 16px;
+        height: 320px;
         overflow-y: auto;
-        line-height: 1.75;
+        line-height: 1.8;
         scrollbar-width: thin;
-        scrollbar-color: #334155 #0f172a;
+        scrollbar-color: var(--bs-border) #1a1d21;
     }
     .terminal-box::-webkit-scrollbar       { width: 5px; }
-    .terminal-box::-webkit-scrollbar-track { background: #0f172a; }
-    .terminal-box::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    .terminal-box::-webkit-scrollbar-track { background: #1a1d21; border-radius: 10px; }
+    .terminal-box::-webkit-scrollbar-thumb { background-color: #3d4148; border-radius: 10px; }
+    .terminal-box::-webkit-scrollbar-thumb:hover { background-color: var(--bs-blue); }
 
     /* Log columns */
-    .log-time  { display: inline-block; width: 80px;  color: #475569; }
-    .log-ms    { display: inline-block; width: 70px;  text-align: right; margin-right: 14px; color: #64748b; font-size: 0.73rem; }
-    .log-tag   { display: inline-block; width: 90px;  font-weight: 600; }
-    .log-msg   { color: #cbd5e1; }
+    .log-time  { display: inline-block; width: 75px;  color: #5a626b; }
+    .log-ms    { display: inline-block; width: 68px;  text-align: right; margin-right: 12px; color: #5a626b; font-size: 0.72rem; }
+    .log-tag   { display: inline-block; width: 88px;  font-weight: 700; }
+    .log-msg   { color: #adb5bd; }
 
-    /* Tag colors (dipertahankan, tetap informatif) */
-    .tag-sys     { color: #818cf8; }
-    .tag-auth    { color: #facc15; }
-    .tag-nav     { color: #38bdf8; }
-    .tag-inject  { color: #22d3ee; }
-    .tag-success { color: #4ade80; }
-    .tag-error   { color: #f87171; }
-    .tag-server  { color: #fb7185; }
+    /* Log tag badge colors */
+    .tag-sys     { color: #9775fa; }
+    .tag-auth    { color: #fcc419; }
+    .tag-nav     { color: #4dabf7; }
+    .tag-inject  { color: #38d9a9; }
+    .tag-success { color: #51cf66; }
+    .tag-error   { color: #ff6b6b; }
+    .tag-server  { color: #f783ac; }
 
-    /* Cursor statis (ganti blink) */
-    .blink_me { color: #4ade80; font-weight: bold; }
+    .blink_me { color: #51cf66; font-weight: bold; }
 
     /* ── SCROLLBAR GLOBAL ── */
     *::-webkit-scrollbar       { width: 6px !important; height: 6px !important; }
     *::-webkit-scrollbar-track { background: transparent !important; }
-    *::-webkit-scrollbar-thumb { background-color: #334155 !important; border-radius: 10px !important; }
-    *::-webkit-scrollbar-thumb:hover { background-color: var(--accent) !important; }
-    * { scrollbar-width: thin !important; scrollbar-color: #334155 transparent !important; }
+    *::-webkit-scrollbar-thumb { background-color: var(--bs-border) !important; border-radius: 10px !important; }
+    *::-webkit-scrollbar-thumb:hover { background-color: var(--bs-blue) !important; }
+    * { scrollbar-width: thin !important; scrollbar-color: var(--bs-border) transparent !important; }
 
     /* ── TEXT SELECTION ── */
-    ::selection     { background: var(--accent-dim) !important; color: inherit !important; }
-    ::-moz-selection { background: var(--accent-dim) !important; color: inherit !important; }
+    ::selection      { background: var(--bs-blue-dim) !important; color: inherit !important; }
+    ::-moz-selection { background: var(--bs-blue-dim) !important; color: inherit !important; }
+
+    /* ── PAGE FADE IN ── */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    [data-testid="stVerticalBlock"] > div { animation: fadeIn 0.4s ease-out backwards; }
+    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.04s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.08s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.12s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.16s; }
 
     </style>
 """, unsafe_allow_html=True)
