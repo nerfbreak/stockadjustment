@@ -12,7 +12,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Inventory ToolKit", layout="wide")
-os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+# os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
 
 # --- 2. CONSTANTS ---
 URL_LOGIN        = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
@@ -63,8 +63,11 @@ def load_accounts():
 @st.cache_resource
 def ensure_playwright():
     try: 
-        # Tambahin argumen "--with-deps" biar Playwright nginstall driver OS yang kurang
-        subprocess.run(["playwright", "install", "--with-deps", "chromium"], check=True, capture_output=True)
+        # Panggil installer pakai sys.executable biar sistem nggak nyasar nyari path-nya
+        subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium"], 
+            check=True
+        )
     except Exception as e: 
         st.error(f"Gagal install engine browser: {e}")
 
