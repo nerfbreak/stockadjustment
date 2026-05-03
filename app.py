@@ -274,27 +274,6 @@ st.markdown("""
         background-size: 100% 4px !important;
     }
 
-    /* 3. KOTAK PERINGATAN/ERROR BERDENYUT */
-    div[data-testid="stAlert"] {
-        position: relative;
-        overflow: hidden;
-    }
-    
-    div[data-testid="stAlert"]::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0;
-        width: 4px; height: 100%;
-        background-color: #FF1B6B;
-        box-shadow: 0 0 15px #FF1B6B;
-        animation: alert-pulse 1.5s infinite alternate;
-    }
-
-    @keyframes alert-pulse {
-        0% { opacity: 0.2; box-shadow: 0 0 2px #FF1B6B; }
-        100% { opacity: 1; box-shadow: 0 0 15px #FF1B6B, 0 0 30px #FF1B6B; }
-    }
-
     /* 1. HACKER TEXT SELECTION */
     ::selection {
         background: #FF1B6B !important;
@@ -307,36 +286,60 @@ st.markdown("""
         text-shadow: none !important;
     }
 
-    /* 2. CYBERPUNK SCROLLBAR */
-    ::-webkit-scrollbar {
+    /* 2. CYBERPUNK SCROLLBAR (BRUTE FORCE OVERRIDE) */
+    
+    /* Buat Chrome, Edge, Safari, Brave */
+    *::-webkit-scrollbar {
         width: 8px !important;
-        background: #0d1117 !important; /* Warna background terminal */
+        height: 8px !important; /* Buat scroll bawah (horizontal) kalau ada */
+        background-color: #0d1117 !important;
     }
-    ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.02) !important;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #FF1B6B !important;
+    *::-webkit-scrollbar-track {
+        background-color: rgba(255, 255, 255, 0.05) !important;
         border-radius: 10px !important;
-        box-shadow: 0 0 10px rgba(255, 27, 107, 0.8) !important;
     }
-    ::-webkit-scrollbar-thumb:hover {
-        background: #d41459 !important;
-        box-shadow: 0 0 15px #FF1B6B !important;
+    *::-webkit-scrollbar-thumb {
+        background-color: #FF1B6B !important;
+        border-radius: 10px !important;
+        border: 2px solid #0d1117 !important; /* Kasih ilusi jarak biar elegan */
     }
-
-    /* 3. SYSTEM PROCESSING OVERRIDE (Garis atas layar) */
-    div[data-testid="stDecoration"] {
-        background-image: linear-gradient(90deg, #161b22, #FF1B6B, #161b22) !important;
-        background-size: 200% 100% !important;
-        box-shadow: 0 0 15px #FF1B6B !important;
-        animation: loading-laser 2s infinite linear !important;
-        height: 3px !important;
+    *::-webkit-scrollbar-thumb:hover {
+        background-color: #d41459 !important;
     }
 
-    @keyframes loading-laser {
-        0% { background-position: 100% 0; }
-        100% { background-position: -100% 0; }
+    /* Buat Firefox */
+    * {
+        scrollbar-width: thin !important;
+        scrollbar-color: #FF1B6B #0d1117 !important;
+    }
+
+    /* 3. CYBERPUNK RUNNING STATUS (Pojok Kanan Atas) */
+    [data-testid="stStatusWidget"] {
+        background-color: #0d1117 !important; /* Warna gelap terminal */
+        border: 1px solid #FF1B6B !important;
+        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important; /* Glow neon pink */
+        border-radius: 4px !important;
+        padding: 2px 10px !important;
+        animation: status-pulse 1s infinite alternate !important;
+    }
+
+    /* Ubah warna teks dan icon loadingnya jadi pink */
+    [data-testid="stStatusWidget"] * {
+        color: #FF1B6B !important;
+        font-family: 'JetBrainsMono', monospace !important;
+        font-weight: bold !important;
+        letter-spacing: 1px !important;
+    }
+
+    @keyframes status-pulse {
+        from { box-shadow: 0 0 5px rgba(255, 27, 107, 0.4); }
+        to { box-shadow: 0 0 20px rgba(255, 27, 107, 0.8); }
+    }
+    
+    /* BONUS: Kasih garis laser statis di paling atas layar biar tetep sangar */
+    header[data-testid="stHeader"] {
+        border-top: 2px solid #FF1B6B !important;
+        box-shadow: 0 -5px 20px #FF1B6B !important;
     }
     </style>
 """, unsafe_allow_html=True)
