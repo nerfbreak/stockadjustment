@@ -180,23 +180,29 @@ st.markdown("""
         transform: translateY(0px) !important;
     }
 
-    /* TYPEWRITER KHUSUS SUBTITLE (Kopi Mang Toni) */
+    /* TYPEWRITER KHUSUS SUBTITLE (DENGAN JEDA 5 DETIK) */
     .typewriter-sub {
         font-family: 'JetBrainsMono', monospace;
-        font-size: 1rem;       /* Ukuran font agak kecil buat subtitle */
-        color: #8b949e;        /* Warna agak abu-abu biar elegan */
+        font-size: 1rem;       
+        color: #8b949e;        
         overflow: hidden;
         border-right: 0.15em solid #FF1B6B;
         white-space: nowrap;
         margin: 0;
-        /* KUNCI RAHASIANYA DI SINI: Lebar fix 26 karakter */
-        width: 27ch; 
-        animation: typing-sub 3s steps(26, end) infinite alternate, blink-caret .75s step-end infinite;
+        /* Durasi total jadi 10 detik, infinite muter terus */
+        animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
     }
 
     @keyframes typing-sub {
-        0% { width: 0; }
-        100% { width: 27ch; } /* Animasi mentok di 26 karakter, nggak bakal bablas */
+        /* 0% ke 30% (3 detik): Proses ngetik 26 karakter */
+        0%   { width: 0; animation-timing-function: steps(26, end); }
+        
+        /* 30% ke 80% (5 detik): Teks diem full 26 karakter, kursor kedap-kedip doang */
+        30%  { width: 26ch; animation-timing-function: step-end; }
+        80%  { width: 26ch; animation-timing-function: steps(26, end); }
+        
+        /* 80% ke 100% (2 detik): Proses hapus karakter ke 0 */
+        100% { width: 0; }
     }
     </style>
 """, unsafe_allow_html=True)
