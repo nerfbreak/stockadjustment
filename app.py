@@ -312,6 +312,50 @@ st.markdown("""
         0% { opacity: 0.2; box-shadow: 0 0 2px #FF1B6B; }
         100% { opacity: 1; box-shadow: 0 0 15px #FF1B6B, 0 0 30px #FF1B6B; }
     }
+
+    /* 1. HACKER TEXT SELECTION */
+    ::selection {
+        background: #FF1B6B !important;
+        color: #000000 !important;
+        text-shadow: none !important;
+    }
+    ::-moz-selection { /* Buat yang pake Firefox */
+        background: #FF1B6B !important;
+        color: #000000 !important;
+        text-shadow: none !important;
+    }
+
+    /* 2. CYBERPUNK SCROLLBAR */
+    ::-webkit-scrollbar {
+        width: 8px !important;
+        background: #0d1117 !important; /* Warna background terminal */
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02) !important;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #FF1B6B !important;
+        border-radius: 10px !important;
+        box-shadow: 0 0 10px rgba(255, 27, 107, 0.8) !important;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #d41459 !important;
+        box-shadow: 0 0 15px #FF1B6B !important;
+    }
+
+    /* 3. SYSTEM PROCESSING OVERRIDE (Garis atas layar) */
+    div[data-testid="stDecoration"] {
+        background-image: linear-gradient(90deg, #161b22, #FF1B6B, #161b22) !important;
+        background-size: 200% 100% !important;
+        box-shadow: 0 0 15px #FF1B6B !important;
+        animation: loading-laser 2s infinite linear !important;
+        height: 3px !important;
+    }
+
+    @keyframes loading-laser {
+        0% { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+    }
     </style>
 """, unsafe_allow_html=True)
 
