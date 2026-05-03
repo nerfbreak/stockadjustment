@@ -204,7 +204,7 @@ st.markdown("""
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
     st.title("Compare Stock")
-    st.markdown("<div class='typewriter'>Inspired by Kopi Mang Toni</div>", unsafe_allow_html=True)
+    st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -297,7 +297,7 @@ elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
         st.title("Stock Adjustment")
-        st.markdown("<div class='typewriter'>Inspired by Kopi Mang Toni</div>", unsafe_allow_html=True)
+        st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni</div>", unsafe_allow_html=True)
     with hdr_col2:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Compare Stock", use_container_width=True):
