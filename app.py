@@ -38,7 +38,7 @@ if not st.session_state.logged_in:
                     st.session_state.logged_in = True
                     st.rerun()  # Refresh halaman biar masuk ke aplikasi
                 else:
-                    st.error("Akses Ditolak! Username atau password salah.")
+                    st.error("Access Denied! Incorrect username or password.")
                     
     # HENTIKAN EKSEKUSI DI SINI JIKA BELUM LOGIN
     st.stop() 
