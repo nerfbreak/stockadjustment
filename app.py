@@ -5,7 +5,6 @@ import csv
 import time
 import os
 import subprocess
-import asyncio
 import traceback
 import sys
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -53,22 +52,28 @@ TIMEOUT_MS       = 30_000
 
 # --- 3. HELPER FUNCTIONS ---
 def load_data(file):
-    if file is None: return None
-    df = None
+    if file is None:
+        return None
     filename = file.name.lower()
     try:
         if filename.endswith('.csv'):
-            df = pd.read_csv(file, sep='\t', dtype=str) 
-            if df.shape[1] <= 1: 
-                 file.seek(0); df = pd.read_csv(file, sep=',', dtype=str)
+            # sep=None + engine='python' auto-detects tab or comma, no double-read needed
+            df = pd.read_csv(file, sep=None, engine='python', dtype=str)
         elif filename.endswith(('.xls', '.xlsx')):
             df = pd.read_excel(file, dtype=str)
         elif filename.endswith('.zip'):
             with zipfile.ZipFile(file) as z:
-                target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith(".csv")), None)
-                if not target: target = next((n for n in z.namelist() if n.lower().endswith(".csv")), None)
-                if target:
-                    with z.open(target) as f: df = pd.read_csv(f, sep='\t', dtype=str)
+                names = z.namelist()
+                target = (
+                    next((n for n in names if "INVT_MASTER" in n and n.lower().endswith(".csv")), None)
+                    or next((n for n in names if n.lower().endswith(".csv")), None)
+                )
+                if not target:
+                    st.error("Tidak ada file CSV di dalam ZIP."); return None
+                with z.open(target) as f:
+                    df = pd.read_csv(f, sep=None, engine='python', dtype=str)
+        else:
+            st.error(f"Format file tidak didukung: {filename}"); return None
     except Exception as e:
         st.error(f"Error reading file: {e}"); return None
     return df
@@ -623,118 +628,142 @@ elif st.session_state.app_page == "Bot":
         global_start_time = time.time()
         success_count, failed_count = 0, 0
         user_id = selected_account["user_id"]
-        password = user_password  # Tarik password dari input teks, bukan dari file CSV lagi!
+        password = user_password
+
+        # ID locator constants (defined once, used everywhere)
+        LOC_SKU     = "id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value"
+        LOC_QTY     = "id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value"
+        LOC_ADD     = "id=pag_I_StkAdj_NewGeneral_btn_Add_Value"
+        LOC_SAVE    = "id=pag_I_StkAdj_NewGeneral_btn_Save_Value"
+        LOC_REASON  = "id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value"
 
         ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
         try:
-            if sys.platform == "win32": 
-                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-            asyncio.set_event_loop(asyncio.new_event_loop())
-
             with sync_playwright() as p:
                 ui_log("SYS", "Spawning browser context with isolated session...")
                 browser = p.chromium.launch(headless=True)
                 context = browser.new_context(no_viewport=True)
                 page = context.new_page()
-                
+
                 # --- Login ---
                 ui_log("AUTH", f"Resolving DNS and establishing connection to {URL_LOGIN}...")
                 page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                
+
                 ui_log("AUTH", "DOM State: interactive. Parsing login nodes...")
                 page.locator("id=txtUserid").fill(user_id)
                 ui_log("AUTH", f"Injected credential payload for user ID: {user_id}")
                 page.locator("id=txtPasswd").fill(password)
                 page.locator("id=btnLogin").click(force=True)
-                
+
                 try:
                     ui_log("SYS", "Awaiting potential active-session interceptor...")
                     btn = page.locator("id=SYS_ASCX_btnContinue")
                     btn.wait_for(state="visible", timeout=5_000)
                     ui_log("AUTH", "Interceptor triggered. Bypassing active session warning...")
                     btn.click(force=True)
-                except: 
+                except PlaywrightTimeoutError:
                     ui_log("SYS", "No interceptor detected. Clean session acquired.")
-                    
+
                 page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
                 ui_log("AUTH", "Credentials verified. Password match confirmed!")
                 ui_log("SUCCESS", "Handshake verified. Session established.")
 
                 # --- Navigasi ---
+                # OPTIMIZED: replaced time.sleep(5) with explicit wait_for on the Add button
                 ui_log("NAV", "Dispatching click event to [Inventory -> Stock Adjustment] module...")
                 page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
-                time.sleep(5)
-                
+
                 ui_log("NAV", "Requesting new document interface [Add Value]...")
                 add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
-                add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
+                add_btn.wait_for(state="visible", timeout=TIMEOUT_MS)  # replaces sleep(5)
                 add_btn.click(force=True)
-                time.sleep(2)
-                
+
+                # OPTIMIZED: replaced time.sleep(2) with wait_for on warehouse link
                 ui_log("NAV", f"Targeting localized routing: {WAREHOUSE} node...")
-                page.get_by_role("link", name=WAREHOUSE, exact=True).wait_for(state="visible", timeout=TIMEOUT_MS)
-                page.get_by_role("link", name=WAREHOUSE, exact=True).click(force=True)
-                page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
-                
+                wh_link = page.get_by_role("link", name=WAREHOUSE, exact=True)
+                wh_link.wait_for(state="visible", timeout=TIMEOUT_MS)  # replaces sleep(2)
+                wh_link.click(force=True)
+
+                sku_input = page.locator(LOC_SKU)
+                sku_input.wait_for(state="visible", timeout=TIMEOUT_MS)
+
                 ui_log("SYS", f"Applying internal adjustment protocol: Code [{REASON_CODE}]")
-                dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
-                if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
+                dropdown = page.locator(LOC_REASON)
+                if dropdown.is_enabled():
+                    dropdown.select_option(REASON_CODE)
                 ui_log("SYS", "DOM fully rendered. Opening data stream for payload injection...")
 
                 # --- Looping Input ---
                 progress_bar = st.progress(0)
                 total_rows = len(df_view)
-                
+
+                # Pre-cache locators that are constant across loop iterations
+                qty_input = page.locator(LOC_QTY)
+                add_item_btn = page.locator(LOC_ADD)
+
+                # Table refresh throttle: update UI every N rows to reduce overhead
+                TABLE_REFRESH_EVERY = 5
+
                 for i, (idx, row) in enumerate(df_view.iterrows()):
                     sku = str(row['sku']).strip()
-                    try: qty = str(int(float(row['qty'])))
-                    except: qty = str(row['qty']).strip()
-                        
+                    try:
+                        qty = str(int(float(row['qty'])))
+                    except (ValueError, TypeError):
+                        qty = str(row['qty']).strip()
+
                     ui_log("INJECT", f"Fetching payload chunk {i+1}/{total_rows} -> Targeting Node: SKU [{sku}]")
                     try:
-                        page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").fill(sku)
-                        page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").press("Tab")
-                        time.sleep(1) 
-                        
-                        page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
+                        # OPTIMIZED: use cached sku_input locator, removed time.sleep(1)
+                        sku_input.fill(sku)
+                        sku_input.press("Tab")
+
+                        # Wait for qty field to become visible (replaces sleep(1))
+                        qty_input.wait_for(state="visible", timeout=TIMEOUT_MS)
                         ui_log("INJECT", f"Node resolved. Assigning Value: {qty}")
-                        page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").fill(qty)
-                        
-                        page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
+                        qty_input.fill(qty)
+
+                        add_item_btn.click(force=True)
                         ui_log("SYS", "Flushing buffer and awaiting system reset...")
-                        page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
-                        
+                        # Wait for SKU field to auto-clear (server confirmed)
+                        page.wait_for_function(
+                            f"document.getElementById('{LOC_SKU.replace('id=', '')}').value === ''",
+                            timeout=TIMEOUT_MS
+                        )
+
                         df_view.at[idx, 'Status'] = 'Success'
                         df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
                         success_count += 1
                         ui_log("SUCCESS", "Transaction committed successfully to local cache.")
-                    except Exception:
+
+                    except Exception as row_err:
                         df_view.at[idx, 'Status'] = 'Failed'
                         df_view.at[idx, 'Keterangan'] = 'Node Timeout'
                         failed_count += 1
                         ui_log("ERROR", f"CRITICAL: Timeout querying node SKU [{sku}]. Segment bypassed.")
-                        
+
                     progress_bar.progress((i + 1) / total_rows)
-                    table_placeholder.dataframe(df_view, use_container_width=True)
+
+                    # OPTIMIZED: throttle table re-render (every N rows, or on last row)
+                    if (i + 1) % TABLE_REFRESH_EVERY == 0 or (i + 1) == total_rows:
+                        table_placeholder.dataframe(df_view, use_container_width=True)
 
                 ui_log("SERVER", "Data stream closed. Requesting master server validation...")
-                page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
+                page.locator(LOC_SAVE).click()
                 try:
                     yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
                     yes_btn.wait_for(state="visible", timeout=5_000)
                     ui_log("SERVER", "Master server requested confirmation logic. Bypassing...")
                     yes_btn.click()
                     ui_log("SERVER", "Final validation passed. Document physically written to database.")
-                except: 
+                except PlaywrightTimeoutError:
                     ui_log("SERVER", "Automatic validation passed. Document physically written to database.")
-                
+
                 ui_log("SYS", "Shutting down Chromium instances and clearing memory allocation...")
                 browser.close()
                 elapsed = int(time.time() - global_start_time)
                 ui_log("SUCCESS", f"EXECUTION TERMINATED NORMALLY. Total runtime: {elapsed//60}m {elapsed%60}s")
                 st.success(f"Success: {success_count} - Failed: {failed_count} - Elapsed Time: {elapsed//60}m {elapsed%60}s")
                 if success_count > 0:
-                    # Efek notif melayang (Toast)
                     st.toast('Connection Terminated')
                     time.sleep(0.5)
                     st.toast('Data Injected Successfully')
@@ -742,15 +771,11 @@ elif st.session_state.app_page == "Bot":
                     st.toast('System Override Complete!')
                     st.session_state.reconcile_result = None
 
-        except PlaywrightTimeoutError as e:
-            # Error khusus kalau nunggu loading kelamaan (biasanya karena password salah)
+        except PlaywrightTimeoutError:
             st.error("Login Gagal: Password salah atau server target sedang tidak merespon (Timeout 30s).")
             ui_log("ERROR", "ACCESS DENIED: Handshake timeout. Invalid credentials or node unreachable.")
-            
+
         except Exception as e:
-            error_detail = traceback.format_exc()
             st.error("System halted due to an unexpected error.")
-            
-            # Bersihin pesan error bawaan Playwright biar nggak kepanjangan
             clean_error = str(e).split('===')[0].strip()
             ui_log("ERROR", f"SYSTEM FAILURE: {clean_error}")
