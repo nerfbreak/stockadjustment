@@ -13,6 +13,35 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Stock Adjustment Newspage", page_icon="icon.png", layout="wide")
 # os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+# ==========================================
+# --- 1.5. SISTEM KEMANAN LOGIN (GATEKEEPER) ---
+# ==========================================
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    # Bikin tampilan form login agak ke tengah biar rapi
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        st.markdown("<h2 style='text-align: center; color: #FF1B6B;'>🔐 Restricted Access</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b;'>Enter credentials to access the Bot Engine</p>", unsafe_allow_html=True)
+        
+        with st.form("login_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submit = st.form_submit_button("Login", use_container_width=True)
+            
+            if submit:
+                # Validasi ngecek ke Streamlit Secrets
+                if username == st.secrets["admin_user"] and password == st.secrets["admin_pass"]:
+                    st.session_state.logged_in = True
+                    st.rerun()  # Refresh halaman biar masuk ke aplikasi
+                else:
+                    st.error("Akses Ditolak! Username atau password salah.")
+                    
+    # HENTIKAN EKSEKUSI DI SINI JIKA BELUM LOGIN
+    st.stop() 
+# ==========================================
 
 # --- 2. CONSTANTS ---
 URL_LOGIN        = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
