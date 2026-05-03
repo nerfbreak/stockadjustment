@@ -529,7 +529,8 @@ elif st.session_state.app_page == "Bot":
                 elapsed = int(time.time() - global_start_time)
                 ui_log("SUCCESS", f"EXECUTION TERMINATED NORMALLY. Total runtime: {elapsed//60}m {elapsed%60}s")
                 st.success(f"Success: {success_count} - Failed: {failed_count} - Elapsed Time: {elapsed//60}m {elapsed%60}s")
-
+                if success_count > 0:
+                st.balloons()
                 st.session_state.reconcile_result = None
 
         except PlaywrightTimeoutError as e:
