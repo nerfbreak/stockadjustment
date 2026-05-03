@@ -342,33 +342,44 @@ st.markdown("""
         box-shadow: 0 -5px 20px #FF1B6B !important;
     }
 
-    /* 3. SUBTLE NEON FLICKER */
-    @keyframes flicker {
-        0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% {
-            opacity: 1;
-        }
-        20%, 21.999%, 63%, 63.999%, 65%, 69.999% {
-            opacity: 0.4;
-            text-shadow: none;
-        }
-    }
-
+    /* 2. TYPEWRITER + FLICKER SYNC */
     .typewriter {
-        animation: typing 3s steps(25, end) infinite alternate, 
-                   blink-caret .75s step-end infinite,
-                   flicker 8s infinite !important; /* Tambahin flicker di sini */
+        font-family: 'JetBrainsMono', monospace;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #f0f6fc;
+        overflow: hidden;
+        border-right: 0.15em solid #FF1B6B;
+        white-space: nowrap;
+        margin: 0; 
+        padding-right: 5px;
+        width: max-content; 
+        
+        /* Gabungin 3 animasi: ngetik, kursor ngedip, dan lampu rusak (flicker) */
+        animation: 
+            typing 3s steps(25, end) infinite alternate, 
+            blink-caret .75s step-end infinite,
+            flicker-force 5s linear infinite !important;
     }
 
-    /* 1. DATA PULSE UNTUK ANGKA/METRIC */
-    [data-testid="stMetricValue"] {
+    /* Keyframe Flicker yang lebih agresif biar kerasa rusaknya */
+    @keyframes flicker-force {
+        0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 10px #FF1B6B; }
+        20%, 24%, 55% { opacity: 0.2; text-shadow: none; }
+    }
+
+    /* 1. DATA PULSE BRUTE FORCE */
+    [data-testid="stMetricValue"], 
+    [data-testid="stMetricValue"] > div {
         color: #FF1B6B !important;
-        text-shadow: 0 0 10px rgba(255, 27, 107, 0.5) !important;
-        animation: pulse-metric 2s infinite alternate !important;
+        text-shadow: 0 0 5px #FF1B6B, 0 0 10px #FF1B6B !important;
+        animation: pulse-metric-force 2s infinite alternate !important;
+        display: block !important;
     }
 
-    @keyframes pulse-metric {
-        0% { opacity: 0.8; text-shadow: 0 0 5px #FF1B6B; }
-        100% { opacity: 1; text-shadow: 0 0 20px #FF1B6B, 0 0 30px #FF1B6B; }
+    @keyframes pulse-metric-force {
+        0% { opacity: 0.7; filter: drop-shadow(0 0 2px #FF1B6B); }
+        100% { opacity: 1; filter: drop-shadow(0 0 15px #FF1B6B); }
     }
     </style>
 """, unsafe_allow_html=True)
