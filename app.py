@@ -270,12 +270,27 @@ st.markdown("""
         from { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 5px #4ade80; }
         to { transform: scale(1.3); opacity: 1; box-shadow: 0 0 15px #4ade80; }
     }
+
+    /* 2. NEON BREATHING DIVIDER */
+    hr {
+        border: none !important;
+        height: 2px !important;
+        background: linear-gradient(90deg, transparent, #FF1B6B, transparent) !important;
+        animation: pulse-divider 2s infinite alternate !important;
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+
+    @keyframes pulse-divider {
+        0% { opacity: 0.3; filter: drop-shadow(0 0 2px #FF1B6B); }
+        100% { opacity: 1; filter: drop-shadow(0 0 10px #FF1B6B); }
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
-    st.markdown("<div class='live-indicator'>SYS.ON</div>", unsafe_allow_html=True)
+    st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
     st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     st.markdown("---")
@@ -369,7 +384,7 @@ if st.session_state.app_page == "Reconcile":
 elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
-        st.markdown("<div class='live-indicator'>SYS.ON</div>", unsafe_allow_html=True)
+        st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
         st.markdown("<h1>Stock Adjustment</h1>", unsafe_allow_html=True)
         st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     with hdr_col2:
