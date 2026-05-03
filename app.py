@@ -326,7 +326,7 @@ elif st.session_state.app_page == "Bot":
             
             # Badge Account Active muncul kalau password udah diisi (minimal 3 karakter)
             if len(user_password) > 3:
-                st.markdown(f"<div style='background-color: #143521; color: #4ade80; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Password Set : {selected_account['Distributor']} (Validation on Run)</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='background-color: #143521; color: #4ade80; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Password Set : {selected_account['Distributor']} (Validation Password on Run)</div>", unsafe_allow_html=True)
             else:
                  st.markdown(f"<div style='background-color: #fbbf24; color: #713f12; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; margin-top: 4px;'>Waiting for Password to be entered...</div>", unsafe_allow_html=True)
 
