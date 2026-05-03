@@ -432,7 +432,8 @@ elif st.session_state.app_page == "Bot":
                     ui_log("SYS", "No interceptor detected. Clean session acquired.")
                     
                 page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
-                ui_log("SUCCESS", "Handshake verified. Access token granted.")
+                ui_log("AUTH", "Credentials verified. Password match confirmed!")
+                ui_log("SUCCESS", "Handshake verified. Session established.")
 
                 # --- Navigasi ---
                 ui_log("NAV", "Dispatching click event to [Inventory -> Stock Adjustment] module...")
