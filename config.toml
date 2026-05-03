@@ -44,9 +44,8 @@ style = "normal"
 weight = 700
 
 [theme]
-primaryColor = "#FF1B6B"              
-backgroundColor = "#0d1117"           
-secondaryBackgroundColor = "#161b22"  
-textColor = "#f0f6fc"                 
-linkColor = "#58a6ff"                 
-borderColor = "#30363d"
+base = "dark"
+primaryColor = "#0d6efd"
+backgroundColor = "#1a1d21"
+secondaryBackgroundColor = "#2b2f35"
+textColor = "#dee2e6"
