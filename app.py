@@ -180,27 +180,23 @@ st.markdown("""
         transform: translateY(0px) !important;
     }
 
-    /* TYPEWRITER EFFECT (UKURAN LEBIH PAS) */
-    .typewriter {
+    /* TYPEWRITER KHUSUS SUBTITLE (Kopi Mang Toni) */
+    .typewriter-sub {
         font-family: 'JetBrainsMono', monospace;
-        font-size: 1rem; /* <-- ATUR UKURAN DI SINI (Coba 1.4rem s/d 1.8rem) */
-        font-weight: 700;
-        color: #f0f6fc;
+        font-size: 1rem;       /* Ukuran font agak kecil buat subtitle */
+        color: #8b949e;        /* Warna agak abu-abu biar elegan */
         overflow: hidden;
-        border-right: 0.15em solid #FF1B6B; /* Kursor warna pink */
+        border-right: 0.15em solid #FF1B6B;
         white-space: nowrap;
-        margin: 0; /* Biar rata kiri, nggak ngaco ke tengah */
-        padding-right: 5px;
-        width: max-content; /* Biar kursornya nempel pas di huruf terakhir */
-        animation: typing 2s steps(25, end), blink-caret .75s step-end infinite;
+        margin: 0;
+        /* KUNCI RAHASIANYA DI SINI: Lebar fix 26 karakter */
+        width: 26ch; 
+        animation: typing-sub 3s steps(26, end) infinite alternate, blink-caret .75s step-end infinite;
     }
-    @keyframes typing {
-        from { width: 0 }
-        to { width: 100% }
-    }
-    @keyframes blink-caret {
-        from, to { border-color: transparent }
-        50% { border-color: #FF1B6B; }
+
+    @keyframes typing-sub {
+        0% { width: 0; }
+        100% { width: 26ch; } /* Animasi mentok di 26 karakter, nggak bakal bablas */
     }
     </style>
 """, unsafe_allow_html=True)
