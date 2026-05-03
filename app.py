@@ -229,19 +229,6 @@ st.markdown("""
     [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
     [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
 
-    /* 2. EFEK GLOW PINK PAS KOLOM INPUT DI-KLIK */
-    div[data-baseweb="input"] > div:focus-within {
-        border-color: #FF1B6B !important;
-        box-shadow: 0 0 12px rgba(255, 27, 107, 0.4) !important;
-        transition: all 0.3s ease-in-out !important;
-    }
-    
-    /* Bikin border bawah warna pink ngambang pas di-hover */
-    div[data-baseweb="input"] > div:hover {
-        border-bottom: 2px solid #FF1B6B !important;
-        background-color: rgba(255, 27, 107, 0.05) !important;
-    }
-
     /* 3. PERBAIKAN EFEK MELAYANG (LEVITATE) PADA FORM & CONTAINER */
     /* Target khusus ke Form dan Container ber-border bawaan Streamlit */
     div[data-testid="stForm"], 
