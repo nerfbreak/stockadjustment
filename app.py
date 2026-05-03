@@ -246,12 +246,36 @@ st.markdown("""
         box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 27, 107, 0.3) !important; /* Glow shadow neon */
         border-color: #FF1B6B !important; /* Garisnya berubah pink pas kena mouse */
     }
+
+    /* 3. LIVE STATUS RADAR */
+    .live-indicator {
+        display: inline-flex;
+        align-items: center;
+        color: #4ade80; /* Hijau matrix */
+        font-family: 'JetBrainsMono', monospace;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+    .live-indicator::before {
+        content: '';
+        display: inline-block;
+        width: 10px; height: 10px;
+        background-color: #4ade80;
+        border-radius: 50%;
+        margin-right: 8px;
+        box-shadow: 0 0 10px #4ade80;
+        animation: pulse-radar 1.2s infinite alternate;
+    }
+    @keyframes pulse-radar {
+        from { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 5px #4ade80; }
+        to { transform: scale(1.3); opacity: 1; box-shadow: 0 0 15px #4ade80; }
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
-    st.title("Compare Stock")
+    st.title("<div class='live-indicator'>Compare Stock</div>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     st.markdown("---")
 
@@ -344,7 +368,7 @@ if st.session_state.app_page == "Reconcile":
 elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
-        st.title("Stock Adjustment")
+        st.title("<div class='live-indicator'>Stock Adjustment</div>", unsafe_allow_html=True)
         st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     with hdr_col2:
         st.markdown("<br>", unsafe_allow_html=True)
