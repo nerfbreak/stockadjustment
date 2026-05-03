@@ -242,16 +242,22 @@ st.markdown("""
         background-color: rgba(255, 27, 107, 0.05) !important;
     }
 
-    /* 3. EFEK MELAYANG PADA FORM/CONTAINER SAAT DI-HOVER */
-    div[data-testid="stForm"] {
-        transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Border tipis bawaan */
+    /* 3. PERBAIKAN EFEK MELAYANG (LEVITATE) PADA FORM & CONTAINER */
+    /* Target khusus ke Form dan Container ber-border bawaan Streamlit */
+    div[data-testid="stForm"], 
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease, border-color 0.3s ease !important;
+        background-color: #161b22 !important; /* Kasih background agak terang dikit dari warna base */
+        border-radius: 12px !important; /* Bikin pinggirannya agak tumpul (rounded) */
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 15px !important; /* Kasih ruang nafas */
     }
     
-    div[data-testid="stForm"]:hover {
-        transform: translateY(-4px) !important;
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 27, 107, 0.2) !important;
-        border: 1px solid #FF1B6B !important;
+    div[data-testid="stForm"]:hover, 
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        transform: translateY(-6px) !important; /* Ngangkat 6 pixel ke atas */
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 27, 107, 0.3) !important; /* Glow shadow neon */
+        border-color: #FF1B6B !important; /* Garisnya berubah pink pas kena mouse */
     }
     </style>
 """, unsafe_allow_html=True)
