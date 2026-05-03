@@ -190,13 +190,13 @@ st.markdown("""
         white-space: nowrap;
         margin: 0;
         /* KUNCI RAHASIANYA DI SINI: Lebar fix 26 karakter */
-        width: 26ch; 
+        width: 27ch; 
         animation: typing-sub 3s steps(26, end) infinite alternate, blink-caret .75s step-end infinite;
     }
 
     @keyframes typing-sub {
         0% { width: 0; }
-        100% { width: 26ch; } /* Animasi mentok di 26 karakter, nggak bakal bablas */
+        100% { width: 27ch; } /* Animasi mentok di 26 karakter, nggak bakal bablas */
     }
     </style>
 """, unsafe_allow_html=True)
