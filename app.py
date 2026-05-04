@@ -519,6 +519,12 @@ if st.session_state.app_page == "Reconcile":
                                 except Exception as e:
                                     st.error(f"Failed parsing downloaded file: {e}")
 
+                        # --- INI PENUTUP YANG KETELAN SAMA LU TADI BRE WKWKWK ---
+                        except PlaywrightTimeoutError:
+                            st.error("Operation Timeout: Pastikan password benar dan server Newspage merespon.")
+                        except Exception as e:
+                            st.error(f"System halted: {e}")
+
         else:
             st.markdown(make_solid_box("Data Newspage Ready in Memory!", "#0f2f1d", "#4ade80"), unsafe_allow_html=True)
             st.dataframe(st.session_state.np_df.head(3), use_container_width=True) # Kasih ngintip 3 baris
