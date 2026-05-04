@@ -123,6 +123,8 @@ if 'reconcile_summary' not in st.session_state:
     st.session_state.reconcile_summary = None
 if 'np_df' not in st.session_state:
     st.session_state.np_df = None
+if 'selected_distributor_str' not in st.session_state:
+    st.session_state.selected_distributor_str = None
 
 # --- 5. CUSTOM CSS ---
 st.markdown("""
@@ -580,7 +582,31 @@ if st.session_state.app_page == "Reconcile":
                 file1 = st.file_uploader("Or upload Newspage stock file manually", type=['csv', 'xlsx', 'zip'])
 
     with col2:
-        file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
+        with st.container(border=True):
+            st.markdown("**Distributor Account**")
+            _accounts    = load_accounts()
+            _acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in _accounts]
+            _auto_idx    = (
+                _acc_options.index(st.session_state.selected_distributor_str)
+                if st.session_state.selected_distributor_str in _acc_options
+                else None
+            )
+            _picked = st.selectbox(
+                "Select Distributor",
+                options=_acc_options,
+                index=_auto_idx,
+                placeholder="-- Select distributor --",
+                key="reconcile_dist_select"
+            )
+            if _picked and _picked != st.session_state.selected_distributor_str:
+                st.session_state.selected_distributor_str = _picked
+                st.rerun()
+            if st.session_state.selected_distributor_str:
+                st.markdown(make_solid_box(
+                    f"✔ {st.session_state.selected_distributor_str}",
+                    "#0f2f1d", "#4ade80"
+                ), unsafe_allow_html=True)
+            file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
 
     # Resolve NP data source: extracted or uploaded
     np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
@@ -715,12 +741,21 @@ elif st.session_state.app_page == "Bot":
     # --- Kiri: container border agar rapi ---
     with cfg_col1:
         with st.container(border=True):
+            _bot_acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts]
+            _bot_auto_idx    = (
+                _bot_acc_options.index(st.session_state.selected_distributor_str)
+                if st.session_state.selected_distributor_str in _bot_acc_options
+                else None
+            )
             selected_acc_str = st.selectbox(
                 "Select Distributor / User ID",
-                options=[f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts],
-                index=None,
+                options=_bot_acc_options,
+                index=_bot_auto_idx,
                 placeholder="-- Select account --"
             )
+            # Keep session state in sync if user changes the value here
+            if selected_acc_str and selected_acc_str != st.session_state.selected_distributor_str:
+                st.session_state.selected_distributor_str = selected_acc_str
             selected_account = None
             user_password = ""
             if selected_acc_str:
