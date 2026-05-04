@@ -108,10 +108,28 @@ def ensure_playwright():
 def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
     return (
         f"<div style='background-color:{bg_color};color:{text_color};"
-        f"padding:12px 16px;border-radius:8px;font-weight:600;"
-        f"font-size:0.92rem;margin:8px 0;text-align:center;"
-        f"box-shadow:0 2px 8px rgba(0,0,0,0.3);display:block;width:100%;'>{text}</div>"
+        f"padding:9px 14px;border-radius:6px;font-weight:600;"
+        f"font-size:0.84rem;margin:10px 0;text-align:center;"
+        f"border:1px solid {text_color}22;display:block;width:100%;'>{text}</div>"
     )
+
+def page_header(title: str, subtitle: str) -> None:
+    st.markdown(
+        f"""<div class='page-header'>
+            <div class='live-dot'></div>
+            <div>
+                <div class='page-title'>{title}</div>
+                <div class='page-sub'>{subtitle}</div>
+            </div>
+        </div>""",
+        unsafe_allow_html=True
+    )
+
+def section_label(text: str) -> None:
+    st.markdown(f"<div class='section-label'>{text}</div>", unsafe_allow_html=True)
+
+def status_badge(text: str, variant: str = "blue") -> None:
+    st.markdown(f"<div class='status-badge {variant}'>{text}</div>", unsafe_allow_html=True)
 
 
 # --- 4. STATE MANAGEMENT ---
@@ -131,29 +149,158 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
+    body, .stMarkdown, p, label { font-family: 'Inter', sans-serif !important; }
+
+    /* ── Page header ─────────────────────────────────── */
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 6px 0 18px 0;
+        border-bottom: 1px solid rgba(59,130,246,0.18);
+        margin-bottom: 24px;
+    }
+    .live-dot {
+        width: 8px; height: 8px;
+        background: #4ade80;
+        border-radius: 50%;
+        box-shadow: 0 0 6px #4ade80;
+        animation: pulse-dot 1.4s infinite alternate;
+        flex-shrink: 0;
+        margin-top: 4px;
+    }
+    @keyframes pulse-dot {
+        from { transform: scale(0.8); opacity: 0.6; }
+        to   { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #4ade80; }
+    }
+    .page-title   { font-family: 'Inter', sans-serif; font-size: 1.6rem; font-weight: 700; color: #f0f6fc; margin: 0; line-height: 1.2; }
+    .page-sub     { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #475569; margin: 2px 0 0 0; }
+
+    /* ── Section label ───────────────────────────────── */
+    .section-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #475569;
+        margin: 0 0 10px 0;
+    }
+
+    /* ── Cards (explicit opt-in only) ────────────────── */
+    .card {
+        border: 1px solid rgba(59,130,246,0.2);
+        border-radius: 8px;
+        padding: 18px;
+        margin-bottom: 4px;
+    }
+
+    /* ── Streamlit containers ────────────────────────── */
+    div[data-testid="stContainer"] {
+        border: 1px solid rgba(59,130,246,0.18);
+        border-radius: 8px;
+        padding: 16px 18px;
+    }
+
+    /* ── Status badge ────────────────────────────────── */
+    .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border-radius: 6px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 10px;
+    }
+    .status-badge.green  { background: rgba(21,128,61,0.18);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .status-badge.blue   { background: rgba(8,47,73,0.6);     color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+    .status-badge.purple { background: rgba(88,28,135,0.2);   color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+
+    /* ── Buttons ─────────────────────────────────────── */
+    button[kind="primary"] {
+        background-color: #2563eb !important;
+        color: #fff !important;
+        border: none !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px !important;
+        text-transform: uppercase !important;
+        border-radius: 6px !important;
+        font-family: 'Inter', sans-serif !important;
+        transition: background 0.15s ease, box-shadow 0.15s ease !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #1d4ed8 !important;
+        box-shadow: 0 4px 14px rgba(37,99,235,0.35) !important;
+    }
+    button[kind="secondary"] {
+        background-color: transparent !important;
+        color: #3b82f6 !important;
+        border: 1.5px solid rgba(59,130,246,0.5) !important;
+        font-weight: 600 !important;
+        border-radius: 6px !important;
+        font-family: 'Inter', sans-serif !important;
+        transition: background 0.15s ease !important;
+    }
+    button[kind="secondary"]:hover {
+        background-color: rgba(59,130,246,0.08) !important;
+    }
+
+    /* ── Divider ─────────────────────────────────────── */
+    hr {
+        border: none !important;
+        height: 1px !important;
+        background: linear-gradient(90deg, transparent, rgba(59,130,246,0.4), transparent) !important;
+        margin: 1.4rem 0 !important;
+    }
+
+    /* ── Metrics ─────────────────────────────────────── */
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricValue"] > div {
+        color: #3b82f6 !important;
+        font-weight: 700 !important;
+    }
+
+    /* ── Scrollbar ───────────────────────────────────── */
+    *::-webkit-scrollbar       { width: 5px !important; height: 5px !important; }
+    *::-webkit-scrollbar-track { background: transparent !important; }
+    *::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.45) !important; border-radius: 10px !important; }
+    * { scrollbar-width: thin !important; scrollbar-color: rgba(59,130,246,0.45) transparent !important; }
+
+    /* ── Terminal ────────────────────────────────────── */
     .terminal-box {
-        background-color: transparent;
+        background: rgba(15,23,42,0.6);
+        border: 1px solid rgba(59,130,246,0.15);
+        border-radius: 6px;
         color: #f0f6fc;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.82rem;
-        padding: 5px 0;
-        border: none;
-        box-shadow: none;
-        height: 350px;
+        font-size: 0.8rem;
+        padding: 12px 14px;
+        height: 300px;
         overflow-y: auto;
-        line-height: 1.8;
+        line-height: 1.85;
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
     .terminal-box::-webkit-scrollbar { display: none; }
+    .terminal-label {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        color: #334155;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
 
     .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #10b981; }
     @keyframes blinker { 50% { opacity: 0; } }
 
-    .log-time   { display: inline-block; width: 85px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
-    .log-ms     { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
-    .log-tag    { display: inline-block; width: 95px; font-weight: bold; font-family: 'JetBrains Mono', monospace; }
-    .log-msg    { color: #f0f6fc; font-weight: 500; font-family: 'Inter', sans-serif; }
+    .log-time   { display: inline-block; width: 82px;  color: #475569; font-family: 'JetBrains Mono', monospace; }
+    .log-ms     { display: inline-block; width: 72px;  text-align: right; margin-right: 14px; color: #f97316; font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; }
+    .log-tag    { display: inline-block; width: 90px;  font-weight: bold; font-family: 'JetBrains Mono', monospace; }
+    .log-msg    { color: #cbd5e1; font-weight: 500; font-family: 'Inter', sans-serif; }
 
     .tag-sys     { color: #a855f7; }
     .tag-auth    { color: #eab308; }
@@ -163,167 +310,19 @@ st.markdown("""
     .tag-error   { color: #ef4444; }
     .tag-server  { color: #f43f5e; }
 
-    button[kind="primary"] {
-        background-color: #2563eb !important;
-        color: #ffffff !important;
-        border: none !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.5px !important;
-        text-transform: uppercase !important;
-        transition: all 0.2s ease !important;
-        border-radius: 6px !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    button[kind="primary"]:hover {
-        background-color: #1d4ed8 !important;
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
-        transform: translateY(-1px) !important;
-    }
-    button[kind="primary"]:active { transform: translateY(0) !important; }
-
-    button[kind="secondary"] {
-        background-color: transparent !important;
-        color: #3b82f6 !important;
-        border: 1.5px solid #3b82f6 !important;
-        font-weight: 600 !important;
-        transition: all 0.2s ease !important;
-        border-radius: 6px !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    button[kind="secondary"]:hover {
-        background-color: #eff6ff !important;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.2) !important;
-    }
-
-    .typewriter-sub {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 1rem;
-        color: #8b949e;
-        overflow: hidden;
-        border-right: 0.12em solid #3b82f6;
-        white-space: nowrap;
-        margin: 0;
-        animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
-    }
-    @keyframes typing-sub {
-        0%   { width: 0; animation-timing-function: steps(29, end); }
-        30%  { width: 29ch; animation-timing-function: step-end; }
-        80%  { width: 29ch; animation-timing-function: steps(29, end); }
-        100% { width: 0; }
-    }
-    @keyframes blink-caret {
-        from, to { border-color: transparent; }
-        50%       { border-color: #3b82f6; }
-    }
-
-    @keyframes fadeSlideUp {
-        from { opacity: 0; transform: translateY(16px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    [data-testid="stVerticalBlock"] > div {
-        animation: fadeSlideUp 0.5s ease-out backwards;
-    }
-    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.05s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.10s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.15s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.20s; }
-
-    .live-indicator {
-        display: inline-flex;
-        align-items: center;
-        color: #4ade80;
-        font-family: 'JetBrains Mono', monospace;
-        font-weight: 700;
-        font-size: 0.85rem;
-        letter-spacing: 0.08em;
-    }
-    .live-indicator::before {
-        content: '';
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background-color: #4ade80;
-        border-radius: 50%;
-        margin-right: 7px;
-        box-shadow: 0 0 6px #4ade80;
-        animation: pulse-radar 1.4s infinite alternate;
-    }
-    @keyframes pulse-radar {
-        from { transform: scale(0.8); opacity: 0.6; }
-        to   { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #4ade80; }
-    }
-
-    hr {
-        border: none !important;
-        height: 1px !important;
-        background: linear-gradient(90deg, transparent, #3b82f6, transparent) !important;
-        opacity: 0.35 !important;
-        margin-top: 1.5rem !important;
-        margin-bottom: 1.5rem !important;
-    }
-
-    ::selection      { background: #3b82f6 !important; color: #ffffff !important; }
-    ::-moz-selection { background: #3b82f6 !important; color: #ffffff !important; }
-
-    *::-webkit-scrollbar       { width: 6px !important; height: 6px !important; background-color: transparent !important; }
-    *::-webkit-scrollbar-track { background-color: rgba(255,255,255,0.04) !important; border-radius: 10px !important; }
-    *::-webkit-scrollbar-thumb { background-color: #3b82f6 !important; border-radius: 10px !important; }
-    *::-webkit-scrollbar-thumb:hover { background-color: #2563eb !important; }
-    * { scrollbar-width: thin !important; scrollbar-color: #3b82f6 transparent !important; }
-
+    /* ── Misc ────────────────────────────────────────── */
+    ::selection      { background: #2563eb !important; color: #fff !important; }
+    header[data-testid="stHeader"] { border-bottom: 1px solid rgba(59,130,246,0.15) !important; }
     [data-testid="stStatusWidget"] {
-        background-color: #0f172a !important;
-        border: 1px solid #3b82f6 !important;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.25) !important;
+        background: #0f172a !important;
+        border: 1px solid rgba(59,130,246,0.4) !important;
         border-radius: 4px !important;
         padding: 2px 10px !important;
     }
     [data-testid="stStatusWidget"] * {
         color: #3b82f6 !important;
         font-family: 'JetBrains Mono', monospace !important;
-        font-weight: bold !important;
-        letter-spacing: 0.5px !important;
-    }
-
-    header[data-testid="stHeader"] {
-        border-bottom: 1px solid rgba(59, 130, 246, 0.25) !important;
-    }
-
-    .typewriter {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #f0f6fc;
-        overflow: hidden;
-        border-right: 0.12em solid #3b82f6;
-        white-space: nowrap;
-        margin: 0;
-        padding-right: 5px;
-        width: max-content;
-        animation: typing 3s steps(25, end) infinite alternate, blink-caret .75s step-end infinite;
-    }
-    @keyframes typing {
-        from { width: 0; }
-        to   { width: 100%; }
-    }
-
-    [data-testid="stMetricValue"],
-    [data-testid="stMetricValue"] > div {
-        color: #3b82f6 !important;
         font-weight: 700 !important;
-        display: block !important;
-    }
-
-    /* Container border styling agar blok kiri-kanan rapi */
-    div[data-testid="stContainer"] {
-        border: 1px solid rgba(59, 130, 246, 0.25);
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 12px;
-    }
-
-    body, .stMarkdown, p, span, div {
-        font-family: 'Inter', sans-serif;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -331,19 +330,16 @@ st.markdown("""
 
 # ─── 6. PAGE: RECONCILE ──────────────────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
-    st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
-    st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
-    st.markdown("---")
+    page_header("Compare Stock", "Newspage × Distributor reconciliation engine")
 
     col1, col2 = st.columns(2)
 
     with col1:
         with st.container(border=True):
-            st.markdown("**Newspage Stock Data**")
+            section_label("Newspage Stock Data")
 
             # ── Extract-from-server panel ──────────────────────────────────
-            with st.expander("Extract from Accenture", expanded=st.session_state.np_df is None):
+            with st.expander("Extract from Master Server", expanded=st.session_state.np_df is None):
                 np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...")
                 np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...")
                 extract_btn = st.button(
@@ -357,7 +353,7 @@ if st.session_state.app_page == "Reconcile":
                     user_id_np = np_user.strip()
                     pass_np    = np_pass.strip()
 
-                    st.markdown("**Extraction Log:**")
+                    st.markdown("<div class='terminal-label'>Extraction Log</div>", unsafe_allow_html=True)
                     ext_log_placeholder = st.empty()
 
                     ext_logs_history  = []
@@ -570,23 +566,19 @@ if st.session_state.app_page == "Reconcile":
 
             # ── Status banner or manual upload fallback ────────────────────
             if st.session_state.np_df is not None:
-                st.markdown(make_solid_box(
-                    f"✅ Extracted — {len(st.session_state.np_df)} items loaded from server",
-                    "#082f49", "#38bdf8"
-                ), unsafe_allow_html=True)
-                if st.button("🗑 Clear extracted data", use_container_width=True):
+                status_badge(f"✓  {len(st.session_state.np_df):,} items extracted from server", "blue")
+                if st.button("Clear extracted data", use_container_width=True):
                     st.session_state.np_df = None
                     st.rerun()
                 file1 = None
             else:
-                file1 = st.file_uploader("Or upload Newspage stock file manually", type=['csv', 'xlsx', 'zip'])
+                file1 = st.file_uploader("Or upload Newspage file manually", type=['csv', 'xlsx', 'zip'])
 
     with col2:
         with st.container(border=True):
-            st.markdown("**Distributor Stock Data**")
+            section_label("Distributor Stock Data")
             file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
 
-            st.markdown("<br>", unsafe_allow_html=True)
             _dist_locked = file2 is None
             _accounts    = load_accounts()
             _acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in _accounts]
@@ -599,7 +591,7 @@ if st.session_state.app_page == "Reconcile":
                 "Select Distributor",
                 options=_acc_options,
                 index=_auto_idx,
-                placeholder="-- Upload file first --" if _dist_locked else "-- Select distributor --",
+                placeholder="Upload file first" if _dist_locked else "Select distributor…",
                 key="reconcile_dist_select",
                 disabled=_dist_locked
             )
@@ -607,10 +599,7 @@ if st.session_state.app_page == "Reconcile":
                 st.session_state.selected_distributor_str = _picked
                 st.rerun()
             if not _dist_locked and st.session_state.selected_distributor_str:
-                st.markdown(make_solid_box(
-                    f"✔ {st.session_state.selected_distributor_str}",
-                    "#0f2f1d", "#4ade80"
-                ), unsafe_allow_html=True)
+                status_badge(f"✓  {st.session_state.selected_distributor_str}", "green")
 
     # Resolve NP data source: extracted or uploaded
     np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
@@ -623,7 +612,7 @@ if st.session_state.app_page == "Reconcile":
         if df1 is not None and df2 is not None:
             c1, c2 = st.columns(2)
             with c1:
-                st.subheader("Newspage setup")
+                section_label("Newspage column mapping")
                 idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
                 if 'Product Description' in df1.columns:
                     idx_desc1 = df1.columns.get_loc('Product Description')
@@ -636,12 +625,12 @@ if st.session_state.app_page == "Reconcile":
                     if 'Stock Available' in df1.columns
                     else (2 if len(df1.columns) > 2 else 0)
                 )
-                sku_col1  = st.selectbox("SKU column (NP)", df1.columns, index=idx_sku1)
-                desc_col1 = st.selectbox("Description column (NP)", df1.columns, index=idx_desc1)
-                qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
+                sku_col1  = st.selectbox("SKU column", df1.columns, index=idx_sku1)
+                desc_col1 = st.selectbox("Description column", df1.columns, index=idx_desc1)
+                qty_col1  = st.selectbox("Qty column", df1.columns, index=idx_qty1)
 
             with c2:
-                st.subheader("Distributor setup")
+                section_label("Distributor column mapping")
                 idx_sku2 = 20 if len(df2.columns) > 20 else 0
                 qty2_col_match = next(
                     (col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"),
@@ -651,11 +640,11 @@ if st.session_state.app_page == "Reconcile":
                     idx_qty2 = df2.columns.get_loc(qty2_col_match)
                 else:
                     idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
-                sku_col2 = st.selectbox("SKU column (Dist)", df2.columns, index=idx_sku2)
-                qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
+                sku_col2 = st.selectbox("SKU column", df2.columns, index=idx_sku2, key="sku2")
+                qty_col2 = st.selectbox("Qty column", df2.columns, index=idx_qty2, key="qty2")
 
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Compare Stock", type="primary", use_container_width=True):
+            if st.button("Run Comparison", type="primary", use_container_width=True):
                 d1 = df1[[sku_col1, desc_col1, qty_col1]].copy()
                 d1 = d1.dropna(subset=[sku_col1])
                 d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
@@ -704,7 +693,8 @@ if st.session_state.app_page == "Reconcile":
                     st.session_state.app_page = "Bot"
                     st.rerun()
 
-    if st.button("Stock Adjustment"):
+    st.divider()
+    if st.button("Go to Stock Adjustment →", use_container_width=True):
         st.session_state.reconcile_result = None
         st.session_state.reconcile_summary = None
         st.session_state.app_page = "Bot"
@@ -715,26 +705,24 @@ if st.session_state.app_page == "Reconcile":
 elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
-        st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-        st.markdown("<h1>Stock Adjustment</h1>", unsafe_allow_html=True)
-        st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
+        page_header("Stock Adjustment", "Automated payload injection engine")
     with hdr_col2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Compare Stock", use_container_width=True):
+        st.markdown("<div style='padding-top:18px'></div>", unsafe_allow_html=True)
+        if st.button("← Compare Stock", use_container_width=True):
             st.session_state.app_page = "Reconcile"
             st.rerun()
 
     st.markdown("---")
 
     if st.session_state.reconcile_summary is not None:
-        st.subheader("Stock review")
+        section_label("Stock Review")
         m1, m2 = st.columns(2)
         m1.metric("Match", st.session_state.reconcile_summary['total_match'])
         m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
         st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True)
         st.markdown("---")
 
-    st.subheader("Configuration")
+    section_label("Configuration")
     accounts = load_accounts()
     if not accounts:
         st.error(f"No account data found. Ensure '{CREDENTIALS_FILE}' exists in the app directory.")
@@ -770,18 +758,12 @@ elif st.session_state.app_page == "Bot":
                 user_password = st.text_input(
                     f"Password for {selected_account['user_id']}:",
                     type="password",
-                    placeholder="Enter password..."
+                    placeholder="Enter password…"
                 )
                 if len(user_password) > 3:
-                    st.markdown(make_solid_box(
-                        f"Password set — {selected_account['Distributor']} (validated on run)",
-                        "#0f2f1d", "#4ade80"
-                    ), unsafe_allow_html=True)
+                    status_badge(f"✓  Password set — {selected_account['Distributor']}", "green")
                 else:
-                    st.markdown(make_solid_box(
-                        "Waiting for password...",
-                        "#1e1b4b", "#a5b4fc"
-                    ), unsafe_allow_html=True)
+                    status_badge("Waiting for password…", "purple")
 
     # --- Kanan: container border agar rapi ---
     with cfg_col2:
@@ -790,10 +772,7 @@ elif st.session_state.app_page == "Bot":
             if st.session_state.reconcile_result is not None:
                 st.text_input("Data source", value="Auto-loaded from Compare Stock", disabled=True)
                 df_to_process = st.session_state.reconcile_result
-                st.markdown(make_solid_box(
-                    f"{len(df_to_process)} products ready to process",
-                    "#082f49", "#38bdf8"
-                ), unsafe_allow_html=True)
+                status_badge(f"✓  {len(df_to_process)} products ready to process", "blue")
             else:
                 uploaded_file = st.file_uploader("Data source (CSV / Excel)", type=["csv", "xlsx", "xls"])
                 if uploaded_file is not None:
@@ -805,12 +784,9 @@ elif st.session_state.app_page == "Bot":
                             df_to_process = pd.read_excel(uploaded_file, dtype=str)
                         df_to_process.columns = [str(c).strip().lower() for c in df_to_process.columns]
                         if 'sku' in df_to_process.columns and 'qty' in df_to_process.columns:
-                            st.markdown(make_solid_box(
-                                f"{len(df_to_process)} products ready to process",
-                                "#082f49", "#38bdf8"
-                            ), unsafe_allow_html=True)
+                            status_badge(f"✓  {len(df_to_process)} products ready to process", "blue")
                         else:
-                            st.error("Invalid format — column headers must be named 'sku' and 'qty'.")
+                            st.error("Invalid format — columns must be named 'sku' and 'qty'.")
                             df_to_process = None
                     except Exception as e:
                         st.error(f"Failed to read file: {e}")
@@ -819,9 +795,10 @@ elif st.session_state.app_page == "Bot":
     is_ready = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
-    st.subheader("Product table")
+    st.divider()
+    section_label("Product Table")
     if not is_ready:
-        st.warning("Select an account and ensure data is available before running the bot.")
+        st.info("Select an account and ensure data is available before running the bot.")
         st.stop()
 
     df_view = df_to_process.copy()
@@ -831,7 +808,7 @@ elif st.session_state.app_page == "Bot":
         df_view['Keterangan'] = '-'
     table_placeholder = st.dataframe(df_view, use_container_width=True)
 
-    st.markdown("Log:")
+    st.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
     log_placeholder = st.empty()
 
     if run_button:
@@ -978,10 +955,10 @@ elif st.session_state.app_page == "Bot":
                 browser.close()
                 elapsed = int(time.time() - global_start_time)
                 ui_log("SUCCESS", f"Complete. Total runtime: {elapsed // 60}m {elapsed % 60}s")
-                st.markdown(make_solid_box(
-                    f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed // 60}m {elapsed % 60}s",
-                    "#166534", "#ffffff"
-                ), unsafe_allow_html=True)
+                status_badge(
+                    f"✓  Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed // 60}m {elapsed % 60}s",
+                    "green"
+                )
                 if success_count > 0:
                     st.toast('Connection terminated')
                     time.sleep(0.5)
