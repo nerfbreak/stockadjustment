@@ -493,37 +493,65 @@ if st.session_state.app_page == "Reconcile":
                                 ui_log_np("SUCCESS", f"PAYLOAD SECURED: File successfully extracted as {file_path}")
                                 browser.close()
                                 
-                                # === BACA DATA KE MEMORI ===
+                                # === BACA DATA KE MEMORI (SUPER PARSER) ===
                                 try:
-                                    # Brute-force beberapa tipe encoding bawaan server Windows/ASP.NET
+                                    ui_log_np("SYS", "Reading payload into memory...")
                                     df_ext = None
-                                    for enc in ['utf-8', 'cp1252', 'iso-8859-1', 'utf-16']:
-                                        try:
-                                            df_ext = pd.read_csv(file_path, sep='\t', dtype=str, encoding=enc)
-                                            # Kalau kolomnya cuma 1 (berarti salah separator), coba pake koma
-                                            if df_ext is not None and df_ext.shape[1] <= 1:
-                                                df_ext = pd.read_csv(file_path, sep=',', dtype=str, encoding=enc)
+                                    
+                                    # Buka file mentah buat nyari di baris ke berapa tabel aslinya mulai
+                                    # (Bypass metadata/header report bawaan ERP)
+                                    with open(file_path, 'r', encoding='iso-8859-1', errors='replace') as f:
+                                        lines = f.readlines()
+                                    
+                                    start_row = 0
+                                    for i, line in enumerate(lines[:30]): # Cek 30 baris pertama
+                                        # Cari baris yang punya pemisah (tab, koma, atau titik koma)
+                                        if line.count('\t') >= 1 or line.count(',') >= 2 or line.count(';') >= 1:
+                                            start_row = i
+                                            break
                                             
-                                            # Kalau sukses kebaca dan kolomnya bener, langsung break dari loop
-                                            if df_ext is not None and df_ext.shape[1] > 1:
-                                                break
-                                        except UnicodeDecodeError:
-                                            continue # Kalau gagal decode, lanjut ke format encoding berikutnya
+                                    ui_log_np("SYS", f"Data table detected at row {start_row}. Extracting...")
+                                    
+                                    # Brute-force separator & encoding
+                                    for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
+                                        for separator in ['\t', ',', ';', '|']:
+                                            try:
+                                                # on_bad_lines='skip' buat pandas baru
+                                                temp_df = pd.read_csv(file_path, sep=separator, skiprows=start_row, dtype=str, encoding=enc, on_bad_lines='skip')
+                                                if temp_df is not None and temp_df.shape[1] > 1:
+                                                    df_ext = temp_df
+                                                    break
+                                            except Exception:
+                                                try:
+                                                    # error_bad_lines=False buat pandas lama
+                                                    temp_df = pd.read_csv(file_path, sep=separator, skiprows=start_row, dtype=str, encoding=enc, error_bad_lines=False)
+                                                    if temp_df is not None and temp_df.shape[1] > 1:
+                                                        df_ext = temp_df
+                                                        break
+                                                except Exception:
+                                                    continue
+                                        if df_ext is not None and df_ext.shape[1] > 1:
+                                            break
                                             
-                                    if df_ext is not None and not df_ext.empty:
+                                    if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
+                                        # Bersihin nama kolom dari spasi berlebih
+                                        df_ext.columns = [str(c).strip() for c in df_ext.columns]
                                         st.session_state.np_df = df_ext
-                                        st.rerun() # Refresh buat nyembunyiin form
+                                        st.rerun() # Refresh biar UI update
                                     else:
-                                        st.error("Gagal parsing: Format file tidak dikenali atau kosong.")
+                                        st.error("CRITICAL: Gagal ekstrak tabel. Cek format file manual.")
+                                        ui_log_np("ERROR", "Parser failed to reconstruct dataframe.")
                                         
                                 except Exception as e:
                                     st.error(f"Failed parsing downloaded file: {e}")
+                                    ui_log_np("ERROR", f"Parsing error: {e}")
 
-                        # --- INI PENUTUP YANG KETELAN SAMA LU TADI BRE WKWKWK ---
                         except PlaywrightTimeoutError:
                             st.error("Operation Timeout: Pastikan password benar dan server Newspage merespon.")
+                            ui_log_np("ERROR", "Timeout triggered during navigation/extraction.")
                         except Exception as e:
                             st.error(f"System halted: {e}")
+                            ui_log_np("ERROR", f"Fatal exception: {e}")
 
         else:
             st.markdown(make_solid_box("Data Newspage Ready in Memory!", "#0f2f1d", "#4ade80"), unsafe_allow_html=True)
