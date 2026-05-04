@@ -355,154 +355,216 @@ if st.session_state.app_page == "Reconcile":
                     user_id_np = np_user.strip()
                     pass_np    = np_pass.strip()
 
-                    with st.spinner("Firing up extraction engine..."):
-                        ensure_playwright()
+                    st.markdown("**Extraction Log:**")
+                    ext_log_placeholder = st.empty()
 
-                        try:
-                            if sys.platform == "win32":
-                                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-                            asyncio.set_event_loop(asyncio.new_event_loop())
+                    ext_logs_history  = []
+                    ext_last_log_time = [time.time()]
 
-                            with sync_playwright() as p:
-                                browser = p.chromium.launch(headless=True)
-                                context = browser.new_context(no_viewport=True)
-                                page = context.new_page()
+                    def ext_ui_log(module, msg):
+                        now      = time.time()
+                        diff_ms  = int((now - ext_last_log_time[0]) * 1000)
+                        ext_last_log_time[0] = now
+                        timestamp = time.strftime('%H:%M:%S')
+                        tag_class = f"tag-{module.lower()}"
+                        new_log = (
+                            f"<span class='log-time'>[{timestamp}]</span>"
+                            f"<span class='log-ms'>[+{diff_ms}ms]</span>"
+                            f"<span class='log-tag {tag_class}'>[{module}]</span>"
+                            f"<span class='log-msg'>{msg}</span>"
+                        )
+                        ext_logs_history.append(new_log)
+                        display_logs = "<br>".join(ext_logs_history[-100:])
+                        html_content = f"""
+                        <div class="terminal-box" id="ext_term_box">
+                            {display_logs}
+                            <br><span class="blink_me">&#9608;</span>
+                        </div>
+                        <script>
+                            var t = window.parent.document.getElementById('ext_term_box') || document.getElementById('ext_term_box');
+                            if (t) t.scrollTop = t.scrollHeight;
+                        </script>
+                        """
+                        ext_log_placeholder.markdown(html_content, unsafe_allow_html=True)
 
-                                # 1. Login ke Master Server
-                                page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                                page.locator("id=txtUserid").fill(user_id_np)
-                                page.locator("id=txtPasswd").fill(pass_np)
-                                page.locator("id=btnLogin").click(force=True)
+                    ext_ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
+                    ensure_playwright()
 
-                                # 2. Bypass Active Session Warning (kalau ada)
-                                try:
-                                    btn = page.locator("id=SYS_ASCX_btnContinue")
-                                    btn.wait_for(state="visible", timeout=5_000)
-                                    btn.click(force=True)
-                                except Exception:
-                                    pass
+                    try:
+                        if sys.platform == "win32":
+                            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                        asyncio.set_event_loop(asyncio.new_event_loop())
 
-                                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                        with sync_playwright() as p:
+                            ext_ui_log("SYS", "Spawning browser context with isolated session...")
+                            browser = p.chromium.launch(headless=True)
+                            context = browser.new_context(no_viewport=True)
+                            page = context.new_page()
 
-                                # 3. Masuk ke modul Import/Export Job
-                                time.sleep(3)
-                                menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
-                                menu_job.wait_for(state="attached", timeout=15000)
-                                menu_job.dispatch_event("click")
-                                time.sleep(4)
+                            # 1. Login ke Master Server
+                            ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
+                            page.goto(URL_LOGIN, wait_until="domcontentloaded")
+                            ext_ui_log("AUTH", "DOM ready. Filling credentials...")
+                            page.locator("id=txtUserid").fill(user_id_np)
+                            page.locator("id=txtPasswd").fill(pass_np)
+                            page.locator("id=btnLogin").click(force=True)
 
-                                # 4. Tambah Job Baru (Add Value)
-                                page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click(force=True)
-                                time.sleep(3)
+                            # 2. Bypass Active Session Warning (kalau ada)
+                            try:
+                                btn = page.locator("id=SYS_ASCX_btnContinue")
+                                btn.wait_for(state="visible", timeout=5_000)
+                                ext_ui_log("AUTH", "Active session interceptor detected. Bypassing...")
+                                btn.click(force=True)
+                            except Exception:
+                                ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
 
-                                # 5. Set Tipe Job & Deskripsi
-                                page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TYPE_Value").select_option("E")
-                                time.sleep(2)
-                                page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_DESC_Value").fill("Text Inventory Master")
-                                page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TIMEOUT_Value").fill("9999999")
-                                page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_EXE_TYPE_Value").select_option("M")
-                                time.sleep(2)
+                            page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                            ext_ui_log("AUTH", "Login successful. Session established.")
+                            ext_ui_log("SUCCESS", "Handshake verified.")
 
-                                # 6. Lanjut (Next)
-                                page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click(force=True)
-                                time.sleep(3)
+                            # 3. Masuk ke modul Import/Export Job
+                            ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
+                            time.sleep(3)
+                            menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
+                            menu_job.wait_for(state="attached", timeout=15000)
+                            menu_job.dispatch_event("click")
+                            time.sleep(4)
 
-                                # 7. Bypass Disclaimer
-                                page.locator("id=pag_FW_DisclaimerMessage_btn_okay_Value").click(force=True)
-                                time.sleep(2)
+                            # 4. Tambah Job Baru (Add Value)
+                            ext_ui_log("NAV", "Opening new job [Add Value]...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click(force=True)
+                            time.sleep(3)
 
-                                # 8. Buka Interface Selection Popup
-                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click(force=True)
-                                time.sleep(3)
+                            # 5. Set Tipe Job & Deskripsi
+                            ext_ui_log("INJECT", "Setting job type: Export [E], desc: Text Inventory Master...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TYPE_Value").select_option("E")
+                            time.sleep(2)
+                            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_DESC_Value").fill("Text Inventory Master")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TIMEOUT_Value").fill("9999999")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_EXE_TYPE_Value").select_option("M")
+                            time.sleep(2)
 
-                                # 9. Search Interface Target
-                                page.locator("id=pop_Dynamic_gft_List_2_FilterField_Value").fill("E_20150315090000028")
-                                page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click(force=True)
-                                time.sleep(2)
+                            # 6. Lanjut (Next)
+                            ext_ui_log("NAV", "Proceeding to next step...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click(force=True)
+                            time.sleep(3)
 
-                                # 10. Select Target Interface
-                                page.get_by_text("E_20150315090000028", exact=True).click(force=True)
-                                time.sleep(2)
+                            # 7. Bypass Disclaimer
+                            ext_ui_log("SYS", "Bypassing disclaimer prompt...")
+                            page.locator("id=pag_FW_DisclaimerMessage_btn_okay_Value").click(force=True)
+                            time.sleep(2)
 
-                                # 11. Set File Type & Separator
-                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
-                                time.sleep(1)
-                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
-                                time.sleep(3)
+                            # 8. Buka Interface Selection Popup
+                            ext_ui_log("NAV", "Opening interface selection popup...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click(force=True)
+                            time.sleep(3)
 
-                                # 12. Set Filter Warehouse (GOOD_WHS)
-                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
-                                time.sleep(2)
+                            # 9. Search Interface Target
+                            ext_ui_log("INJECT", "Searching target interface: E_20150315090000028...")
+                            page.locator("id=pop_Dynamic_gft_List_2_FilterField_Value").fill("E_20150315090000028")
+                            page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click(force=True)
+                            time.sleep(2)
 
-                                # 13. Set Parameter 1
-                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
+                            # 10. Select Target Interface
+                            ext_ui_log("INJECT", "Selecting target interface from results...")
+                            page.get_by_text("E_20150315090000028", exact=True).click(force=True)
+                            time.sleep(2)
 
-                                # 14. Add Parameter ke Job
-                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
-                                time.sleep(3)
+                            # 11. Set File Type & Separator
+                            ext_ui_log("INJECT", "Setting file type: Delimited [D], separator: standard...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
+                            time.sleep(1)
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
+                            time.sleep(3)
 
-                                # 15. Simpan dan Execute Payload
-                                page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
+                            # 12. Set Filter Warehouse (GOOD_WHS)
+                            ext_ui_log("INJECT", f"Applying warehouse filter: [{WAREHOUSE}]...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
+                            time.sleep(2)
 
-                                # 16. Konfirmasi Prompt Dialog
-                                page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=15000)
-                                page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
+                            # 13. Set Parameter 1
+                            ext_ui_log("INJECT", "Setting dynamic parameter: 1...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
 
-                                # 17. Intercept Tombol Download (Bisa memakan waktu cukup lama)
-                                with page.expect_download(timeout=240000) as download_info:
-                                    download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
-                                    download_btn.wait_for(state="visible", timeout=240000)
-                                    download_btn.click(force=True)
+                            # 14. Add Parameter ke Job
+                            ext_ui_log("SYS", "Committing parameters to job definition...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
+                            time.sleep(3)
 
-                                # 18. Simpan File Extract ke Environment
-                                download = download_info.value
-                                real_filename = download.suggested_filename
-                                file_path = f"temp_ext_{real_filename}"
-                                download.save_as(file_path)
+                            # 15. Simpan dan Execute Payload
+                            ext_ui_log("SERVER", "Saving job and dispatching execution to server...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
 
-                                browser.close()
+                            # 16. Konfirmasi Prompt Dialog
+                            ext_ui_log("SERVER", "Awaiting server confirmation prompt...")
+                            page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=15000)
+                            page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
+                            ext_ui_log("SERVER", "Job dispatched. Waiting for export to complete...")
 
-                                # 19. Smart Parser: Baca Zip/Excel/CSV
-                                df_ext = None
-                                if real_filename.lower().endswith('.zip'):
-                                    with zipfile.ZipFile(file_path) as z:
-                                        target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith((".csv", ".txt"))), None)
-                                        if not target:
-                                            target = next((n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))), None)
-                                        if target:
-                                            with z.open(target) as f:
-                                                df_ext = pd.read_csv(f, sep='\t', dtype=str, on_bad_lines='skip')
-                                                if df_ext.shape[1] <= 1:
-                                                    f.seek(0)
-                                                    df_ext = pd.read_csv(f, sep=',', dtype=str, on_bad_lines='skip')
-                                elif real_filename.lower().endswith(('.xls', '.xlsx')):
-                                    df_ext = pd.read_excel(file_path, dtype=str)
-                                else:
-                                    for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
-                                        for separator in ['\t', ',', ';', '|']:
-                                            try:
-                                                temp_df = pd.read_csv(file_path, sep=separator, dtype=str, encoding=enc, on_bad_lines='skip')
-                                                if temp_df is not None and temp_df.shape[1] > 1:
-                                                    df_ext = temp_df
-                                                    break
-                                            except Exception:
-                                                continue
-                                        if df_ext is not None and df_ext.shape[1] > 1:
-                                            break
+                            # 17. Intercept Tombol Download (Bisa memakan waktu cukup lama)
+                            ext_ui_log("SERVER", "Intercepting download link — this may take up to 4 minutes...")
+                            with page.expect_download(timeout=240000) as download_info:
+                                download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
+                                download_btn.wait_for(state="visible", timeout=240000)
+                                download_btn.click(force=True)
 
-                                # 20. Validasi Format DataFrame
-                                if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
-                                    df_ext.columns = [str(c).strip() for c in df_ext.columns]
-                                    st.session_state.np_df = df_ext
-                                    st.success(f"Payload Secured! {len(df_ext)} items loaded.")
-                                    st.rerun()
-                                else:
-                                    st.error("Gagal membaca file dari server, cek format ekstraksi.")
+                            # 18. Simpan File Extract ke Environment
+                            download      = download_info.value
+                            real_filename = download.suggested_filename
+                            file_path     = f"temp_ext_{real_filename}"
+                            ext_ui_log("SUCCESS", f"Download captured: {real_filename}. Saving to environment...")
+                            download.save_as(file_path)
 
-                        except PlaywrightTimeoutError:
-                            st.error("Operation Timeout. Server tidak merespon dalam batas waktu.")
-                        except Exception as e:
-                            st.error(f"System error: {e}")
+                            browser.close()
+                            ext_ui_log("SYS", "Browser closed. Releasing session memory...")
+
+                            # 19. Smart Parser: Baca Zip/Excel/CSV
+                            ext_ui_log("SYS", f"Parsing payload file: {real_filename}...")
+                            df_ext = None
+                            if real_filename.lower().endswith('.zip'):
+                                with zipfile.ZipFile(file_path) as z:
+                                    target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith((".csv", ".txt"))), None)
+                                    if not target:
+                                        target = next((n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))), None)
+                                    if target:
+                                        ext_ui_log("SYS", f"ZIP target identified: {target}")
+                                        with z.open(target) as f:
+                                            df_ext = pd.read_csv(f, sep='\t', dtype=str, on_bad_lines='skip')
+                                            if df_ext.shape[1] <= 1:
+                                                f.seek(0)
+                                                df_ext = pd.read_csv(f, sep=',', dtype=str, on_bad_lines='skip')
+                            elif real_filename.lower().endswith(('.xls', '.xlsx')):
+                                df_ext = pd.read_excel(file_path, dtype=str)
+                            else:
+                                for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
+                                    for separator in ['\t', ',', ';', '|']:
+                                        try:
+                                            temp_df = pd.read_csv(file_path, sep=separator, dtype=str, encoding=enc, on_bad_lines='skip')
+                                            if temp_df is not None and temp_df.shape[1] > 1:
+                                                df_ext = temp_df
+                                                ext_ui_log("SYS", f"Parser success — enc: {enc}, sep: '{separator}'")
+                                                break
+                                        except Exception:
+                                            continue
+                                    if df_ext is not None and df_ext.shape[1] > 1:
+                                        break
+
+                            # 20. Validasi Format DataFrame
+                            if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
+                                df_ext.columns = [str(c).strip() for c in df_ext.columns]
+                                ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
+                                st.session_state.np_df = df_ext
+                                st.rerun()
+                            else:
+                                ext_ui_log("ERROR", "DataFrame validation failed — bad format or empty file.")
+                                st.error("Gagal membaca file dari server, cek format ekstraksi.")
+
+                    except PlaywrightTimeoutError:
+                        ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon dalam batas waktu.")
+                        st.error("Operation Timeout. Server tidak merespon dalam batas waktu.")
+                    except Exception as e:
+                        ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
+                        st.error(f"System error: {e}")
 
             # ── Status banner or manual upload fallback ────────────────────
             if st.session_state.np_df is not None:
