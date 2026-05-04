@@ -415,12 +415,17 @@ if st.session_state.app_page == "Reconcile":
 
                                 # === 21 STEPS EXTRACTION LOGIC DENGAN ANTI-TIMEOUT ===
                                 ui_log_np("NAV", "Accessing Import/Export Job module...")
-                                page.locator("id=pag_Sys_Root_tab_Detail_itm_Job").click()
-                                time.sleep(3)
+                                time.sleep(3) # Kasih nafas 3 detik biar struktur menu kiri kelar ngerender
+                                
+                                # 1. Hajar pakai dispatch_event biar nembus menu JS yang ngumpet
+                                menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
+                                menu_job.wait_for(state="attached", timeout=15000)
+                                menu_job.dispatch_event("click")
+                                time.sleep(4)
 
                                 ui_log_np("SYS", "Initializing new extraction job...")
-                                page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click()
-                                time.sleep(2)
+                                page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click(force=True)
+                                time.sleep(3)
 
                                 page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TYPE_Value").select_option("E")
                                 time.sleep(2)
@@ -430,23 +435,23 @@ if st.session_state.app_page == "Reconcile":
                                 page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_EXE_TYPE_Value").select_option("M")
                                 time.sleep(2)
 
-                                page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click()
-                                time.sleep(2)
+                                page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click(force=True)
+                                time.sleep(3)
 
                                 ui_log_np("SYS", "Bypassing disclaimer warning...")
                                 page.locator("id=pag_FW_DisclaimerMessage_btn_okay_Value").click(force=True)
                                 time.sleep(2)
 
                                 ui_log_np("NAV", "Opening Interface Selection Popup...")
-                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click()
-                                time.sleep(2)
+                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click(force=True)
+                                time.sleep(3)
 
                                 page.locator("id=pop_Dynamic_gft_List_2_FilterField_Value").fill("E_20150315090000028")
-                                page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click()
+                                page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click(force=True)
                                 time.sleep(2)
 
                                 ui_log_np("INJECT", "Selecting Target Interface: E_20150315090000028")
-                                page.get_by_text("E_20150315090000028", exact=True).click()
+                                page.get_by_text("E_20150315090000028", exact=True).click(force=True)
                                 time.sleep(2)
 
                                 page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
@@ -463,15 +468,15 @@ if st.session_state.app_page == "Reconcile":
                                 ui_log_np("INJECT", "Setting parameter: 1")
                                 page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
 
-                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click()
-                                time.sleep(2)
+                                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
+                                time.sleep(3)
 
                                 ui_log_np("SERVER", "Sending execution command to master server...")
-                                page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click()
+                                page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
 
                                 ui_log_np("SYS", "Confirming execution prompt...")
                                 page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=15000)
-                                page.locator("id=TF_Prompt_btn_Ok_Value").click()
+                                page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
 
                                 ui_log_np("SERVER", "Awaiting payload generation. Intercept module active (Up to 4 mins)...")
                                 
@@ -479,7 +484,7 @@ if st.session_state.app_page == "Reconcile":
                                 with page.expect_download(timeout=240000) as download_info:
                                     download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
                                     download_btn.wait_for(state="visible", timeout=240000)
-                                    download_btn.click()
+                                    download_btn.click(force=True)
 
                                 download = download_info.value
                                 file_path = "temp_payload.csv"
