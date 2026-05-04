@@ -495,18 +495,29 @@ if st.session_state.app_page == "Reconcile":
                                 
                                 # === BACA DATA KE MEMORI ===
                                 try:
-                                    df_ext = pd.read_csv(file_path, sep='\t', dtype=str)
-                                    if df_ext.shape[1] <= 1:
-                                        df_ext = pd.read_csv(file_path, sep=',', dtype=str)
-                                    st.session_state.np_df = df_ext
-                                    st.rerun() # Refresh buat nyembunyiin form
+                                    # Brute-force beberapa tipe encoding bawaan server Windows/ASP.NET
+                                    df_ext = None
+                                    for enc in ['utf-8', 'cp1252', 'iso-8859-1', 'utf-16']:
+                                        try:
+                                            df_ext = pd.read_csv(file_path, sep='\t', dtype=str, encoding=enc)
+                                            # Kalau kolomnya cuma 1 (berarti salah separator), coba pake koma
+                                            if df_ext is not None and df_ext.shape[1] <= 1:
+                                                df_ext = pd.read_csv(file_path, sep=',', dtype=str, encoding=enc)
+                                            
+                                            # Kalau sukses kebaca dan kolomnya bener, langsung break dari loop
+                                            if df_ext is not None and df_ext.shape[1] > 1:
+                                                break
+                                        except UnicodeDecodeError:
+                                            continue # Kalau gagal decode, lanjut ke format encoding berikutnya
+                                            
+                                    if df_ext is not None and not df_ext.empty:
+                                        st.session_state.np_df = df_ext
+                                        st.rerun() # Refresh buat nyembunyiin form
+                                    else:
+                                        st.error("Gagal parsing: Format file tidak dikenali atau kosong.")
+                                        
                                 except Exception as e:
                                     st.error(f"Failed parsing downloaded file: {e}")
-
-                        except PlaywrightTimeoutError:
-                            st.error("Operation Timeout: Pastikan password benar dan server Newspage merespon.")
-                        except Exception as e:
-                            st.error(f"System halted: {e}")
 
         else:
             st.markdown(make_solid_box("Data Newspage Ready in Memory!", "#0f2f1d", "#4ade80"), unsafe_allow_html=True)
