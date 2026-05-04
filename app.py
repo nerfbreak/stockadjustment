@@ -343,7 +343,7 @@ if st.session_state.app_page == "Reconcile":
             st.markdown("**Newspage Stock Data**")
 
             # ── Extract-from-server panel ──────────────────────────────────
-            with st.expander("Extract from Accenture", expanded=st.session_state.np_df is None):
+            with st.expander("🔌 Extract from Master Server", expanded=st.session_state.np_df is None):
                 np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...")
                 np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...")
                 extract_btn = st.button(
@@ -583,7 +583,11 @@ if st.session_state.app_page == "Reconcile":
 
     with col2:
         with st.container(border=True):
-            st.markdown("**Distributor Account**")
+            st.markdown("**Distributor Stock Data**")
+            file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            _dist_locked = file2 is None
             _accounts    = load_accounts()
             _acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in _accounts]
             _auto_idx    = (
@@ -595,18 +599,18 @@ if st.session_state.app_page == "Reconcile":
                 "Select Distributor",
                 options=_acc_options,
                 index=_auto_idx,
-                placeholder="-- Select distributor --",
-                key="reconcile_dist_select"
+                placeholder="-- Upload file first --" if _dist_locked else "-- Select distributor --",
+                key="reconcile_dist_select",
+                disabled=_dist_locked
             )
             if _picked and _picked != st.session_state.selected_distributor_str:
                 st.session_state.selected_distributor_str = _picked
                 st.rerun()
-            if st.session_state.selected_distributor_str:
+            if not _dist_locked and st.session_state.selected_distributor_str:
                 st.markdown(make_solid_box(
                     f"✔ {st.session_state.selected_distributor_str}",
                     "#0f2f1d", "#4ade80"
                 ), unsafe_allow_html=True)
-            file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
 
     # Resolve NP data source: extracted or uploaded
     np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
