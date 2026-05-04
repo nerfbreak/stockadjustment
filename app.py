@@ -553,9 +553,26 @@ if st.session_state.app_page == "Reconcile":
                             ui_log_np("ERROR", f"Fatal exception: {e}")
 
         else:
-            st.markdown(make_solid_box("Data Newspage Ready in Memory!", "#0f2f1d", "#4ade80"), unsafe_allow_html=True)
-            st.dataframe(st.session_state.np_df.head(3), use_container_width=True) # Kasih ngintip 3 baris
-            if st.button("Clear Data & Re-extract", use_container_width=True):
+            # 1. Kotak Sukses yang lebih rapi
+            st.markdown(make_solid_box("STATUS: PAYLOAD SECURED & LOADED", "#0f2f1d", "#4ade80"), unsafe_allow_html=True)
+            
+            # 2. Tampilkan metrik simpel biar keliatan pro
+            total_items = len(st.session_state.np_df)
+            st.markdown(f"<p style='color: #8b949e; font-family: JetBrains Mono; font-size: 0.85rem; margin-bottom: 5px;'>Total Extracted: {total_items} Items</p>", unsafe_allow_html=True)
+            
+            # 3. Tampilkan DataFrame dengan hide_index dan dibungkus container biar manis
+            with st.container(border=True):
+                st.dataframe(
+                    st.session_state.np_df.head(5), # Tunjukin 5 baris aja
+                    use_container_width=True, 
+                    hide_index=True # Ini kunci biar angka 0,1,2 ilang!
+                )
+            
+            # 4. Kasih jarak dikit sebelum tombol
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # 5. Tombol reset pakai style secondary biar nggak nabrak warna neon utama
+            if st.button("WIPE MEMORY & RE-EXTRACT", type="secondary", use_container_width=True):
                 st.session_state.np_df = None
                 st.rerun()
 
