@@ -487,59 +487,58 @@ if st.session_state.app_page == "Reconcile":
                                     download_btn.click(force=True)
 
                                 download = download_info.value
-                                file_path = "temp_payload.csv"
+                                
+                                # TANGKAP NAMA FILE ASLI DARI SERVER (Biar nggak salah format)
+                                real_filename = download.suggested_filename
+                                file_path = f"temp_ext_{real_filename}"
                                 download.save_as(file_path)
 
-                                ui_log_np("SUCCESS", f"PAYLOAD SECURED: File successfully extracted as {file_path}")
+                                ui_log_np("SUCCESS", f"PAYLOAD SECURED: File extracted as {real_filename}")
                                 browser.close()
                                 
-                                # === BACA DATA KE MEMORI (SUPER PARSER) ===
+                                # === BACA DATA KE MEMORI (SMART PARSER) ===
                                 try:
-                                    ui_log_np("SYS", "Reading payload into memory...")
+                                    ui_log_np("SYS", "Decrypting and reading payload into memory...")
                                     df_ext = None
                                     
-                                    # Buka file mentah buat nyari di baris ke berapa tabel aslinya mulai
-                                    # (Bypass metadata/header report bawaan ERP)
-                                    with open(file_path, 'r', encoding='iso-8859-1', errors='replace') as f:
-                                        lines = f.readlines()
+                                    # Deteksi format asli berdasarkan ekstensi dari server
+                                    if real_filename.lower().endswith('.zip'):
+                                        with zipfile.ZipFile(file_path) as z:
+                                            # Cari file CSV/TXT di dalam ZIP
+                                            target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith((".csv", ".txt"))), None)
+                                            if not target: 
+                                                target = next((n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))), None)
+                                            if target:
+                                                with z.open(target) as f:
+                                                    df_ext = pd.read_csv(f, sep='\t', dtype=str, on_bad_lines='skip')
+                                                    if df_ext.shape[1] <= 1:
+                                                        f.seek(0)
+                                                        df_ext = pd.read_csv(f, sep=',', dtype=str, on_bad_lines='skip')
                                     
-                                    start_row = 0
-                                    for i, line in enumerate(lines[:30]): # Cek 30 baris pertama
-                                        # Cari baris yang punya pemisah (tab, koma, atau titik koma)
-                                        if line.count('\t') >= 1 or line.count(',') >= 2 or line.count(';') >= 1:
-                                            start_row = i
-                                            break
-                                            
-                                    ui_log_np("SYS", f"Data table detected at row {start_row}. Extracting...")
+                                    elif real_filename.lower().endswith(('.xls', '.xlsx')):
+                                        df_ext = pd.read_excel(file_path, dtype=str)
                                     
-                                    # Brute-force separator & encoding
-                                    for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
-                                        for separator in ['\t', ',', ';', '|']:
-                                            try:
-                                                # on_bad_lines='skip' buat pandas baru
-                                                temp_df = pd.read_csv(file_path, sep=separator, skiprows=start_row, dtype=str, encoding=enc, on_bad_lines='skip')
-                                                if temp_df is not None and temp_df.shape[1] > 1:
-                                                    df_ext = temp_df
-                                                    break
-                                            except Exception:
+                                    else:
+                                        # Kalau beneran CSV, pakai brute-force text parser kita
+                                        for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
+                                            for separator in ['\t', ',', ';', '|']:
                                                 try:
-                                                    # error_bad_lines=False buat pandas lama
-                                                    temp_df = pd.read_csv(file_path, sep=separator, skiprows=start_row, dtype=str, encoding=enc, error_bad_lines=False)
+                                                    temp_df = pd.read_csv(file_path, sep=separator, dtype=str, encoding=enc, on_bad_lines='skip')
                                                     if temp_df is not None and temp_df.shape[1] > 1:
                                                         df_ext = temp_df
                                                         break
                                                 except Exception:
                                                     continue
-                                        if df_ext is not None and df_ext.shape[1] > 1:
-                                            break
-                                            
+                                            if df_ext is not None and df_ext.shape[1] > 1:
+                                                break
+                                                
+                                    # Final Check Data
                                     if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
-                                        # Bersihin nama kolom dari spasi berlebih
                                         df_ext.columns = [str(c).strip() for c in df_ext.columns]
                                         st.session_state.np_df = df_ext
                                         st.rerun() # Refresh biar UI update
                                     else:
-                                        st.error("CRITICAL: Gagal ekstrak tabel. Cek format file manual.")
+                                        st.error("CRITICAL: File berhasil didownload tapi gagal dibaca bentuk tabelnya.")
                                         ui_log_np("ERROR", "Parser failed to reconstruct dataframe.")
                                         
                                 except Exception as e:
