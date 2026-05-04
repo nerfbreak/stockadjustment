@@ -343,7 +343,7 @@ if st.session_state.app_page == "Reconcile":
             st.markdown("**Newspage Stock Data**")
 
             # ── Extract-from-server panel ──────────────────────────────────
-            with st.expander("🔌 Extract from Master Server", expanded=st.session_state.np_df is None):
+            with st.expander("Extract from Accenture", expanded=st.session_state.np_df is None):
                 np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...")
                 np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...")
                 extract_btn = st.button(
