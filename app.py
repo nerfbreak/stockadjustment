@@ -1,14 +1,13 @@
 import streamlit as st
 import pandas as pd
 import zipfile
-import sqlite3
+import csv
 import time
 import os
 import subprocess
 import asyncio
 import traceback
 import sys
-from cryptography.fernet import Fernet
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 # --- 1. PAGE CONFIG ---
@@ -40,110 +39,13 @@ if not st.session_state.logged_in:
 
 # --- 2. CONSTANTS ---
 URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
-DB_FILE               = "users.db"
+CREDENTIALS_FILE      = "users_2.csv"
 REASON_CODE           = "SA2"
 WAREHOUSE             = "GOOD_WHS"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
-# --- 2.5. ENCRYPTION SETUP ---
-# Simpan FERNET_KEY di secrets.toml: fernet_key = "..."
-# Generate sekali dengan: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())
-def _get_cipher() -> Fernet:
-    key = st.secrets.get("fernet_key", None)
-    if not key:
-        st.error("⚠️ `fernet_key` tidak ditemukan di secrets.toml. Tambahkan key untuk enkripsi password.")
-        st.stop()
-    return Fernet(key.encode() if isinstance(key, str) else key)
-
-def encrypt_password(plain: str) -> str:
-    return _get_cipher().encrypt(plain.encode()).decode()
-
-def decrypt_password(token: str) -> str:
-    return _get_cipher().decrypt(token.encode()).decode()
-
-# --- 3. DATABASE SETUP ---
-def init_db():
-    """Buat tabel accounts jika belum ada."""
-    con = sqlite3.connect(DB_FILE)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS accounts (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id     TEXT    NOT NULL UNIQUE,
-            distributor TEXT    NOT NULL,
-            password    TEXT    NOT NULL
-        )
-    """)
-    con.commit()
-    con.close()
-
-init_db()
-
-# --- 4. DB HELPER FUNCTIONS ---
-def db_get_all_accounts() -> list[dict]:
-    con = sqlite3.connect(DB_FILE)
-    con.row_factory = sqlite3.Row
-    rows = con.execute("SELECT user_id, distributor FROM accounts ORDER BY distributor").fetchall()
-    con.close()
-    return [{"user_id": r["user_id"], "Distributor": r["distributor"]} for r in rows]
-
-def db_get_password(user_id: str) -> str:
-    """Kembalikan password ter-decrypt untuk user_id tertentu."""
-    con = sqlite3.connect(DB_FILE)
-    row = con.execute("SELECT password FROM accounts WHERE user_id = ?", (user_id,)).fetchone()
-    con.close()
-    if row is None:
-        return ""
-    return decrypt_password(row[0])
-
-def db_upsert_account(user_id: str, distributor: str, plain_password: str):
-    encrypted = encrypt_password(plain_password)
-    con = sqlite3.connect(DB_FILE)
-    con.execute("""
-        INSERT INTO accounts (user_id, distributor, password)
-        VALUES (?, ?, ?)
-        ON CONFLICT(user_id) DO UPDATE SET
-            distributor = excluded.distributor,
-            password    = excluded.password
-    """, (user_id.strip(), distributor.strip(), encrypted))
-    con.commit()
-    con.close()
-
-def db_delete_account(user_id: str):
-    con = sqlite3.connect(DB_FILE)
-    con.execute("DELETE FROM accounts WHERE user_id = ?", (user_id,))
-    con.commit()
-    con.close()
-
-def db_migrate_from_csv(csv_path: str) -> tuple[int, list[str]]:
-    """Migrasi dari CSV lama (hanya user_id + Distributor, tanpa password)."""
-    import csv
-    imported, skipped = 0, []
-    for enc in ['utf-8-sig', 'cp1252', 'iso-8859-1']:
-        try:
-            with open(csv_path, mode="r", encoding=enc) as f:
-                reader = csv.DictReader(f)
-                reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
-                for row in reader:
-                    cleaned = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
-                    uid  = cleaned.get("user_id", "")
-                    dist = cleaned.get("Distributor", "")
-                    pwd  = cleaned.get("password", "CHANGE_ME")
-                    if uid and dist:
-                        db_upsert_account(uid, dist, pwd)
-                        imported += 1
-                    else:
-                        skipped.append(str(cleaned))
-            return imported, skipped
-        except (UnicodeDecodeError, TypeError):
-            continue
-    return 0, ["Gagal membaca file CSV"]
-
-# --- 5. HELPER FUNCTIONS ---
-@st.cache_data(ttl=300)
-def load_accounts() -> list[dict]:
-    """Ambil semua akun dari database."""
-    return db_get_all_accounts()
+# --- 3. HELPER FUNCTIONS ---
 
 def load_data(file):
     if file is None:
@@ -172,6 +74,26 @@ def load_data(file):
     return df
 
 
+@st.cache_data(ttl=300)
+def load_accounts():
+    accounts = []
+    if not os.path.exists(CREDENTIALS_FILE):
+        return accounts
+    for enc in ['utf-8-sig', 'cp1252', 'iso-8859-1']:
+        try:
+            with open(CREDENTIALS_FILE, mode="r", encoding=enc) as f:
+                reader = csv.DictReader(f)
+                reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
+                for row in reader:
+                    cleaned_row = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
+                    if "user_id" in cleaned_row and "Distributor" in cleaned_row:
+                        accounts.append(cleaned_row)
+                return accounts
+        except (UnicodeDecodeError, TypeError):
+            continue
+    return accounts
+
+
 @st.cache_resource
 def ensure_playwright():
     try:
@@ -192,7 +114,7 @@ def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
     )
 
 
-# --- 6. STATE MANAGEMENT ---
+# --- 4. STATE MANAGEMENT ---
 if 'app_page' not in st.session_state:
     st.session_state.app_page = "Reconcile"
 if 'reconcile_result' not in st.session_state:
@@ -204,7 +126,7 @@ if 'np_df' not in st.session_state:
 if 'selected_distributor_str' not in st.session_state:
     st.session_state.selected_distributor_str = None
 
-# --- 7. CUSTOM CSS ---
+# --- 5. CUSTOM CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -392,6 +314,7 @@ st.markdown("""
         display: block !important;
     }
 
+    /* Container border styling agar blok kiri-kanan rapi */
     div[data-testid="stContainer"] {
         border: 1px solid rgba(59, 130, 246, 0.25);
         border-radius: 8px;
@@ -406,7 +329,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ─── 8. PAGE: RECONCILE ──────────────────────────────────────────────────────
+# ─── 6. PAGE: RECONCILE ──────────────────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
     st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
@@ -419,6 +342,7 @@ if st.session_state.app_page == "Reconcile":
         with st.container(border=True):
             st.markdown("**Newspage Stock Data**")
 
+            # ── Extract-from-server panel ──────────────────────────────────
             with st.expander("🔌 Extract from Master Server", expanded=st.session_state.np_df is None):
                 np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...")
                 np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...")
@@ -479,6 +403,7 @@ if st.session_state.app_page == "Reconcile":
                             context = browser.new_context(no_viewport=True)
                             page = context.new_page()
 
+                            # 1. Login ke Master Server
                             ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
                             page.goto(URL_LOGIN, wait_until="domcontentloaded")
                             ext_ui_log("AUTH", "DOM ready. Filling credentials...")
@@ -486,6 +411,7 @@ if st.session_state.app_page == "Reconcile":
                             page.locator("id=txtPasswd").fill(pass_np)
                             page.locator("id=btnLogin").click(force=True)
 
+                            # 2. Bypass Active Session Warning (kalau ada)
                             try:
                                 btn = page.locator("id=SYS_ASCX_btnContinue")
                                 btn.wait_for(state="visible", timeout=5_000)
@@ -498,6 +424,7 @@ if st.session_state.app_page == "Reconcile":
                             ext_ui_log("AUTH", "Login successful. Session established.")
                             ext_ui_log("SUCCESS", "Handshake verified.")
 
+                            # 3. Masuk ke modul Import/Export Job
                             ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
                             time.sleep(3)
                             menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
@@ -505,10 +432,12 @@ if st.session_state.app_page == "Reconcile":
                             menu_job.dispatch_event("click")
                             time.sleep(4)
 
+                            # 4. Tambah Job Baru (Add Value)
                             ext_ui_log("NAV", "Opening new job [Add Value]...")
                             page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click(force=True)
                             time.sleep(3)
 
+                            # 5. Set Tipe Job & Deskripsi
                             ext_ui_log("INJECT", "Setting job type: Export [E], desc: Text Inventory Master...")
                             page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TYPE_Value").select_option("E")
                             time.sleep(2)
@@ -517,51 +446,81 @@ if st.session_state.app_page == "Reconcile":
                             page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_EXE_TYPE_Value").select_option("M")
                             time.sleep(2)
 
+                            # 6. Lanjut (Next)
                             ext_ui_log("NAV", "Proceeding to next step...")
                             page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click(force=True)
                             time.sleep(3)
 
+                            # 7. Bypass Disclaimer
                             ext_ui_log("SYS", "Bypassing disclaimer prompt...")
                             page.locator("id=pag_FW_DisclaimerMessage_btn_okay_Value").click(force=True)
                             time.sleep(2)
 
+                            # 8. Buka Interface Selection Popup
                             ext_ui_log("NAV", "Opening interface selection popup...")
                             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click(force=True)
                             time.sleep(3)
 
+                            # 9. Search Interface Target
                             ext_ui_log("INJECT", "Searching target interface: E_20150315090000028...")
                             page.locator("id=pop_Dynamic_gft_List_2_FilterField_Value").fill("E_20150315090000028")
                             page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click(force=True)
                             time.sleep(2)
 
+                            # 10. Select Target Interface
                             ext_ui_log("INJECT", "Selecting target interface from results...")
                             page.get_by_text("E_20150315090000028", exact=True).click(force=True)
                             time.sleep(2)
 
+                            # 11. Set File Type & Separator
                             ext_ui_log("INJECT", "Setting file type: Delimited [D], separator: standard...")
                             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
                             time.sleep(1)
                             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
                             time.sleep(3)
 
+                            # 12. Set Filter Warehouse (GOOD_WHS)
                             ext_ui_log("INJECT", f"Applying warehouse filter: [{WAREHOUSE}]...")
                             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
                             time.sleep(2)
 
-                            # Parameter 1 (lines 488-514 — preserved as-is)
-                            # NOTE: Gw pertahankan semua step di bawah ini persis sama
-                            # dengan versi original (lines 488–514) karena tidak berubah.
-                            # Paste isi lines 488-514 dari original kamu di sini ↓
-                            # ──────────────────────────────────────────────────
-                            # [PASTE LINES 488-514 FROM ORIGINAL HERE]
-                            # ──────────────────────────────────────────────────
+                            # 13. Set Parameter 1
+                            ext_ui_log("INJECT", "Setting dynamic parameter: 1...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
 
-                            real_filename = "downloaded_file"  # placeholder — ganti dengan kode download original
+                            # 14. Add Parameter ke Job
+                            ext_ui_log("SYS", "Committing parameters to job definition...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
+                            time.sleep(3)
+
+                            # 15. Simpan dan Execute Payload
+                            ext_ui_log("SERVER", "Saving job and dispatching execution to server...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
+
+                            # 16. Konfirmasi Prompt Dialog
+                            ext_ui_log("SERVER", "Awaiting server confirmation prompt...")
+                            page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=15000)
+                            page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
+                            ext_ui_log("SERVER", "Job dispatched. Waiting for export to complete...")
+
+                            # 17. Intercept Tombol Download (Bisa memakan waktu cukup lama)
+                            ext_ui_log("SERVER", "Intercepting download link — this may take up to 4 minutes...")
+                            with page.expect_download(timeout=240000) as download_info:
+                                download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
+                                download_btn.wait_for(state="visible", timeout=240000)
+                                download_btn.click(force=True)
+
+                            # 18. Simpan File Extract ke Environment
+                            download      = download_info.value
+                            real_filename = download.suggested_filename
                             file_path     = f"temp_ext_{real_filename}"
+                            ext_ui_log("SUCCESS", f"Download captured: {real_filename}. Saving to environment...")
+                            download.save_as(file_path)
 
                             browser.close()
                             ext_ui_log("SYS", "Browser closed. Releasing session memory...")
 
+                            # 19. Smart Parser: Baca Zip/Excel/CSV
                             ext_ui_log("SYS", f"Parsing payload file: {real_filename}...")
                             df_ext = None
                             if real_filename.lower().endswith('.zip'):
@@ -592,6 +551,7 @@ if st.session_state.app_page == "Reconcile":
                                     if df_ext is not None and df_ext.shape[1] > 1:
                                         break
 
+                            # 20. Validasi Format DataFrame
                             if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
                                 df_ext.columns = [str(c).strip() for c in df_ext.columns]
                                 ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
@@ -608,6 +568,7 @@ if st.session_state.app_page == "Reconcile":
                         ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
                         st.error(f"System error: {e}")
 
+            # ── Status banner or manual upload fallback ────────────────────
             if st.session_state.np_df is not None:
                 st.markdown(make_solid_box(
                     f"✅ Extracted — {len(st.session_state.np_df)} items loaded from server",
@@ -651,6 +612,7 @@ if st.session_state.app_page == "Reconcile":
                     "#0f2f1d", "#4ade80"
                 ), unsafe_allow_html=True)
 
+    # Resolve NP data source: extracted or uploaded
     np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
 
     if np_source_ready and file2:
@@ -749,7 +711,7 @@ if st.session_state.app_page == "Reconcile":
         st.rerun()
 
 
-# ─── 9. PAGE: STOCK ADJUSTMENT BOT ───────────────────────────────────────────
+# ─── 7. PAGE: STOCK ADJUSTMENT BOT ───────────────────────────────────────────
 elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
@@ -775,14 +737,12 @@ elif st.session_state.app_page == "Bot":
     st.subheader("Configuration")
     accounts = load_accounts()
     if not accounts:
-        st.warning("No accounts found. Add accounts via the **Account Manager** page.")
-        if st.button("Go to Account Manager"):
-            st.session_state.app_page = "Accounts"
-            st.rerun()
+        st.error(f"No account data found. Ensure '{CREDENTIALS_FILE}' exists in the app directory.")
         st.stop()
 
     cfg_col1, cfg_col2 = st.columns(2)
 
+    # --- Kiri: container border agar rapi ---
     with cfg_col1:
         with st.container(border=True):
             _bot_acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts]
@@ -797,31 +757,33 @@ elif st.session_state.app_page == "Bot":
                 index=_bot_auto_idx,
                 placeholder="-- Select account --"
             )
+            # Keep session state in sync if user changes the value here
             if selected_acc_str and selected_acc_str != st.session_state.selected_distributor_str:
                 st.session_state.selected_distributor_str = selected_acc_str
-
             selected_account = None
-            user_password    = ""
-
+            user_password = ""
             if selected_acc_str:
                 selected_account = next(
                     acc for acc in accounts
                     if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str
                 )
-                # ✅ AUTO-LOAD PASSWORD dari database (ter-decrypt)
-                user_password = db_get_password(selected_account["user_id"])
-
-                if user_password:
+                user_password = st.text_input(
+                    f"Password for {selected_account['user_id']}:",
+                    type="password",
+                    placeholder="Enter password..."
+                )
+                if len(user_password) > 3:
                     st.markdown(make_solid_box(
-                        f"🔐 Password loaded — {selected_account['Distributor']} (auto-login ready)",
+                        f"Password set — {selected_account['Distributor']} (validated on run)",
                         "#0f2f1d", "#4ade80"
                     ), unsafe_allow_html=True)
                 else:
                     st.markdown(make_solid_box(
-                        "⚠️ No password stored. Add via Account Manager.",
-                        "#2d1b00", "#fbbf24"
+                        "Waiting for password...",
+                        "#1e1b4b", "#a5b4fc"
                     ), unsafe_allow_html=True)
 
+    # --- Kanan: container border agar rapi ---
     with cfg_col2:
         with st.container(border=True):
             df_to_process = None
@@ -854,12 +816,12 @@ elif st.session_state.app_page == "Bot":
                         st.error(f"Failed to read file: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    is_ready   = (selected_account is not None) and bool(user_password) and (df_to_process is not None)
+    is_ready = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
     st.subheader("Product table")
     if not is_ready:
-        st.warning("Select an account with a stored password and ensure data is available before running the bot.")
+        st.warning("Select an account and ensure data is available before running the bot.")
         st.stop()
 
     df_view = df_to_process.copy()
@@ -908,7 +870,7 @@ elif st.session_state.app_page == "Bot":
         global_start_time = time.time()
         success_count, failed_count = 0, 0
         user_id  = selected_account["user_id"]
-        password = user_password  # ← sudah di-decrypt dari DB
+        password = user_password
 
         ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
         try:
@@ -1036,96 +998,3 @@ elif st.session_state.app_page == "Bot":
             clean_error = str(e).split('===')[0].strip()
             ui_log("ERROR", f"SYSTEM FAILURE: {clean_error}")
             ui_log("ERROR", traceback.format_exc().splitlines()[-1])
-
-
-# ─── 10. PAGE: ACCOUNT MANAGER ───────────────────────────────────────────────
-elif st.session_state.app_page == "Accounts":
-    hdr_col1, hdr_col2 = st.columns([5, 1])
-    with hdr_col1:
-        st.markdown("<h1>Account Manager</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='color:#64748b;'>Kelola akun distributor — password disimpan terenkripsi di database lokal.</p>", unsafe_allow_html=True)
-    with hdr_col2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("← Back", use_container_width=True):
-            st.session_state.app_page = "Bot"
-            st.rerun()
-
-    st.markdown("---")
-
-    # ── Tambah / Edit Akun ───────────────────────────────────────────────────
-    with st.container(border=True):
-        st.subheader("Add / Update Account")
-        f_col1, f_col2, f_col3 = st.columns(3)
-        with f_col1:
-            f_uid  = st.text_input("User ID", placeholder="e.g. USR001")
-        with f_col2:
-            f_dist = st.text_input("Distributor Name", placeholder="e.g. PT Maju Jaya")
-        with f_col3:
-            f_pwd  = st.text_input("Password", type="password", placeholder="Plain text — akan dienkripsi")
-
-        if st.button("💾 Save Account", type="primary", use_container_width=True,
-                     disabled=not (f_uid and f_dist and f_pwd)):
-            db_upsert_account(f_uid, f_dist, f_pwd)
-            load_accounts.clear()
-            st.success(f"✅ Account `{f_uid}` saved successfully.")
-            st.rerun()
-
-    # ── Migrasi dari CSV lama ────────────────────────────────────────────────
-    with st.expander("📂 Migrate from old CSV (users_2.csv)", expanded=False):
-        st.markdown("""
-        Upload CSV lama kamu. Format yang didukung:
-        - Kolom `user_id` dan `Distributor` **wajib** ada
-        - Kolom `password` opsional — kalau tidak ada, diisi `CHANGE_ME` (ganti setelah import)
-        """)
-        csv_upload = st.file_uploader("Upload CSV", type=["csv"], key="migrate_csv")
-        if csv_upload and st.button("Import CSV", type="primary"):
-            # Simpan ke file sementara lalu migrate
-            tmp_path = "/tmp/migrate_users.csv"
-            with open(tmp_path, "wb") as fp:
-                fp.write(csv_upload.read())
-            imported, skipped = db_migrate_from_csv(tmp_path)
-            load_accounts.clear()
-            st.success(f"✅ Imported {imported} account(s).")
-            if skipped:
-                st.warning(f"Skipped {len(skipped)} row(s): {skipped[:5]}")
-            st.rerun()
-
-    # ── Tabel Akun yang Ada ──────────────────────────────────────────────────
-    st.markdown("---")
-    st.subheader("Existing Accounts")
-    all_accounts = db_get_all_accounts()
-    if not all_accounts:
-        st.info("Belum ada akun. Tambahkan di atas atau import dari CSV.")
-    else:
-        # Tampilkan tabel (tanpa password plain)
-        df_accounts = pd.DataFrame(all_accounts).rename(columns={"user_id": "User ID", "Distributor": "Distributor"})
-        df_accounts["Password"] = "••••••••"
-        st.dataframe(df_accounts, use_container_width=True, hide_index=True)
-
-        st.markdown("**Delete Account**")
-        del_col1, del_col2 = st.columns([3, 1])
-        with del_col1:
-            del_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in all_accounts]
-            del_pick    = st.selectbox("Select account to delete", del_options, key="del_select")
-        with del_col2:
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🗑 Delete", type="secondary", use_container_width=True):
-                uid_to_del = del_pick.split("(")[-1].rstrip(")")
-                db_delete_account(uid_to_del)
-                load_accounts.clear()
-                st.success(f"Deleted `{uid_to_del}`.")
-                st.rerun()
-
-# ─── SIDEBAR NAVIGATION ──────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### Navigation")
-    if st.button("📊 Compare Stock",  use_container_width=True):
-        st.session_state.app_page = "Reconcile"; st.rerun()
-    if st.button("🤖 Stock Adjustment", use_container_width=True):
-        st.session_state.app_page = "Bot"; st.rerun()
-    if st.button("👤 Account Manager", use_container_width=True):
-        st.session_state.app_page = "Accounts"; st.rerun()
-    st.markdown("---")
-    st.markdown(f"<span style='color:#64748b;font-size:0.8rem;'>DB: `{DB_FILE}`</span>", unsafe_allow_html=True)
-    acc_count = len(db_get_all_accounts())
-    st.markdown(f"<span style='color:#64748b;font-size:0.8rem;'>{acc_count} account(s) stored</span>", unsafe_allow_html=True)
