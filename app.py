@@ -294,9 +294,10 @@ if extract_btn:
             ext_ui_log("SUCCESS", "Handshake verified.")
 
             ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
-            time.sleep(3)
+            # Extra sleep supaya menu render sempurna sebelum dicari selector-nya
+            time.sleep(5) 
             menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
-            menu_job.wait_for(state="attached", timeout=15000)
+            menu_job.wait_for(state="attached", timeout=TIMEOUT_MS)
             menu_job.dispatch_event("click")
             time.sleep(4)
 
@@ -351,7 +352,7 @@ if extract_btn:
             page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
 
             ext_ui_log("SERVER", "Awaiting server confirmation prompt...")
-            page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=15000)
+            page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
             page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
             ext_ui_log("SERVER", "Job dispatched. Waiting for export to complete...")
 
@@ -604,6 +605,8 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     ui_log("SUCCESS", "Handshake verified.")
 
                     ui_log("NAV", "Navigating to Inventory > Stock Adjustment...")
+                    # Extra sleep supaya menu render sempurna sebelum dicari selector-nya
+                    time.sleep(5) 
                     page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
                     add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
                     add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
