@@ -431,7 +431,7 @@ if st.session_state.app_page == "Reconcile":
         with st.container(border=True):
             st.markdown("**Distributor Stock Data**")
             file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
-            # Spacer buatan untuk mendorong tinggi box agar sejajar dengan box sebelah kiri
+            # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
             st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
 
     # ── Info Extracted Data (Dikeluarkan dari dalam kotak Kiri) ───────────────
@@ -705,6 +705,7 @@ if st.session_state.app_page == "Reconcile":
 
                 if len(mismatches) == 0:
                     st.success("Analysis complete: all items matched!")
+                    st.session_state.reconcile_summary = None
                 else:
                     valid_mismatches = mismatches[mismatches['Description'] != 'ITEM NOT IN MASTER'].copy()
                     st.session_state.reconcile_summary = {
@@ -718,8 +719,21 @@ if st.session_state.app_page == "Reconcile":
                         .rename(columns={'SKU': 'sku', 'Selisih_Clean': 'qty'})
                     )
                     st.session_state.reconcile_result = transfer_df
-                    st.session_state.app_page = "Bot"
                     st.rerun()
+
+    # ── Review Table (Tetap di halaman Reconcile) ─────────────────────────────
+    if st.session_state.reconcile_summary is not None:
+        st.markdown("---")
+        st.subheader("Stock review")
+        m1, m2 = st.columns(2)
+        m1.metric("Match", st.session_state.reconcile_summary['total_match'])
+        m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
+        st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Proceed to Stock Adjustment Engine", type="primary", use_container_width=True):
+            st.session_state.app_page = "Bot"
+            st.rerun()
 
 
 
@@ -737,14 +751,6 @@ elif st.session_state.app_page == "Bot":
             st.rerun()
 
     st.markdown("---")
-
-    if st.session_state.reconcile_summary is not None:
-        st.subheader("Stock review")
-        m1, m2 = st.columns(2)
-        m1.metric("Match", st.session_state.reconcile_summary['total_match'])
-        m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
-        st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True)
-        st.markdown("---")
 
     st.subheader("Configuration")
     accounts = load_accounts()
