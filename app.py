@@ -125,6 +125,10 @@ if 'np_df' not in st.session_state:
     st.session_state.np_df = None
 if 'selected_distributor_str' not in st.session_state:
     st.session_state.selected_distributor_str = None
+if 'np_user' not in st.session_state:
+    st.session_state.np_user = ""
+if 'np_pass' not in st.session_state:
+    st.session_state.np_pass = ""
 
 # --- 5. CUSTOM CSS ---
 st.markdown("""
@@ -336,6 +340,9 @@ if st.session_state.app_page == "Reconcile":
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     st.markdown("---")
 
+    # Placeholder log di luar kolom
+    ext_log_container = st.empty()
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -343,9 +350,9 @@ if st.session_state.app_page == "Reconcile":
             st.markdown("**Newspage Stock Data**")
 
             # ── Extract-from-server panel ──────────────────────────────────
-            with st.expander("🔌 Extract from Master Server", expanded=st.session_state.np_df is None):
-                np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...")
-                np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...")
+            with st.expander("Extract from Master Server", expanded=st.session_state.np_df is None):
+                np_user = st.text_input("NP User ID", value=st.session_state.np_user, placeholder="Enter Newspage user ID...")
+                np_pass = st.text_input("NP Password", value=st.session_state.np_pass, type="password", placeholder="Enter password...")
                 extract_btn = st.button(
                     "Extract Inventory Master",
                     type="primary",
@@ -354,11 +361,14 @@ if st.session_state.app_page == "Reconcile":
                 )
 
                 if extract_btn:
-                    user_id_np = np_user.strip()
-                    pass_np    = np_pass.strip()
+                    st.session_state.np_user = np_user.strip()
+                    st.session_state.np_pass = np_pass.strip()
+                    user_id_np = st.session_state.np_user
+                    pass_np    = st.session_state.np_pass
 
-                    st.markdown("**Extraction Log:**")
-                    ext_log_placeholder = st.empty()
+                    with ext_log_container.container():
+                        st.markdown("**Extraction Log:**")
+                        ext_log_placeholder = st.empty()
 
                     ext_logs_history  = []
                     ext_last_log_time = [time.time()]
@@ -484,33 +494,29 @@ if st.session_state.app_page == "Reconcile":
                             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
                             time.sleep(2)
 
-                            # 13. Set Parameter 1
-                            ext_ui_log("INJECT", "Setting dynamic parameter: 1...")
-                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
-
-                            # 14. Add Parameter ke Job
+                            # 13. Add Parameter ke Job
                             ext_ui_log("SYS", "Committing parameters to job definition...")
                             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
                             time.sleep(3)
 
-                            # 15. Simpan dan Execute Payload
+                            # 14. Simpan dan Execute Payload
                             ext_ui_log("SERVER", "Saving job and dispatching execution to server...")
                             page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
 
-                            # 16. Konfirmasi Prompt Dialog
+                            # 15. Konfirmasi Prompt Dialog
                             ext_ui_log("SERVER", "Awaiting server confirmation prompt...")
                             page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=15000)
                             page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
                             ext_ui_log("SERVER", "Job dispatched. Waiting for export to complete...")
 
-                            # 17. Intercept Tombol Download (Bisa memakan waktu cukup lama)
+                            # 16. Intercept Tombol Download (Bisa memakan waktu cukup lama)
                             ext_ui_log("SERVER", "Intercepting download link — this may take up to 4 minutes...")
                             with page.expect_download(timeout=240000) as download_info:
                                 download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
                                 download_btn.wait_for(state="visible", timeout=240000)
                                 download_btn.click(force=True)
 
-                            # 18. Simpan File Extract ke Environment
+                            # 17. Simpan File Extract ke Environment
                             download      = download_info.value
                             real_filename = download.suggested_filename
                             file_path     = f"temp_ext_{real_filename}"
@@ -520,7 +526,7 @@ if st.session_state.app_page == "Reconcile":
                             browser.close()
                             ext_ui_log("SYS", "Browser closed. Releasing session memory...")
 
-                            # 19. Smart Parser: Baca Zip/Excel/CSV
+                            # 18. Smart Parser: Baca Zip/Excel/CSV
                             ext_ui_log("SYS", f"Parsing payload file: {real_filename}...")
                             df_ext = None
                             if real_filename.lower().endswith('.zip'):
@@ -551,7 +557,7 @@ if st.session_state.app_page == "Reconcile":
                                     if df_ext is not None and df_ext.shape[1] > 1:
                                         break
 
-                            # 20. Validasi Format DataFrame
+                            # 19. Validasi Format DataFrame
                             if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
                                 df_ext.columns = [str(c).strip() for c in df_ext.columns]
                                 ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
@@ -571,10 +577,10 @@ if st.session_state.app_page == "Reconcile":
             # ── Status banner or manual upload fallback ────────────────────
             if st.session_state.np_df is not None:
                 st.markdown(make_solid_box(
-                    f"✅ Extracted — {len(st.session_state.np_df)} items loaded from server",
+                    f"Extracted — {len(st.session_state.np_df)} items loaded from server",
                     "#082f49", "#38bdf8"
                 ), unsafe_allow_html=True)
-                if st.button("🗑 Clear extracted data", use_container_width=True):
+                if st.button("Clear extracted data", use_container_width=True):
                     st.session_state.np_df = None
                     st.rerun()
                 file1 = None
@@ -608,7 +614,7 @@ if st.session_state.app_page == "Reconcile":
                 st.rerun()
             if not _dist_locked and st.session_state.selected_distributor_str:
                 st.markdown(make_solid_box(
-                    f"✔ {st.session_state.selected_distributor_str}",
+                    f"{st.session_state.selected_distributor_str}",
                     "#0f2f1d", "#4ade80"
                 ), unsafe_allow_html=True)
 
@@ -655,7 +661,14 @@ if st.session_state.app_page == "Reconcile":
                 qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
 
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Compare Stock", type="primary", use_container_width=True):
+            
+            btn_col1, btn_col2 = st.columns(2)
+            with btn_col1:
+                compare_clicked = st.button("Compare Stock", type="primary", use_container_width=True)
+            with btn_col2:
+                adjust_clicked = st.button("Stock Adjustment", use_container_width=True)
+
+            if compare_clicked:
                 d1 = df1[[sku_col1, desc_col1, qty_col1]].copy()
                 d1 = d1.dropna(subset=[sku_col1])
                 d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
@@ -704,11 +717,11 @@ if st.session_state.app_page == "Reconcile":
                     st.session_state.app_page = "Bot"
                     st.rerun()
 
-    if st.button("Stock Adjustment"):
-        st.session_state.reconcile_result = None
-        st.session_state.reconcile_summary = None
-        st.session_state.app_page = "Bot"
-        st.rerun()
+            if adjust_clicked:
+                st.session_state.reconcile_result = None
+                st.session_state.reconcile_summary = None
+                st.session_state.app_page = "Bot"
+                st.rerun()
 
 
 # ─── 7. PAGE: STOCK ADJUSTMENT BOT ───────────────────────────────────────────
@@ -760,18 +773,21 @@ elif st.session_state.app_page == "Bot":
             # Keep session state in sync if user changes the value here
             if selected_acc_str and selected_acc_str != st.session_state.selected_distributor_str:
                 st.session_state.selected_distributor_str = selected_acc_str
+            
             selected_account = None
-            user_password = ""
+            user_password = st.session_state.get('np_pass', '')
+            
             if selected_acc_str:
                 selected_account = next(
                     acc for acc in accounts
                     if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str
                 )
-                user_password = st.text_input(
-                    f"Password for {selected_account['user_id']}:",
-                    type="password",
-                    placeholder="Enter password..."
-                )
+                if not user_password:
+                    user_password = st.text_input(
+                        f"Password for {selected_account['user_id']}:",
+                        type="password",
+                        placeholder="Enter password..."
+                    )
                 if len(user_password) > 3:
                     st.markdown(make_solid_box(
                         f"Password set — {selected_account['Distributor']} (validated on run)",
