@@ -48,7 +48,7 @@ TABLE_UPDATE_INTERVAL = 5
 
 # --- LOTTIE FILES ---
 LOTTIE_LOADING_GEARS = "https://assets9.lottiefiles.com/packages/lf20_icthread.json" # Ganti pakai link lottie.host lu kalo ini keblokir
-LOTTIE_ROBOT_WORK    = "https://lottie.host/b2345d9d-9fa8-471d-8231-415ad3ba9a41/dig4dDIjNd.json"
+LOTTIE_ROBOT_WORK    = "https://lottie.host/5b49435c-8885-4347-9ff6-18e4cb068311/rCofO7pGBA.lottie"
 LOTTIE_SUCCESS_CHECK = "https://assets10.lottiefiles.com/packages/lf20_vuliyhde.json" # Ganti pakai link lottie.host lu kalo ini keblokir
 
 # --- 3. HELPER FUNCTIONS ---
