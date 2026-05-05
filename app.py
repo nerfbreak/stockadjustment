@@ -548,7 +548,7 @@ if st.session_state.app_page == "Reconcile":
                 ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
                 time.sleep(3)
                 menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
-                menu_job.wait_for(state="attached", timeout=15000)
+                menu_job.wait_for(state="attached", timeout=60000)
                 menu_job.dispatch_event("click")
                 time.sleep(4)
 
