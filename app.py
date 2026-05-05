@@ -431,9 +431,11 @@ if st.session_state.app_page == "Reconcile":
                 if st.button("Clear extracted data", use_container_width=True):
                     st.session_state.np_df = None
                     st.rerun()
-                file1 = None
-            else:
-                file1 = st.file_uploader("Or upload Newspage stock file manually", type=['csv', 'xlsx', 'zip'])
+
+        # ── Manual upload — dipisah dari container Newspage Stock Data ────────
+        file1 = None
+        if st.session_state.np_df is None:
+            file1 = st.file_uploader("Or upload Newspage stock file manually", type=['csv', 'xlsx', 'zip'])
 
     # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
     with col2:
