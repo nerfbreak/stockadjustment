@@ -410,7 +410,7 @@ if st.session_state.app_page == "Reconcile":
 
     # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
     with col1:
-        with st.container(border=True, height=250):
+        with st.container(border=True):
             st.markdown("**Newspage Stock Data**")
             np_col1, np_col2 = st.columns(2)
             with np_col1:
@@ -424,22 +424,23 @@ if st.session_state.app_page == "Reconcile":
                 disabled=not (np_user and np_pass)
             )
 
-            if st.session_state.np_df is not None:
-                st.markdown(make_solid_box(
-                    f"Extracted — {len(st.session_state.np_df)} items loaded from server",
-                    "#082f49", "#38bdf8"
-                ), unsafe_allow_html=True)
-                if st.button("Clear extracted data", use_container_width=True):
-                    st.session_state.np_df = None
-                    st.rerun()
-
             file1 = None
 
     # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
     with col2:
-        with st.container(border=True, height=250):
+        with st.container(border=True):
             st.markdown("**Distributor Stock Data**")
             file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
+
+    # ── Info Extracted Data (Dikeluarkan dari dalam kotak Kiri) ───────────────
+    if st.session_state.np_df is not None:
+        st.markdown(make_solid_box(
+            f"Extracted — {len(st.session_state.np_df)} items loaded from server",
+            "#082f49", "#38bdf8"
+        ), unsafe_allow_html=True)
+        if st.button("Clear extracted data", use_container_width=True):
+            st.session_state.np_df = None
+            st.rerun()
 
     # ── Extraction Terminal — FULL WIDTH, SEPARATED ───────────────────────────
     ext_log_placeholder = st.empty()
@@ -752,7 +753,7 @@ elif st.session_state.app_page == "Bot":
     cfg_col1, cfg_col2 = st.columns(2)
 
     with cfg_col1:
-        with st.container(border=True, height=230):
+        with st.container(border=True):
             _bot_acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts]
             _bot_auto_idx    = (
                 _bot_acc_options.index(st.session_state.selected_distributor_str)
@@ -791,7 +792,7 @@ elif st.session_state.app_page == "Bot":
                     ), unsafe_allow_html=True)
 
     with cfg_col2:
-        with st.container(border=True, height=230):
+        with st.container(border=True):
             df_to_process = None
             if st.session_state.reconcile_result is not None:
                 st.text_input("Data source", value="Auto-loaded from Compare Stock", disabled=True)
