@@ -248,7 +248,7 @@ col1, col2 = st.columns(2)
 # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
 with col1:
     with st.container(border=True):
-        st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
         with np_col1:
             np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...", key="np_user_input")
@@ -265,7 +265,7 @@ with col1:
 # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
 with col2:
     with st.container(border=True):
-        st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
         # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
@@ -477,6 +477,7 @@ if np_source_ready and file2:
     if df1 is not None and df2 is not None:
         c1, c2 = st.columns(2)
         with c1:
+            st.subheader("Newspage setup")
             idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
             if 'Product Description' in df1.columns:
                 idx_desc1 = df1.columns.get_loc('Product Description')
@@ -494,6 +495,7 @@ if np_source_ready and file2:
             qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
 
         with c2:
+            st.subheader("Distributor setup")
             idx_sku2 = 20 if len(df2.columns) > 20 else 0
             qty2_col_match = next(
                 (col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"),
@@ -559,7 +561,7 @@ if np_source_ready and file2:
 # ── Review Table & Engine Execution ───────────────────────────────────────────
 if st.session_state.reconcile_summary is not None and st.session_state.reconcile_result is not None:
     st.markdown("---")
-    st.markdown("<div class='box-review'>Stock Review</div>", unsafe_allow_html=True)
+    st.subheader("Stock review")
     m1, m2 = st.columns(2)
     
     match_count = st.session_state.reconcile_summary['total_match']
@@ -603,7 +605,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     if 'Keterangan' not in df_view.columns:
         df_view['Keterangan'] = 'Menunggu antrean...'
         
-    st.markdown("<div class='box-queue'>Adjustment Queue</div>", unsafe_allow_html=True)
+    st.subheader("Adjustment Queue")
     table_placeholder = st.empty()
     table_placeholder.dataframe(
         df_view, 
