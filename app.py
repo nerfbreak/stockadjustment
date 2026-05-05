@@ -7,7 +7,7 @@ import subprocess
 import asyncio
 import traceback
 import sys
-import requests
+import json
 from streamlit_lottie import st_lottie
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
@@ -45,20 +45,18 @@ WAREHOUSE             = "GOOD_WHS"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
-# --- LOTTIE URLS ---
-LOTTIE_LOADING_GEARS = "https://assets9.lottiefiles.com/packages/lf20_icthread.json"
-LOTTIE_ROBOT_WORK    = "https://assets5.lottiefiles.com/packages/lf20_t24tpvcu.json"
-LOTTIE_SUCCESS_CHECK = "https://assets10.lottiefiles.com/packages/lf20_vuliyhde.json"
+# --- LOTTIE FILES (LOKAL) ---
+LOTTIE_LOADING_GEARS = "loading.json"
+LOTTIE_ROBOT_WORK    = "robot.json"
+LOTTIE_SUCCESS_CHECK = "success.json"
 
 # --- 3. HELPER FUNCTIONS ---
 @st.cache_data
-def load_lottieurl(url: str):
+def load_lottie_local(filepath: str):
     try:
-        r = requests.get(url)
-        if r.status_code != 200:
-            return None
-        return r.json()
-    except:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
         return None
 
 def load_data(file):
@@ -302,8 +300,8 @@ ext_log_placeholder = st.empty()
 
 # ── Extraction Logic ──────────────────────────────────────────────────────
 if extract_btn:
-    # Tampilkan Animasi Lottie Loading
-    anim_loading = load_lottieurl(LOTTIE_LOADING_GEARS)
+    # Tampilkan Animasi Lottie Loading dari Local File
+    anim_loading = load_lottie_local(LOTTIE_LOADING_GEARS)
     if anim_loading:
         with ext_lottie_placeholder:
             st_lottie(anim_loading, height=100, key="extract_anim")
@@ -492,7 +490,7 @@ if np_source_ready and file2:
             
             if len(mismatches) == 0: 
                 # Tampilkan lottie success jika komparasi sempurna
-                anim_success = load_lottieurl(LOTTIE_SUCCESS_CHECK)
+                anim_success = load_lottie_local(LOTTIE_SUCCESS_CHECK)
                 if anim_success: st_lottie(anim_success, height=150, key="compare_success")
                 st.success("Analysis complete: all items matched!")
                 st.session_state.reconcile_summary = None
@@ -526,8 +524,8 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
         btn_placeholder.empty(); bot_user = st.session_state.np_user_input.strip(); bot_pass = st.session_state.np_pass_input.strip()
         if not bot_user or not bot_pass: st.error("Access Denied: NP User ID & Password required!")
         else:
-            # Munculin Animasi Lottie Robot saat diproses
-            lottie_anim = load_lottieurl(LOTTIE_ROBOT_WORK)
+            # Munculin Animasi Lottie Robot Lokal saat diproses
+            lottie_anim = load_lottie_local(LOTTIE_ROBOT_WORK)
             if lottie_anim:
                 with lottie_placeholder:
                     st_lottie(lottie_anim, height=150, key="bot_processing")
@@ -627,7 +625,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     lottie_placeholder.empty() # Hilangkan Lottie Robot setelah selesai
 
                     if success_count > 0: 
-                        anim_success = load_lottieurl(LOTTIE_SUCCESS_CHECK)
+                        anim_success = load_lottie_local(LOTTIE_SUCCESS_CHECK)
                         if anim_success: 
                             with lottie_placeholder:
                                 st_lottie(anim_success, height=150, key="bot_success")
