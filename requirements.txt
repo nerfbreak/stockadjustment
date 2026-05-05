@@ -2,4 +2,4 @@ streamlit
 pandas
 playwright
 openpyxl
-cryptography
+cryptography>=42.0.0
