@@ -392,9 +392,18 @@ st.markdown("""
 
 # ─── 6. PAGE: RECONCILE ──────────────────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
-    st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
-    st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
+    hdr_col1, hdr_col2 = st.columns([5, 1])
+    with hdr_col1:
+        st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
+        st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
+        st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
+    with hdr_col2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Stock Adjustment", use_container_width=True):
+            st.session_state.reconcile_result = None
+            st.session_state.reconcile_summary = None
+            st.session_state.app_page = "Bot"
+            st.rerun()
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -735,11 +744,6 @@ if st.session_state.app_page == "Reconcile":
                     st.session_state.app_page = "Bot"
                     st.rerun()
 
-    if st.button("Stock Adjustment"):
-        st.session_state.reconcile_result = None
-        st.session_state.reconcile_summary = None
-        st.session_state.app_page = "Bot"
-        st.rerun()
 
 
 # ─── 7. PAGE: STOCK ADJUSTMENT BOT ───────────────────────────────────────────
