@@ -126,6 +126,33 @@ st.markdown("""
     .log-tag    { display: inline-block; width: 95px; font-weight: bold; font-family: 'JetBrains Mono', monospace; }
     .log-msg    { color: #f0f6fc; font-weight: 500; font-family: 'Inter', sans-serif; }
     .tag-sys     { color: #a855f7; } .tag-auth    { color: #eab308; } .tag-nav     { color: #3b82f6; } .tag-inject  { color: #06b6d4; } .tag-success { color: #22c55e; } .tag-error   { color: #ef4444; } .tag-server  { color: #f43f5e; }
+    
+    /* BACKGROUND PILLS CSS */
+    .pill-np {
+        background-color: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+        padding: 6px 16px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        display: inline-block;
+        margin-bottom: 16px;
+        letter-spacing: 0.5px;
+    }
+    .pill-dist {
+        background-color: rgba(74, 222, 128, 0.15);
+        color: #4ade80;
+        padding: 6px 16px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        border: 1px solid rgba(74, 222, 128, 0.4);
+        display: inline-block;
+        margin-bottom: 16px;
+        letter-spacing: 0.5px;
+    }
+
     button[kind="primary"] { background-color: #2563eb !important; color: #ffffff !important; border: none !important; font-weight: 700 !important; letter-spacing: 0.5px !important; text-transform: uppercase !important; transition: all 0.2s ease !important; border-radius: 6px !important; font-family: 'Inter', sans-serif !important; }
     button[kind="primary"]:hover { background-color: #1d4ed8 !important; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important; transform: translateY(-1px) !important; }
     button[kind="primary"]:active { transform: translateY(0) !important; }
@@ -146,7 +173,7 @@ st.markdown("""
 hdr_col1, hdr_col2 = st.columns([5, 1])
 with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare & Stock Adjustment</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare Stock & Adjust</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
 st.markdown("---")
 
@@ -155,7 +182,7 @@ col1, col2 = st.columns(2)
 # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
 with col1:
     with st.container(border=True):
-        st.markdown("**Newspage Stock Data**")
+        st.markdown("<div class='pill-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
         with np_col1:
             np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...", key="np_user_input")
@@ -172,7 +199,7 @@ with col1:
 # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
 with col2:
     with st.container(border=True):
-        st.markdown("**Distributor Stock Data**")
+        st.markdown("<div class='pill-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
         # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
@@ -468,7 +495,7 @@ if np_source_ready and file2:
 # ── Review Table & Engine Execution ───────────────────────────────────────────
 if st.session_state.reconcile_summary is not None and st.session_state.reconcile_result is not None:
     st.markdown("---")
-    st.subheader("Compare Results")
+    st.subheader("Stock review")
     m1, m2 = st.columns(2)
     m1.metric("Match", st.session_state.reconcile_summary['total_match'])
     m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
@@ -482,7 +509,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     if 'Keterangan' not in df_view.columns:
         df_view['Keterangan'] = '-'
         
-    st.subheader("Adjustment SKU List")
+    st.subheader("Adjustment Queue")
     table_placeholder = st.dataframe(df_view, use_container_width=True)
 
     # Placeholder untuk label Execution Log (awalnya kosong)
@@ -492,7 +519,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     # Bungkus button pakai st.empty() agar bisa dihilangkan saat proses berjalan
     btn_placeholder = st.empty()
     
-    if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
+    if btn_placeholder.button("PROCEED TO STOCK ADJUSTMENT ENGINE", type="primary", use_container_width=True):
         btn_placeholder.empty() # Hilangkan tombol segera setelah diklik
         
         bot_user = st.session_state.np_user_input.strip()
