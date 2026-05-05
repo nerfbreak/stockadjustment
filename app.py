@@ -202,7 +202,7 @@ col1, col2 = st.columns(2)
 # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
 with col1:
     with st.container(border=True):
-        st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
         with np_col1:
             np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...", key="np_user_input")
@@ -219,7 +219,7 @@ with col1:
 # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
 with col2:
     with st.container(border=True):
-        st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
         # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
@@ -297,7 +297,6 @@ if extract_btn:
             ext_ui_log("SUCCESS", "Handshake verified.")
 
             ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
-            # Extra sleep supaya menu render sempurna sebelum dicari selector-nya
             time.sleep(5) 
             menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
             menu_job.wait_for(state="attached", timeout=TIMEOUT_MS)
@@ -431,7 +430,6 @@ if np_source_ready and file2:
     if df1 is not None and df2 is not None:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
             idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
             if 'Product Description' in df1.columns:
                 idx_desc1 = df1.columns.get_loc('Product Description')
@@ -449,7 +447,6 @@ if np_source_ready and file2:
             qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
 
         with c2:
-            st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
             idx_sku2 = 20 if len(df2.columns) > 20 else 0
             qty2_col_match = next(
                 (col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"),
@@ -491,7 +488,7 @@ if np_source_ready and file2:
             merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
             merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
             merged['Selisih'] = merged['Distributor'] - merged['Newspage']
-            merged['Status'] = merged['Selisih'].apply(lambda x: '✅ Match' if x == 0 else '⚠️ Mismatch')
+            merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
             mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
 
             if len(mismatches) == 0:
@@ -525,12 +522,12 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
         use_container_width=True, 
         hide_index=True,
         column_config={
-            "SKU": st.column_config.TextColumn("SKU 📦", width="medium"),
-            "Description": st.column_config.TextColumn("Description 📝", width="large"),
-            "Newspage": st.column_config.NumberColumn("Newspage 🏢"),
-            "Distributor": st.column_config.NumberColumn("Distributor 🚚"),
-            "Selisih": st.column_config.NumberColumn("Variance ⚖️"),
-            "Status": st.column_config.TextColumn("Status 📌")
+            "SKU": st.column_config.TextColumn("SKU", width="medium"),
+            "Description": st.column_config.TextColumn("Description", width="large"),
+            "Newspage": st.column_config.NumberColumn("Newspage"),
+            "Distributor": st.column_config.NumberColumn("Distributor"),
+            "Selisih": st.column_config.NumberColumn("Variance"),
+            "Status": st.column_config.TextColumn("Status")
         }
     )
     
@@ -538,7 +535,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     
     df_view = st.session_state.reconcile_result.copy()
     if 'Status' not in df_view.columns:
-        df_view['Status'] = '⏳ Pending'
+        df_view['Status'] = 'Pending'
     if 'Keterangan' not in df_view.columns:
         df_view['Keterangan'] = 'Menunggu antrean...'
         
@@ -549,10 +546,10 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
         use_container_width=True, 
         hide_index=True,
         column_config={
-            "sku": st.column_config.TextColumn("SKU 📦"),
-            "qty": st.column_config.NumberColumn("Adjustment Qty 🔢"),
-            "Status": st.column_config.TextColumn("Status 📌"),
-            "Keterangan": st.column_config.TextColumn("System Log 💬", width="large")
+            "sku": st.column_config.TextColumn("SKU"),
+            "qty": st.column_config.NumberColumn("Adjustment Qty"),
+            "Status": st.column_config.TextColumn("Status"),
+            "Keterangan": st.column_config.TextColumn("System Log", width="large")
         }
     )
 
@@ -679,12 +676,12 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                                 "document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''",
                                 timeout=TIMEOUT_MS
                             )
-                            df_view.at[idx, 'Status']     = '✅ Success'
+                            df_view.at[idx, 'Status']     = 'Success'
                             df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
                             success_count += 1
                             ui_log("SUCCESS", "Row committed.")
                         except Exception:
-                            df_view.at[idx, 'Status']     = '❌ Failed'
+                            df_view.at[idx, 'Status']     = 'Failed'
                             df_view.at[idx, 'Keterangan'] = 'Node Timeout'
                             failed_count += 1
                             ui_log("ERROR", f"Timeout on SKU [{sku}]. Skipping.")
@@ -696,10 +693,10 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                                 use_container_width=True, 
                                 hide_index=True,
                                 column_config={
-                                    "sku": st.column_config.TextColumn("SKU 📦"),
-                                    "qty": st.column_config.NumberColumn("Adjustment Qty 🔢"),
-                                    "Status": st.column_config.TextColumn("Status 📌"),
-                                    "Keterangan": st.column_config.TextColumn("System Log 💬", width="large")
+                                    "sku": st.column_config.TextColumn("SKU"),
+                                    "qty": st.column_config.NumberColumn("Adjustment Qty"),
+                                    "Status": st.column_config.TextColumn("Status"),
+                                    "Keterangan": st.column_config.TextColumn("System Log", width="large")
                                 }
                             )
 
