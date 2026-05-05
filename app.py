@@ -851,7 +851,7 @@ elif st.session_state.app_page == "Bot":
     is_ready   = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
-    st.subheader("Product table")
+    st.subheader("Product Table")
     if not is_ready:
         st.warning("Select an account and ensure data is available before running the bot.")
         st.stop()
