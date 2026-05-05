@@ -433,10 +433,11 @@ if st.session_state.app_page == "Reconcile":
                     st.session_state.np_df = None
                     st.rerun()
 
-        # ── Manual upload — dipisah dari container Newspage Stock Data ────────
-        file1 = None
-        if st.session_state.np_df is None:
-            file1 = st.file_uploader("Or upload Newspage stock file manually", type=['csv', 'xlsx', 'zip'])
+            if st.session_state.np_df is None:
+                st.divider()
+                file1 = st.file_uploader("Or upload Newspage stock file manually", type=['csv', 'xlsx', 'zip'])
+            else:
+                file1 = None
 
     # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
     with col2:
