@@ -195,6 +195,7 @@ st.markdown("""
         -ms-overflow-style: none;
         scrollbar-width: none;
         margin-top: 8px;
+        margin-bottom: 32px;
     }
     .terminal-box::-webkit-scrollbar { display: none; }
 
