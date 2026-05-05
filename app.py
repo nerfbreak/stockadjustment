@@ -103,6 +103,49 @@ def render_terminal(placeholder, logs_history: list):
     placeholder.markdown(html_content, unsafe_allow_html=True)
 
 
+# --- Table Stylers ---
+def style_review_table(df):
+    def color_status(val):
+        if val == 'Match': return 'color: #4ade80; font-weight: 700;'
+        return 'color: #f87171; font-weight: 700;'
+
+    def color_selisih(val):
+        try:
+            v = float(val)
+            if v < 0: return 'color: #f87171; font-weight: 700;'
+            if v > 0: return 'color: #fbbf24; font-weight: 700;'
+        except: pass
+        return 'color: #94a3b8;'
+
+    styler = df.style
+    if hasattr(styler, 'map'):
+        styler = styler.map(color_status, subset=['Status']).map(color_selisih, subset=['Selisih'])
+    else:
+        styler = styler.applymap(color_status, subset=['Status']).applymap(color_selisih, subset=['Selisih'])
+        
+    try:
+        styler = styler.hide(axis="index")
+        styler = styler.format(thousands=".", precision=0, subset=['Newspage', 'Distributor', 'Selisih'])
+    except: pass
+    return styler
+
+def style_queue_table(df):
+    def color_status(val):
+        if val == 'Success': return 'background-color: rgba(74, 222, 128, 0.15); color: #4ade80; font-weight: 700;'
+        elif val == 'Failed': return 'background-color: rgba(248, 113, 113, 0.15); color: #f87171; font-weight: 700;'
+        return 'color: #94a3b8; font-style: italic;'
+
+    styler = df.style
+    if hasattr(styler, 'map'):
+        styler = styler.map(color_status, subset=['Status'])
+    else:
+        styler = styler.applymap(color_status, subset=['Status'])
+        
+    try: styler = styler.hide(axis="index")
+    except: pass
+    return styler
+
+
 # --- 4. STATE MANAGEMENT ---
 if 'reconcile_result' not in st.session_state:
     st.session_state.reconcile_result = None
@@ -519,7 +562,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     m1, m2 = st.columns(2)
     m1.metric("Match", st.session_state.reconcile_summary['total_match'])
     m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
-    st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True)
+    st.dataframe(style_review_table(st.session_state.reconcile_summary['df_view']), use_container_width=True, hide_index=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -530,7 +573,8 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
         df_view['Keterangan'] = '-'
         
     st.markdown("<div class='box-queue'>Adjustment Queue</div>", unsafe_allow_html=True)
-    table_placeholder = st.dataframe(df_view, use_container_width=True)
+    table_placeholder = st.empty()
+    table_placeholder.dataframe(style_queue_table(df_view), use_container_width=True, hide_index=True)
 
     # Placeholder untuk label Execution Log (awalnya kosong)
     log_label_placeholder = st.empty()
@@ -667,7 +711,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
 
                         progress_bar.progress((i + 1) / total_rows)
                         if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows - 1:
-                            table_placeholder.dataframe(df_view, use_container_width=True)
+                            table_placeholder.dataframe(style_queue_table(df_view), use_container_width=True, hide_index=True)
 
                     ui_log("SERVER", "Saving document to server...")
                     page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
