@@ -146,7 +146,7 @@ st.markdown("""
 hdr_col1, hdr_col2 = st.columns([5, 1])
 with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare Stock & Adjust</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare & Stock Adjustment</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
 st.markdown("---")
 
