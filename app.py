@@ -528,7 +528,8 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     st.subheader("Adjustment Queue")
     table_placeholder = st.dataframe(df_view, use_container_width=True)
 
-    st.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
+    # Placeholder untuk label Execution Log (awalnya kosong)
+    log_label_placeholder = st.empty()
     log_placeholder = st.empty()
 
     # Bungkus button pakai st.empty() agar bisa dihilangkan saat proses berjalan
@@ -543,6 +544,9 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
         if not bot_user or not bot_pass:
             st.error("Access Denied: NP User ID & Password required! Please fill them at the top section.")
         else:
+            # Munculkan label Execution Log saat bot berjalan
+            log_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
+            
             with st.spinner("Initializing Chromium engine..."):
                 ensure_playwright()
 
