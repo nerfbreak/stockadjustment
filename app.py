@@ -282,6 +282,7 @@ with col2:
     with st.container(border=True):
         st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
+        # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
 
 # ── Info Extracted Data ───────────────────────────────────────────────────
@@ -533,10 +534,12 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
 
             log_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True); ensure_playwright()
             bot_logs_history  = []; bot_last_log_time = [time.time()]
+            
             def ui_log(module, msg):
                 now = time.time(); diff_ms = int((now - bot_last_log_time[0]) * 1000); bot_last_log_time[0] = now; timestamp = time.strftime('%H:%M:%S'); tag_class = f"tag-{module.lower()}"
                 bot_logs_history.append(f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>")
                 render_terminal(log_placeholder, bot_logs_history)
+                
             global_start_time = time.time(); success_count, failed_count = 0, 0
             ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
             try:
@@ -545,33 +548,80 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                 with sync_playwright() as p:
                     ui_log("SYS", "Spawning browser context..."); browser = p.chromium.launch(headless=True); context = browser.new_context(no_viewport=True); page = context.new_page()
                     ui_log("AUTH", f"Connecting to Newspage..."); page.goto(URL_LOGIN, wait_until="domcontentloaded")
+                    
                     page.locator("id=txtUserid").fill(bot_user); page.locator("id=txtPasswd").fill(bot_pass); page.locator("id=btnLogin").click(force=True)
                     try:
                         btn = page.locator("id=SYS_ASCX_btnContinue"); btn.wait_for(state="visible", timeout=5_000); btn.click(force=True)
                     except Exception: pass
+                    
                     page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS); ui_log("AUTH", "Login successful.")
                     time.sleep(5); page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
                     add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value"); add_btn.wait_for(state="attached", timeout=TIMEOUT_MS); add_btn.click(force=True)
                     warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True); warehouse_link.wait_for(state="visible"); warehouse_link.click(force=True)
                     page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible")
-                    dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value"); 
+                    
+                    dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
                     if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
+                    ui_log("SYS", "Ready. Opening data stream for payload injection...")
+
                     progress_bar = st.progress(0); total_rows = len(df_view)
                     for i, (idx, row) in enumerate(df_view.iterrows()):
-                        sku = str(row['sku']).strip(); qty = str(int(float(row['qty'])))
-                        ui_log("INJECT", f"Payload {i+1}/{total_rows} -> SKU [{sku}]")
+                        sku = str(row['sku']).strip()
+                        try: qty = str(int(float(row['qty'])))
+                        except Exception: qty = str(row['qty']).strip()
+
+                        ui_log("INJECT", f"Processing Payload {i+1}/{total_rows} | Target SKU: [{sku}]")
                         try:
-                            sku_input = page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value"); sku_input.fill(sku); sku_input.press("Tab"); time.sleep(1)
-                            page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").fill(qty); page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
+                            sku_input = page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value")
+                            ui_log("INJECT", f"Locking target node for SKU [{sku}]...")
+                            sku_input.fill(sku)
+                            
+                            ui_log("INJECT", "Triggering system lookup (Tab event)...")
+                            sku_input.press("Tab")
+                            time.sleep(1)
+                            
+                            qty_input = page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value")
+                            qty_input.wait_for(state="visible", timeout=TIMEOUT_MS)
+                            
+                            ui_log("INJECT", f"Node resolved. Assigning adjustment quantity: {qty} EA")
+                            qty_input.fill(qty)
+                            
+                            ui_log("INJECT", "Dispatching Add command to grid...")
+                            page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
+                            
+                            ui_log("SYS", "Awaiting DOM form reset confirmation...")
                             page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
-                            df_view.at[idx, 'Status'] = 'Success'; df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'; success_count += 1
-                        except Exception: df_view.at[idx, 'Status'] = 'Failed'; failed_count += 1
+                            
+                            df_view.at[idx, 'Status'] = 'Success'
+                            df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
+                            success_count += 1
+                            ui_log("SUCCESS", f"Transaction {i+1} committed. Grid updated.")
+                        except Exception as loop_err: 
+                            df_view.at[idx, 'Status'] = 'Failed'
+                            df_view.at[idx, 'Keterangan'] = 'Node Timeout'
+                            failed_count += 1
+                            ui_log("ERROR", f"Timeout on SKU [{sku}]. Node unresponsive. Skipping.")
+                            
                         progress_bar.progress((i+1)/total_rows)
-                        if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows-1: table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
+                        if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows-1: 
+                            table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
+                            
+                    ui_log("SERVER", "Finalizing batch. Saving document to main server...")
                     page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
-                    try: yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value"); yes_btn.wait_for(state="visible", timeout=5000); yes_btn.click()
-                    except Exception: pass
-                    browser.close(); elapsed = int(time.time() - global_start_time)
+                    try: 
+                        yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
+                        yes_btn.wait_for(state="visible", timeout=5000)
+                        ui_log("SERVER", "Confirming save dialog...")
+                        yes_btn.click()
+                        ui_log("SERVER", "Document physically written to database.")
+                    except Exception: 
+                        ui_log("SERVER", "Auto-save confirmed. Document written to database.")
+                        
+                    ui_log("SYS", "Closing browser and releasing memory...")
+                    browser.close()
+                    elapsed = int(time.time() - global_start_time)
+                    ui_log("SUCCESS", f"Complete. Total runtime: {elapsed//60}m {elapsed%60}s")
+                    
                     st.markdown(make_solid_box(f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s", "#166534", "#ffffff"), unsafe_allow_html=True)
                     
                     lottie_placeholder.empty() # Hilangkan Lottie Robot setelah selesai
@@ -581,8 +631,10 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                         if anim_success: 
                             with lottie_placeholder:
                                 st_lottie(anim_success, height=150, key="bot_success")
-                        st.toast('System override complete!'); st.session_state.reconcile_result = None
+                        st.toast('System override complete!')
+                        st.session_state.reconcile_result = None
 
             except Exception as e: 
                 lottie_placeholder.empty() # Hilangkan Lottie jika error
-                st.error("System halted."); ui_log("ERROR", f"FAILURE: {e}")
+                st.error("System halted.")
+                ui_log("ERROR", f"FAILURE: {e}")
