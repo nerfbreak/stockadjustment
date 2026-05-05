@@ -410,7 +410,7 @@ if st.session_state.app_page == "Reconcile":
 
     # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
     with col1:
-        with st.container(border=True):
+        with st.container(border=True, height=250):
             st.markdown("**Newspage Stock Data**")
             np_col1, np_col2 = st.columns(2)
             with np_col1:
@@ -437,7 +437,7 @@ if st.session_state.app_page == "Reconcile":
 
     # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
     with col2:
-        with st.container(border=True):
+        with st.container(border=True, height=250):
             st.markdown("**Distributor Stock Data**")
             file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
 
@@ -752,7 +752,7 @@ elif st.session_state.app_page == "Bot":
     cfg_col1, cfg_col2 = st.columns(2)
 
     with cfg_col1:
-        with st.container(border=True):
+        with st.container(border=True, height=230):
             _bot_acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts]
             _bot_auto_idx    = (
                 _bot_acc_options.index(st.session_state.selected_distributor_str)
@@ -791,7 +791,7 @@ elif st.session_state.app_page == "Bot":
                     ), unsafe_allow_html=True)
 
     with cfg_col2:
-        with st.container(border=True):
+        with st.container(border=True, height=230):
             df_to_process = None
             if st.session_state.reconcile_result is not None:
                 st.text_input("Data source", value="Auto-loaded from Compare Stock", disabled=True)
