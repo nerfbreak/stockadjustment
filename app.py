@@ -504,28 +504,46 @@ if st.session_state.app_page == "Reconcile":
             with sync_playwright() as p:
                 ext_ui_log("SYS", "Spawning browser context with isolated session...")
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(no_viewport=True)
+                
+                context_options = {"no_viewport": True}
+                if os.path.exists("np_state.json"):
+                    context_options["storage_state"] = "np_state.json"
+                    ext_ui_log("SYS", "Loading saved session state...")
+                    
+                context = browser.new_context(**context_options)
                 page    = context.new_page()
 
-                ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
-                page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                ext_ui_log("AUTH", "DOM ready. Filling credentials...")
-                page.locator("id=txtUserid").fill(user_id_np)
-                page.locator("id=txtPasswd").fill(pass_np)
-                page.locator("id=btnLogin").click(force=True)
+                logged_in = False
+                if os.path.exists("np_state.json"):
+                    ext_ui_log("AUTH", "Verifying saved session...")
+                    page.goto("https://rb-id.np.accenture.com/RB_ID/Default.aspx", wait_until="domcontentloaded")
+                    if "Logon.aspx" not in page.url:
+                        logged_in = True
+                        ext_ui_log("AUTH", "Session resumed successfully.")
+                        ext_ui_log("SUCCESS", "Handshake verified.")
+                    else:
+                        ext_ui_log("AUTH", "Session expired. Falling back to manual login...")
 
-                try:
-                    btn = page.locator("id=SYS_ASCX_btnContinue")
-                    btn.wait_for(state="visible", timeout=5_000)
-                    ext_ui_log("AUTH", "Active session interceptor detected. Bypassing...")
-                    btn.click(force=True)
-                except Exception:
-                    ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
+                if not logged_in:
+                    ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
+                    page.goto(URL_LOGIN, wait_until="domcontentloaded")
+                    ext_ui_log("AUTH", "DOM ready. Filling credentials...")
+                    page.locator("id=txtUserid").fill(user_id_np)
+                    page.locator("id=txtPasswd").fill(pass_np)
+                    page.locator("id=btnLogin").click(force=True)
 
-                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
-                context.storage_state(path="np_state.json") # Simpan Sesi Login di sini
-                ext_ui_log("AUTH", "Login successful. Session established.")
-                ext_ui_log("SUCCESS", "Handshake verified and session saved.")
+                    try:
+                        btn = page.locator("id=SYS_ASCX_btnContinue")
+                        btn.wait_for(state="visible", timeout=5_000)
+                        ext_ui_log("AUTH", "Active session interceptor detected. Bypassing...")
+                        btn.click(force=True)
+                    except Exception:
+                        ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
+
+                    page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                    context.storage_state(path="np_state.json")
+                    ext_ui_log("AUTH", "Login successful. Session established & saved.")
+                    ext_ui_log("SUCCESS", "Handshake verified.")
 
                 ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
                 time.sleep(3)
@@ -698,6 +716,10 @@ if st.session_state.app_page == "Reconcile":
                 d1 = d1.dropna(subset=[sku_col1])
                 d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
                 d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
+                
+                # Tambahan replace untuk data Newspage (Otomatis prefix 0 untuk 373100, 373103, 373104)
+                d1[sku_col1] = d1[sku_col1].replace({'373100': '0373100', '373103': '0373103', '373104': '0373104'})
+                
                 d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
                 d1_agg = (
                     d1.groupby(sku_col1)
@@ -705,11 +727,15 @@ if st.session_state.app_page == "Reconcile":
                     .reset_index()
                     .rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'})
                 )
+                
                 d2 = df2[[sku_col2, qty_col2]].copy()
                 d2 = d2.dropna(subset=[sku_col2])
                 d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
                 d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
-                d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
+                
+                # Update replace untuk data Distributor (tambah 373104)
+                d2[sku_col2] = d2[sku_col2].replace({'373100': '0373100', '373103': '0373103', '373104': '0373104'})
+                
                 d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0)
                 d2_agg = (
                     d2.groupby(sku_col2)[qty_col2]
