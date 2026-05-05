@@ -103,49 +103,6 @@ def render_terminal(placeholder, logs_history: list):
     placeholder.markdown(html_content, unsafe_allow_html=True)
 
 
-# --- Table Stylers ---
-def style_review_table(df):
-    def color_status(val):
-        if val == 'Match': return 'color: #4ade80; font-weight: 700;'
-        return 'color: #f87171; font-weight: 700;'
-
-    def color_selisih(val):
-        try:
-            v = float(val)
-            if v < 0: return 'color: #f87171; font-weight: 700;'
-            if v > 0: return 'color: #fbbf24; font-weight: 700;'
-        except: pass
-        return 'color: #94a3b8;'
-
-    styler = df.style
-    if hasattr(styler, 'map'):
-        styler = styler.map(color_status, subset=['Status']).map(color_selisih, subset=['Selisih'])
-    else:
-        styler = styler.applymap(color_status, subset=['Status']).applymap(color_selisih, subset=['Selisih'])
-        
-    try:
-        styler = styler.hide(axis="index")
-        styler = styler.format(thousands=".", precision=0, subset=['Newspage', 'Distributor', 'Selisih'])
-    except: pass
-    return styler
-
-def style_queue_table(df):
-    def color_status(val):
-        if val == 'Success': return 'background-color: rgba(74, 222, 128, 0.15); color: #4ade80; font-weight: 700;'
-        elif val == 'Failed': return 'background-color: rgba(248, 113, 113, 0.15); color: #f87171; font-weight: 700;'
-        return 'color: #94a3b8; font-style: italic;'
-
-    styler = df.style
-    if hasattr(styler, 'map'):
-        styler = styler.map(color_status, subset=['Status'])
-    else:
-        styler = styler.applymap(color_status, subset=['Status'])
-        
-    try: styler = styler.hide(axis="index")
-    except: pass
-    return styler
-
-
 # --- 4. STATE MANAGEMENT ---
 if 'reconcile_result' not in st.session_state:
     st.session_state.reconcile_result = None
@@ -534,7 +491,7 @@ if np_source_ready and file2:
             merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
             merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
             merged['Selisih'] = merged['Distributor'] - merged['Newspage']
-            merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
+            merged['Status'] = merged['Selisih'].apply(lambda x: '✅ Match' if x == 0 else '⚠️ Mismatch')
             mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
 
             if len(mismatches) == 0:
@@ -562,19 +519,42 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     m1, m2 = st.columns(2)
     m1.metric("Match", st.session_state.reconcile_summary['total_match'])
     m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
-    st.dataframe(style_review_table(st.session_state.reconcile_summary['df_view']), use_container_width=True, hide_index=True)
+    
+    st.dataframe(
+        st.session_state.reconcile_summary['df_view'], 
+        use_container_width=True, 
+        hide_index=True,
+        column_config={
+            "SKU": st.column_config.TextColumn("SKU 📦", width="medium"),
+            "Description": st.column_config.TextColumn("Description 📝", width="large"),
+            "Newspage": st.column_config.NumberColumn("Newspage 🏢"),
+            "Distributor": st.column_config.NumberColumn("Distributor 🚚"),
+            "Selisih": st.column_config.NumberColumn("Variance ⚖️"),
+            "Status": st.column_config.TextColumn("Status 📌")
+        }
+    )
     
     st.markdown("<br>", unsafe_allow_html=True)
     
     df_view = st.session_state.reconcile_result.copy()
     if 'Status' not in df_view.columns:
-        df_view['Status'] = 'Pending'
+        df_view['Status'] = '⏳ Pending'
     if 'Keterangan' not in df_view.columns:
-        df_view['Keterangan'] = '-'
+        df_view['Keterangan'] = 'Menunggu antrean...'
         
     st.markdown("<div class='box-queue'>Adjustment Queue</div>", unsafe_allow_html=True)
     table_placeholder = st.empty()
-    table_placeholder.dataframe(style_queue_table(df_view), use_container_width=True, hide_index=True)
+    table_placeholder.dataframe(
+        df_view, 
+        use_container_width=True, 
+        hide_index=True,
+        column_config={
+            "sku": st.column_config.TextColumn("SKU 📦"),
+            "qty": st.column_config.NumberColumn("Adjustment Qty 🔢"),
+            "Status": st.column_config.TextColumn("Status 📌"),
+            "Keterangan": st.column_config.TextColumn("System Log 💬", width="large")
+        }
+    )
 
     # Placeholder untuk label Execution Log (awalnya kosong)
     log_label_placeholder = st.empty()
@@ -699,19 +679,29 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                                 "document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''",
                                 timeout=TIMEOUT_MS
                             )
-                            df_view.at[idx, 'Status']     = 'Success'
+                            df_view.at[idx, 'Status']     = '✅ Success'
                             df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
                             success_count += 1
                             ui_log("SUCCESS", "Row committed.")
                         except Exception:
-                            df_view.at[idx, 'Status']     = 'Failed'
+                            df_view.at[idx, 'Status']     = '❌ Failed'
                             df_view.at[idx, 'Keterangan'] = 'Node Timeout'
                             failed_count += 1
                             ui_log("ERROR", f"Timeout on SKU [{sku}]. Skipping.")
 
                         progress_bar.progress((i + 1) / total_rows)
                         if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows - 1:
-                            table_placeholder.dataframe(style_queue_table(df_view), use_container_width=True, hide_index=True)
+                            table_placeholder.dataframe(
+                                df_view, 
+                                use_container_width=True, 
+                                hide_index=True,
+                                column_config={
+                                    "sku": st.column_config.TextColumn("SKU 📦"),
+                                    "qty": st.column_config.NumberColumn("Adjustment Qty 🔢"),
+                                    "Status": st.column_config.TextColumn("Status 📌"),
+                                    "Keterangan": st.column_config.TextColumn("System Log 💬", width="large")
+                                }
+                            )
 
                     ui_log("SERVER", "Saving document to server...")
                     page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
