@@ -444,7 +444,7 @@ if np_source_ready and file2:
                 sku_col2 = st.selectbox("SKU column (Dist)", df2.columns, index=idx_sku2)
                 qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
                 # Spacer agar tinggi kotak sama
-                st.markdown("<div style='margin-bottom: 83px;'></div>", unsafe_allow_html=True)
+                st.markdown("<div style='margin-bottom: 84px;'></div>", unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Compare Stock", type="primary", use_container_width=True):
