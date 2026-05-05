@@ -433,43 +433,13 @@ if st.session_state.app_page == "Reconcile":
                     st.session_state.np_df = None
                     st.rerun()
 
-            if st.session_state.np_df is None:
-                st.divider()
-                file1 = st.file_uploader("Or upload Newspage stock file manually", type=['csv', 'xlsx', 'zip'])
-            else:
-                file1 = None
+            file1 = None
 
     # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
     with col2:
         with st.container(border=True):
             st.markdown("**Distributor Stock Data**")
             file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            _dist_locked = file2 is None
-            _accounts    = load_accounts()
-            _acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in _accounts]
-            _auto_idx    = (
-                _acc_options.index(st.session_state.selected_distributor_str)
-                if st.session_state.selected_distributor_str in _acc_options
-                else None
-            )
-            _picked = st.selectbox(
-                "Select Distributor",
-                options=_acc_options,
-                index=_auto_idx,
-                placeholder="-- Upload file first --" if _dist_locked else "-- Select distributor --",
-                key="reconcile_dist_select",
-                disabled=_dist_locked
-            )
-            if _picked and _picked != st.session_state.selected_distributor_str:
-                st.session_state.selected_distributor_str = _picked
-                st.rerun()
-            if not _dist_locked and st.session_state.selected_distributor_str:
-                st.markdown(make_solid_box(
-                    f"{st.session_state.selected_distributor_str}",
-                    "#0f2f1d", "#4ade80"
-                ), unsafe_allow_html=True)
 
     # ── Extraction Terminal — FULL WIDTH, SEPARATED ───────────────────────────
     ext_log_placeholder = st.empty()
