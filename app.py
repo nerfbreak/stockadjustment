@@ -127,7 +127,6 @@ st.markdown("""
     .log-msg    { color: #f0f6fc; font-weight: 500; font-family: 'Inter', sans-serif; }
     .tag-sys     { color: #a855f7; } .tag-auth    { color: #eab308; } .tag-nav     { color: #3b82f6; } .tag-inject  { color: #06b6d4; } .tag-success { color: #22c55e; } .tag-error   { color: #ef4444; } .tag-server  { color: #f43f5e; }
     
-    /* HEADER BOXES CSS */
     .box-np {
         background-color: rgba(59, 130, 246, 0.1);
         color: #60a5fa;
@@ -173,7 +172,6 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
 
-    /* CUSTOM METRICS CSS */
     .metric-box-match {
         background-color: rgba(74, 222, 128, 0.1);
         border-left: 4px solid #4ade80;
@@ -267,7 +265,6 @@ with col2:
     with st.container(border=True):
         st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
-        # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
 
 # ── Info Extracted Data ───────────────────────────────────────────────────
@@ -287,10 +284,8 @@ ext_log_placeholder = st.empty()
 # ── Extraction Logic ──────────────────────────────────────────────────────
 if extract_btn:
     ext_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
-    
     user_id_np = np_user.strip()
     pass_np    = np_pass.strip()
-
     ext_logs_history  = []
     ext_last_log_time = [time.time()]
 
@@ -300,60 +295,44 @@ if extract_btn:
         ext_last_log_time[0] = now
         timestamp = time.strftime('%H:%M:%S')
         tag_class = f"tag-{module.lower()}"
-        new_log = (
-            f"<span class='log-time'>[{timestamp}]</span>"
-            f"<span class='log-ms'>[+{diff_ms}ms]</span>"
-            f"<span class='log-tag {tag_class}'>[{module}]</span>"
-            f"<span class='log-msg'>{msg}</span>"
-        )
+        new_log = (f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>")
         ext_logs_history.append(new_log)
         render_terminal(ext_log_placeholder, ext_logs_history)
 
     ext_ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
     ensure_playwright()
-
     try:
-        if sys.platform == "win32":
-            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
         asyncio.set_event_loop(asyncio.new_event_loop())
-
         with sync_playwright() as p:
             ext_ui_log("SYS", "Spawning browser context with isolated session...")
             browser = p.chromium.launch(headless=True)
             context = browser.new_context(no_viewport=True)
             page    = context.new_page()
-
             ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
             page.goto(URL_LOGIN, wait_until="domcontentloaded")
             ext_ui_log("AUTH", "DOM ready. Filling credentials...")
             page.locator("id=txtUserid").fill(user_id_np)
             page.locator("id=txtPasswd").fill(pass_np)
             page.locator("id=btnLogin").click(force=True)
-
             try:
                 btn = page.locator("id=SYS_ASCX_btnContinue")
                 btn.wait_for(state="visible", timeout=5_000)
                 ext_ui_log("AUTH", "Active session interceptor detected. Bypassing...")
                 btn.click(force=True)
-            except Exception:
-                ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
-
+            except Exception: ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
             page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
             ext_ui_log("AUTH", "Login successful. Session established.")
             ext_ui_log("SUCCESS", "Handshake verified.")
-
             ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
-            # Extra sleep supaya menu render sempurna sebelum dicari selector-nya
             time.sleep(5) 
             menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
             menu_job.wait_for(state="attached", timeout=TIMEOUT_MS)
             menu_job.dispatch_event("click")
             time.sleep(4)
-
             ext_ui_log("NAV", "Opening new job [Add Value]...")
             page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click(force=True)
             time.sleep(3)
-
             ext_ui_log("INJECT", "Setting job type: Export [E], desc: Text Inventory Master...")
             page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TYPE_Value").select_option("E")
             time.sleep(2)
@@ -361,444 +340,189 @@ if extract_btn:
             page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TIMEOUT_Value").fill("9999999")
             page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_EXE_TYPE_Value").select_option("M")
             time.sleep(2)
-
             ext_ui_log("NAV", "Proceeding to next step...")
             page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click(force=True)
             time.sleep(3)
-
             ext_ui_log("SYS", "Bypassing disclaimer prompt...")
             page.locator("id=pag_FW_DisclaimerMessage_btn_okay_Value").click(force=True)
             time.sleep(2)
-
             ext_ui_log("NAV", "Opening interface selection popup...")
             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click(force=True)
             time.sleep(3)
-
             ext_ui_log("INJECT", "Searching target interface: E_20150315090000028...")
             page.locator("id=pop_Dynamic_gft_List_2_FilterField_Value").fill("E_20150315090000028")
             page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click(force=True)
             time.sleep(2)
-
             ext_ui_log("INJECT", "Selecting target interface from results...")
             page.get_by_text("E_20150315090000028", exact=True).click(force=True)
             time.sleep(2)
-
             ext_ui_log("INJECT", "Setting file type: Delimited [D], separator: standard...")
             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
             time.sleep(1)
             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
             time.sleep(3)
-
             ext_ui_log("INJECT", f"Applying warehouse filter: [{WAREHOUSE}]...")
             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
             time.sleep(2)
-
             ext_ui_log("SYS", "Committing parameters to job definition...")
             page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
             time.sleep(3)
-
             ext_ui_log("SERVER", "Saving job and dispatching execution to server...")
             page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
-
             ext_ui_log("SERVER", "Awaiting server confirmation prompt...")
             page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
             page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
             ext_ui_log("SERVER", "Job dispatched. Waiting for export to complete...")
-
             ext_ui_log("SERVER", "Intercepting download link — this may take up to 4 minutes...")
             with page.expect_download(timeout=240000) as download_info:
                 download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
                 download_btn.wait_for(state="visible", timeout=240000)
                 download_btn.click(force=True)
-
             download      = download_info.value
             real_filename = download.suggested_filename
             file_path     = f"temp_ext_{real_filename}"
             ext_ui_log("SUCCESS", f"Download captured: {real_filename}. Saving to environment...")
             download.save_as(file_path)
-
             browser.close()
             ext_ui_log("SYS", "Browser closed. Releasing session memory...")
-
             ext_ui_log("SYS", f"Parsing payload file: {real_filename}...")
             df_ext = None
             if real_filename.lower().endswith('.zip'):
                 with zipfile.ZipFile(file_path) as z:
                     target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith((".csv", ".txt"))), None)
-                    if not target:
-                        target = next((n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))), None)
+                    if not target: target = next((n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))), None)
                     if target:
                         ext_ui_log("SYS", f"ZIP target identified: {target}")
                         with z.open(target) as f:
                             df_ext = pd.read_csv(f, sep='\t', dtype=str, on_bad_lines='skip')
-                            if df_ext.shape[1] <= 1:
-                                f.seek(0)
-                                df_ext = pd.read_csv(f, sep=',', dtype=str, on_bad_lines='skip')
-            elif real_filename.lower().endswith(('.xls', '.xlsx')):
-                df_ext = pd.read_excel(file_path, dtype=str)
+                            if df_ext.shape[1] <= 1: f.seek(0); df_ext = pd.read_csv(f, sep=',', dtype=str, on_bad_lines='skip')
+            elif real_filename.lower().endswith(('.xls', '.xlsx')): df_ext = pd.read_excel(file_path, dtype=str)
             else:
                 for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
                     for separator in ['\t', ',', ';', '|']:
                         try:
                             temp_df = pd.read_csv(file_path, sep=separator, dtype=str, encoding=enc, on_bad_lines='skip')
-                            if temp_df is not None and temp_df.shape[1] > 1:
-                                df_ext = temp_df
-                                ext_ui_log("SYS", f"Parser success — enc: {enc}, sep: '{separator}'")
-                                break
-                        except Exception:
-                            continue
-                    if df_ext is not None and df_ext.shape[1] > 1:
-                        break
-
+                            if temp_df is not None and temp_df.shape[1] > 1: df_ext = temp_df; break
+                        except Exception: continue
+                    if df_ext is not None and df_ext.shape[1] > 1: break
             if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
                 df_ext.columns = [str(c).strip() for c in df_ext.columns]
                 ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
                 st.session_state.np_df = df_ext
                 st.rerun()
-            else:
-                ext_ui_log("ERROR", "DataFrame validation failed — bad format or empty file.")
-                st.error("Gagal membaca file dari server, cek format ekstraksi.")
-
-    except PlaywrightTimeoutError:
-        ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon dalam batas waktu.")
-        st.error("Operation Timeout. Server tidak merespon dalam batas waktu.")
-    except Exception as e:
-        ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
-        st.error(f"System error: {e}")
+            else: ext_ui_log("ERROR", "DataFrame validation failed."); st.error("Gagal membaca file dari server.")
+    except PlaywrightTimeoutError: ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon."); st.error("Operation Timeout.")
+    except Exception as e: ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}"); st.error(f"System error: {e}")
 
 # ── Column mapping & compare ──────────────────────────────────────────────
 np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
-
 if np_source_ready and file2:
     st.divider()
     df1 = st.session_state.np_df if st.session_state.np_df is not None else load_data(file1)
     df2 = load_data(file2)
-
     if df1 is not None and df2 is not None:
         c1, c2 = st.columns(2)
+        # BUNGKUS DALAM KOTAK SETUP
         with c1:
-            st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
-            idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
-            if 'Product Description' in df1.columns:
-                idx_desc1 = df1.columns.get_loc('Product Description')
-            elif 'Product Name' in df1.columns:
-                idx_desc1 = df1.columns.get_loc('Product Name')
-            else:
-                idx_desc1 = 1 if len(df1.columns) > 1 else 0
-            idx_qty1 = (
-                df1.columns.get_loc('Stock Available')
-                if 'Stock Available' in df1.columns
-                else (2 if len(df1.columns) > 2 else 0)
-            )
-            sku_col1  = st.selectbox("SKU column (NP)", df1.columns, index=idx_sku1)
-            desc_col1 = st.selectbox("Description column (NP)", df1.columns, index=idx_desc1)
-            qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
-
+            with st.container(border=True):
+                st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
+                idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
+                if 'Product Description' in df1.columns: idx_desc1 = df1.columns.get_loc('Product Description')
+                elif 'Product Name' in df1.columns: idx_desc1 = df1.columns.get_loc('Product Name')
+                else: idx_desc1 = 1 if len(df1.columns) > 1 else 0
+                idx_qty1 = (df1.columns.get_loc('Stock Available') if 'Stock Available' in df1.columns else (2 if len(df1.columns) > 2 else 0))
+                sku_col1  = st.selectbox("SKU column (NP)", df1.columns, index=idx_sku1)
+                desc_col1 = st.selectbox("Description column (NP)", df1.columns, index=idx_desc1)
+                qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
         with c2:
-            st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
-            idx_sku2 = 20 if len(df2.columns) > 20 else 0
-            qty2_col_match = next(
-                (col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"),
-                None
-            )
-            if qty2_col_match:
-                idx_qty2 = df2.columns.get_loc(qty2_col_match)
-            else:
-                idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
-            sku_col2 = st.selectbox("SKU column (Dist)", df2.columns, index=idx_sku2)
-            qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
+            with st.container(border=True):
+                st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
+                idx_sku2 = 20 if len(df2.columns) > 20 else 0
+                qty2_col_match = next((col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"), None)
+                if qty2_col_match: idx_qty2 = df2.columns.get_loc(qty2_col_match)
+                else: idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
+                sku_col2 = st.selectbox("SKU column (Dist)", df2.columns, index=idx_sku2)
+                qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
+                # Spacer agar tinggi kotak sama
+                st.markdown("<div style='margin-bottom: 74px;'></div>", unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Compare Stock", type="primary", use_container_width=True):
-            d1 = df1[[sku_col1, desc_col1, qty_col1]].copy()
-            d1 = d1.dropna(subset=[sku_col1])
-            d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
-            d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
-            d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
-            d1_agg = (
-                d1.groupby(sku_col1)
-                .agg({desc_col1: 'first', qty_col1: 'sum'})
-                .reset_index()
-                .rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'})
-            )
-            d2 = df2[[sku_col2, qty_col2]].copy()
-            d2 = d2.dropna(subset=[sku_col2])
-            d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
-            d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
-            d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
-            d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0)
-            d2_agg = (
-                d2.groupby(sku_col2)[qty_col2]
-                .sum()
-                .reset_index()
-                .rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'})
-            )
-            merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
-            merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
-            merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
-            merged['Selisih'] = merged['Distributor'] - merged['Newspage']
-            merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
-            mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
-
-            if len(mismatches) == 0:
-                st.success("Analysis complete: all items matched!")
-                st.session_state.reconcile_summary = None
+            d1 = df1[[sku_col1, desc_col1, qty_col1]].copy(); d1 = d1.dropna(subset=[sku_col1]); d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
+            d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
+            d1_agg = (d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'}))
+            d2 = df2[[sku_col2, qty_col2]].copy(); d2 = d2.dropna(subset=[sku_col2]); d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
+            d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
+            d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0); d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
+            merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer'); merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
+            merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER'); merged['Selisih'] = merged['Distributor'] - merged['Newspage']
+            merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch'); mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
+            if len(mismatches) == 0: st.success("Analysis complete: all items matched!"); st.session_state.reconcile_summary = None
             else:
                 valid_mismatches = mismatches[mismatches['Description'] != 'ITEM NOT IN MASTER'].copy()
-                st.session_state.reconcile_summary = {
-                    'total_match':    len(merged[merged['Selisih'] == 0]),
-                    'total_mismatch': len(mismatches),
-                    'df_view':        mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]
-                }
-                valid_mismatches['Selisih_Clean'] = valid_mismatches['Selisih'].astype(int)
-                transfer_df = (
-                    valid_mismatches[['SKU', 'Selisih_Clean']]
-                    .rename(columns={'SKU': 'sku', 'Selisih_Clean': 'qty'})
-                )
-                st.session_state.reconcile_result = transfer_df
-                st.rerun()
+                st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
+                transfer_df = (valid_mismatches[['SKU', 'Selisih']].rename(columns={'SKU': 'sku', 'Selisih': 'qty'})); st.session_state.reconcile_result = transfer_df; st.rerun()
 
 # ── Review Table & Engine Execution ───────────────────────────────────────────
 if st.session_state.reconcile_summary is not None and st.session_state.reconcile_result is not None:
     st.markdown("---")
     st.markdown("<div class='box-review'>Stock Review</div>", unsafe_allow_html=True)
-    m1, m2 = st.columns(2)
-    
-    match_count = st.session_state.reconcile_summary['total_match']
-    mismatch_count = st.session_state.reconcile_summary['total_mismatch']
-    
-    with m1:
-        st.markdown(f'''
-            <div class="metric-box-match">
-                <div class="metric-label">Match</div>
-                <div class="metric-value">{match_count}</div>
-            </div>
-        ''', unsafe_allow_html=True)
-        
-    with m2:
-        st.markdown(f'''
-            <div class="metric-box-mismatch">
-                <div class="metric-label">Stock difference</div>
-                <div class="metric-value">{mismatch_count}</div>
-            </div>
-        ''', unsafe_allow_html=True)
-    
-    st.dataframe(
-        st.session_state.reconcile_summary['df_view'], 
-        use_container_width=True, 
-        hide_index=True,
-        column_config={
-            "SKU": st.column_config.TextColumn("SKU", width="medium"),
-            "Description": st.column_config.TextColumn("Description", width="large"),
-            "Newspage": st.column_config.NumberColumn("Newspage"),
-            "Distributor": st.column_config.NumberColumn("Distributor"),
-            "Selisih": st.column_config.NumberColumn("Variance"),
-            "Status": st.column_config.TextColumn("Status")
-        }
-    )
-    
+    m1, m2 = st.columns(2); match_count = st.session_state.reconcile_summary['total_match']; mismatch_count = st.session_state.reconcile_summary['total_mismatch']
+    with m1: st.markdown(f'''<div class="metric-box-match"><div class="metric-label">Match</div><div class="metric-value">{match_count}</div></div>''', unsafe_allow_html=True)
+    with m2: st.markdown(f'''<div class="metric-box-mismatch"><div class="metric-label">Stock difference</div><div class="metric-value">{mismatch_count}</div></div>''', unsafe_allow_html=True)
+    st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True, column_config={"SKU": st.column_config.TextColumn("SKU", width="medium"), "Description": st.column_config.TextColumn("Description", width="large")})
     st.markdown("<br>", unsafe_allow_html=True)
-    
     df_view = st.session_state.reconcile_result.copy()
-    if 'Status' not in df_view.columns:
-        df_view['Status'] = 'Pending'
-    if 'Keterangan' not in df_view.columns:
-        df_view['Keterangan'] = 'Menunggu antrean...'
-        
+    if 'Status' not in df_view.columns: df_view['Status'] = 'Pending'
+    if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = 'Menunggu antrean...'
     st.markdown("<div class='box-queue'>Adjustment Queue</div>", unsafe_allow_html=True)
-    table_placeholder = st.empty()
-    table_placeholder.dataframe(
-        df_view, 
-        use_container_width=True, 
-        hide_index=True,
-        column_config={
-            "sku": st.column_config.TextColumn("SKU"),
-            "qty": st.column_config.NumberColumn("Adjustment Qty"),
-            "Status": st.column_config.TextColumn("Status"),
-            "Keterangan": st.column_config.TextColumn("System Log", width="large")
-        }
-    )
-
-    # Placeholder untuk label Execution Log (awalnya kosong)
-    log_label_placeholder = st.empty()
-    log_placeholder = st.empty()
-
-    # Bungkus button pakai st.empty() agar bisa dihilangkan saat proses berjalan
-    btn_placeholder = st.empty()
-    
+    table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
+    log_label_placeholder = st.empty(); log_placeholder = st.empty(); btn_placeholder = st.empty()
     if btn_placeholder.button("PROCEED TO STOCK ADJUSTMENT ENGINE", type="primary", use_container_width=True):
-        btn_placeholder.empty() # Hilangkan tombol segera setelah diklik
-        
-        bot_user = st.session_state.np_user_input.strip()
-        bot_pass = st.session_state.np_pass_input.strip()
-        
-        if not bot_user or not bot_pass:
-            st.error("Access Denied: NP User ID & Password required! Please fill them at the top section.")
+        btn_placeholder.empty(); bot_user = st.session_state.np_user_input.strip(); bot_pass = st.session_state.np_pass_input.strip()
+        if not bot_user or not bot_pass: st.error("Access Denied: NP User ID & Password required!")
         else:
-            # Munculkan label Execution Log saat bot berjalan
-            log_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
-            
-            with st.spinner("Initializing Chromium engine..."):
-                ensure_playwright()
-
-            bot_logs_history  = []
-            bot_last_log_time = [time.time()]
-
+            log_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True); ensure_playwright()
+            bot_logs_history  = []; bot_last_log_time = [time.time()]
             def ui_log(module, msg):
-                now      = time.time()
-                diff_ms  = int((now - bot_last_log_time[0]) * 1000)
-                bot_last_log_time[0] = now
-                timestamp = time.strftime('%H:%M:%S')
-                tag_class = f"tag-{module.lower()}"
-                new_log = (
-                    f"<span class='log-time'>[{timestamp}]</span>"
-                    f"<span class='log-ms'>[+{diff_ms}ms]</span>"
-                    f"<span class='log-tag {tag_class}'>[{module}]</span>"
-                    f"<span class='log-msg'>{msg}</span>"
-                )
-                bot_logs_history.append(new_log)
+                now = time.time(); diff_ms = int((now - bot_last_log_time[0]) * 1000); bot_last_log_time[0] = now; timestamp = time.strftime('%H:%M:%S'); tag_class = f"tag-{module.lower()}"
+                bot_logs_history.append(f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>")
                 render_terminal(log_placeholder, bot_logs_history)
-
-            global_start_time = time.time()
-            success_count, failed_count = 0, 0
-
+            global_start_time = time.time(); success_count, failed_count = 0, 0
             ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
             try:
-                if sys.platform == "win32":
-                    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
                 asyncio.set_event_loop(asyncio.new_event_loop())
-
                 with sync_playwright() as p:
-                    ui_log("SYS", "Spawning browser context with isolated session...")
-                    browser = p.chromium.launch(headless=True)
-                    context = browser.new_context(no_viewport=True)
-                    page    = context.new_page()
-
-                    ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
-                    page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                    ui_log("AUTH", "DOM ready. Filling credentials...")
-                    
-                    page.locator("id=txtUserid").fill(bot_user)
-                    page.locator("id=txtPasswd").fill(bot_pass)
-                    page.locator("id=btnLogin").click(force=True)
-
+                    ui_log("SYS", "Spawning browser context..."); browser = p.chromium.launch(headless=True); context = browser.new_context(no_viewport=True); page = context.new_page()
+                    ui_log("AUTH", f"Connecting to Newspage..."); page.goto(URL_LOGIN, wait_until="domcontentloaded")
+                    page.locator("id=txtUserid").fill(bot_user); page.locator("id=txtPasswd").fill(bot_pass); page.locator("id=btnLogin").click(force=True)
                     try:
-                        btn = page.locator("id=SYS_ASCX_btnContinue")
-                        btn.wait_for(state="visible", timeout=5_000)
-                        ui_log("AUTH", "Active session interceptor detected. Bypassing...")
-                        btn.click(force=True)
-                    except Exception:
-                        ui_log("SYS", "No interceptor detected. Clean session acquired.")
-
-                    page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
-                    ui_log("AUTH", "Login successful. Session established.")
-                    ui_log("SUCCESS", "Handshake verified.")
-
-                    ui_log("NAV", "Navigating to Inventory > Stock Adjustment...")
-                    # Extra sleep supaya menu render sempurna sebelum dicari selector-nya
-                    time.sleep(5) 
-                    page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
-                    add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
-                    add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
-                    ui_log("NAV", "Opening new document [Add Value]...")
-                    add_btn.click(force=True)
-
-                    warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True)
-                    warehouse_link.wait_for(state="visible", timeout=TIMEOUT_MS)
-                    warehouse_link.click(force=True)
-                    page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(
-                        state="visible", timeout=TIMEOUT_MS
-                    )
-
-                    ui_log("SYS", f"Applying adjustment protocol: code [{REASON_CODE}]...")
-                    dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
-                    if dropdown.is_enabled():
-                        dropdown.select_option(REASON_CODE)
-                    ui_log("SYS", "Ready. Opening data stream for payload injection...")
-
-                    progress_bar = st.progress(0)
-                    total_rows   = len(df_view)
+                        btn = page.locator("id=SYS_ASCX_btnContinue"); btn.wait_for(state="visible", timeout=5_000); btn.click(force=True)
+                    except Exception: pass
+                    page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS); ui_log("AUTH", "Login successful.")
+                    time.sleep(5); page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
+                    add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value"); add_btn.wait_for(state="attached", timeout=TIMEOUT_MS); add_btn.click(force=True)
+                    warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True); warehouse_link.wait_for(state="visible"); warehouse_link.click(force=True)
+                    page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible")
+                    dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value"); 
+                    if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
+                    progress_bar = st.progress(0); total_rows = len(df_view)
                     for i, (idx, row) in enumerate(df_view.iterrows()):
-                        sku = str(row['sku']).strip()
+                        sku = str(row['sku']).strip(); qty = str(int(float(row['qty'])))
+                        ui_log("INJECT", f"Payload {i+1}/{total_rows} -> SKU [{sku}]")
                         try:
-                            qty = str(int(float(row['qty'])))
-                        except Exception:
-                            qty = str(row['qty']).strip()
-
-                        ui_log("INJECT", f"Payload {i + 1}/{total_rows} -> SKU [{sku}]")
-                        try:
-                            sku_input = page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value")
-                            sku_input.fill(sku)
-                            sku_input.press("Tab")
-                            time.sleep(1)
-                            page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").wait_for(
-                                state="visible", timeout=TIMEOUT_MS
-                            )
-                            ui_log("INJECT", f"Assigning qty: {qty}")
-                            page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").fill(qty)
-                            page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
-                            ui_log("SYS", "Awaiting form reset...")
-                            page.wait_for_function(
-                                "document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''",
-                                timeout=TIMEOUT_MS
-                            )
-                            df_view.at[idx, 'Status']     = 'Success'
-                            df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
-                            success_count += 1
-                            ui_log("SUCCESS", "Row committed.")
-                        except Exception:
-                            df_view.at[idx, 'Status']     = 'Failed'
-                            df_view.at[idx, 'Keterangan'] = 'Node Timeout'
-                            failed_count += 1
-                            ui_log("ERROR", f"Timeout on SKU [{sku}]. Skipping.")
-
-                        progress_bar.progress((i + 1) / total_rows)
-                        if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows - 1:
-                            table_placeholder.dataframe(
-                                df_view, 
-                                use_container_width=True, 
-                                hide_index=True,
-                                column_config={
-                                    "sku": st.column_config.TextColumn("SKU"),
-                                    "qty": st.column_config.NumberColumn("Adjustment Qty"),
-                                    "Status": st.column_config.TextColumn("Status"),
-                                    "Keterangan": st.column_config.TextColumn("System Log", width="large")
-                                }
-                            )
-
-                    ui_log("SERVER", "Saving document to server...")
+                            sku_input = page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value"); sku_input.fill(sku); sku_input.press("Tab"); time.sleep(1)
+                            page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").fill(qty); page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
+                            page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
+                            df_view.at[idx, 'Status'] = 'Success'; df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'; success_count += 1
+                        except Exception: df_view.at[idx, 'Status'] = 'Failed'; failed_count += 1
+                        progress_bar.progress((i+1)/total_rows)
+                        if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows-1: table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
                     page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
-                    try:
-                        yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
-                        yes_btn.wait_for(state="visible", timeout=5_000)
-                        ui_log("SERVER", "Confirming save dialog...")
-                        yes_btn.click()
-                        ui_log("SERVER", "Document physically written to database.")
-                    except Exception:
-                        ui_log("SERVER", "Auto-save confirmed. Document written to database.")
-
-                    ui_log("SYS", "Closing browser and releasing memory...")
-                    browser.close()
-                    elapsed = int(time.time() - global_start_time)
-                    ui_log("SUCCESS", f"Complete. Total runtime: {elapsed // 60}m {elapsed % 60}s")
-                    st.markdown(make_solid_box(
-                        f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed // 60}m {elapsed % 60}s",
-                        "#166534", "#ffffff"
-                    ), unsafe_allow_html=True)
-                    
-                    if success_count > 0:
-                        st.toast('Connection terminated')
-                        time.sleep(0.5)
-                        st.toast('Data injected successfully')
-                        time.sleep(0.5)
-                        st.toast('System override complete!')
-                        st.session_state.reconcile_result = None
-
-            except PlaywrightTimeoutError:
-                st.error("Login failed: incorrect password or server timeout (30s).")
-                ui_log("ERROR", "ACCESS DENIED: Handshake timeout. Invalid credentials or node unreachable.")
-            except Exception as e:
-                st.error("System halted due to an unexpected error.")
-                clean_error = str(e).split('===')[0].strip()
-                ui_log("ERROR", f"SYSTEM FAILURE: {clean_error}")
-                ui_log("ERROR", traceback.format_exc().splitlines()[-1])
+                    try: yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value"); yes_btn.wait_for(state="visible", timeout=5000); yes_btn.click()
+                    except Exception: pass
+                    browser.close(); elapsed = int(time.time() - global_start_time)
+                    st.markdown(make_solid_box(f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s", "#166534", "#ffffff"), unsafe_allow_html=True)
+                    if success_count > 0: st.toast('System override complete!'); st.session_state.reconcile_result = None
+            except Exception as e: st.error("System halted."); ui_log("ERROR", f"FAILURE: {e}")
