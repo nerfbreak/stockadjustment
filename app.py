@@ -175,7 +175,7 @@ if 'np_df' not in st.session_state:
 if 'selected_distributor_str' not in st.session_state:
     st.session_state.selected_distributor_str = None
 
-# --- 5. CUSTOM CSS ---
+# --- 5. CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -467,10 +467,10 @@ if st.session_state.app_page == "Reconcile":
                     "#0f2f1d", "#4ade80"
                 ), unsafe_allow_html=True)
 
-    # ── Extraction Terminal — FULL WIDTH, SEPARATED ───────────────────────────
+    # ── Extraction Terminal
     ext_log_placeholder = st.empty()
 
-    # ── Extraction Logic ──────────────────────────────────────────────────────
+    # ── Extraction Logic
     if extract_btn:
         user_id_np = np_user.strip()
         pass_np    = np_pass.strip()
@@ -652,7 +652,7 @@ if st.session_state.app_page == "Reconcile":
             ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
             st.error(f"System error: {e}")
 
-    # ── Column mapping & compare ──────────────────────────────────────────────
+    # ── Column mapping & compare
     np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
 
     if np_source_ready and file2:
@@ -746,7 +746,7 @@ if st.session_state.app_page == "Reconcile":
 
 
 
-# ─── 7. PAGE: STOCK ADJUSTMENT BOT ───────────────────────────────────────────
+# ─── 7. PAGE: STOCK ADJUSTMENT BOT
 elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
@@ -863,7 +863,7 @@ elif st.session_state.app_page == "Bot":
         df_view['Keterangan'] = '-'
     table_placeholder = st.dataframe(df_view, use_container_width=True)
 
-    # ── Bot Terminal — FULL WIDTH, SEPARATE ──────────────────────────────────
+    # ── Bot Terminal
     st.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
     log_placeholder = st.empty()
 
