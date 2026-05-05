@@ -45,6 +45,11 @@ WAREHOUSE             = "GOOD_WHS"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
+# --- LOTTIE URLS ---
+LOTTIE_LOADING_GEARS = "https://assets9.lottiefiles.com/packages/lf20_icthread.json"
+LOTTIE_ROBOT_WORK    = "https://assets5.lottiefiles.com/packages/lf20_t24tpvcu.json"
+LOTTIE_SUCCESS_CHECK = "https://assets10.lottiefiles.com/packages/lf20_vuliyhde.json"
+
 # --- 3. HELPER FUNCTIONS ---
 @st.cache_data
 def load_lottieurl(url: str):
@@ -258,7 +263,7 @@ col1, col2 = st.columns(2)
 # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
 with col1:
     with st.container(border=True):
-        st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
         with np_col1:
             np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...", key="np_user_input")
@@ -275,10 +280,8 @@ with col1:
 # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
 with col2:
     with st.container(border=True):
-        st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
-        idx_sku2 = 20
+        st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
-        # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
 
 # ── Info Extracted Data ───────────────────────────────────────────────────
@@ -292,11 +295,18 @@ if st.session_state.np_df is not None:
         st.rerun()
 
 # ── Extraction Terminal ───────────────────────────────────────────────────
+ext_lottie_placeholder = st.empty()
 ext_label_placeholder = st.empty()
 ext_log_placeholder = st.empty()
 
 # ── Extraction Logic ──────────────────────────────────────────────────────
 if extract_btn:
+    # Tampilkan Animasi Lottie Loading
+    anim_loading = load_lottieurl(LOTTIE_LOADING_GEARS)
+    if anim_loading:
+        with ext_lottie_placeholder:
+            st_lottie(anim_loading, height=100, key="extract_anim")
+
     ext_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
     user_id_np = np_user.strip()
     pass_np    = np_pass.strip()
@@ -419,14 +429,21 @@ if extract_btn:
                             if temp_df is not None and temp_df.shape[1] > 1: df_ext = temp_df; break
                         except Exception: continue
                     if df_ext is not None and df_ext.shape[1] > 1: break
+            
+            ext_lottie_placeholder.empty() # Hilangkan Lottie Loading
+
             if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
                 df_ext.columns = [str(c).strip() for c in df_ext.columns]
                 ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
                 st.session_state.np_df = df_ext
                 st.rerun()
             else: ext_ui_log("ERROR", "DataFrame validation failed."); st.error("Gagal membaca file dari server.")
-    except PlaywrightTimeoutError: ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon."); st.error("Operation Timeout.")
-    except Exception as e: ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}"); st.error(f"System error: {e}")
+    except PlaywrightTimeoutError: 
+        ext_lottie_placeholder.empty()
+        ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon."); st.error("Operation Timeout.")
+    except Exception as e: 
+        ext_lottie_placeholder.empty()
+        ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}"); st.error(f"System error: {e}")
 
 # ── Column mapping & compare ──────────────────────────────────────────────
 np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
@@ -471,7 +488,13 @@ if np_source_ready and file2:
             merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer'); merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
             merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER'); merged['Selisih'] = merged['Distributor'] - merged['Newspage']
             merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch'); mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
-            if len(mismatches) == 0: st.success("Analysis complete: all items matched!"); st.session_state.reconcile_summary = None
+            
+            if len(mismatches) == 0: 
+                # Tampilkan lottie success jika komparasi sempurna
+                anim_success = load_lottieurl(LOTTIE_SUCCESS_CHECK)
+                if anim_success: st_lottie(anim_success, height=150, key="compare_success")
+                st.success("Analysis complete: all items matched!")
+                st.session_state.reconcile_summary = None
             else:
                 valid_mismatches = mismatches[mismatches['Description'] != 'ITEM NOT IN MASTER'].copy()
                 st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
@@ -484,7 +507,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     m1, m2 = st.columns(2); match_count = st.session_state.reconcile_summary['total_match']; mismatch_count = st.session_state.reconcile_summary['total_mismatch']
     with m1: st.markdown(f'''<div class="metric-box-match"><div class="metric-label">Match</div><div class="metric-value">{match_count}</div></div>''', unsafe_allow_html=True)
     with m2: st.markdown(f'''<div class="metric-box-mismatch"><div class="metric-label">Stock difference</div><div class="metric-value">{mismatch_count}</div></div>''', unsafe_allow_html=True)
-    st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True)
+    st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True, column_config={"SKU": st.column_config.TextColumn("SKU", width="medium"), "Description": st.column_config.TextColumn("Description", width="large")})
     st.markdown("<br>", unsafe_allow_html=True)
     df_view = st.session_state.reconcile_result.copy()
     if 'Status' not in df_view.columns: df_view['Status'] = 'Pending'
@@ -502,11 +525,11 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
         btn_placeholder.empty(); bot_user = st.session_state.np_user_input.strip(); bot_pass = st.session_state.np_pass_input.strip()
         if not bot_user or not bot_pass: st.error("Access Denied: NP User ID & Password required!")
         else:
-            # Munculin Animasi Lottie saat diproses
-            lottie_anim = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_t24tpvcu.json")
+            # Munculin Animasi Lottie Robot saat diproses
+            lottie_anim = load_lottieurl(LOTTIE_ROBOT_WORK)
             if lottie_anim:
                 with lottie_placeholder:
-                    st_lottie(lottie_anim, height=120)
+                    st_lottie(lottie_anim, height=150, key="bot_processing")
 
             log_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True); ensure_playwright()
             bot_logs_history  = []; bot_last_log_time = [time.time()]
@@ -550,9 +573,16 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     except Exception: pass
                     browser.close(); elapsed = int(time.time() - global_start_time)
                     st.markdown(make_solid_box(f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s", "#166534", "#ffffff"), unsafe_allow_html=True)
-                    if success_count > 0: st.toast('System override complete!'); st.session_state.reconcile_result = None
-                    lottie_placeholder.empty() # Hilangkan Lottie setelah selesai
+                    
+                    lottie_placeholder.empty() # Hilangkan Lottie Robot setelah selesai
+
+                    if success_count > 0: 
+                        anim_success = load_lottieurl(LOTTIE_SUCCESS_CHECK)
+                        if anim_success: 
+                            with lottie_placeholder:
+                                st_lottie(anim_success, height=150, key="bot_success")
+                        st.toast('System override complete!'); st.session_state.reconcile_result = None
 
             except Exception as e: 
-                st.error("System halted."); ui_log("ERROR", f"FAILURE: {e}")
                 lottie_placeholder.empty() # Hilangkan Lottie jika error
+                st.error("System halted."); ui_log("ERROR", f"FAILURE: {e}")
