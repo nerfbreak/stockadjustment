@@ -432,7 +432,7 @@ if st.session_state.app_page == "Reconcile":
             st.markdown("**Distributor Stock Data**")
             file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
             # Spacer buatan untuk mendorong tinggi box agar sejajar dengan box sebelah kiri
-            st.markdown("<div style='margin-bottom: 27px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
 
     # ── Info Extracted Data (Dikeluarkan dari dalam kotak Kiri) ───────────────
     if st.session_state.np_df is not None:
