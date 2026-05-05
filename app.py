@@ -8,11 +8,10 @@ import subprocess
 import asyncio
 import traceback
 import sys
-import sqlite3
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 # --- 1. PAGE CONFIG ---
-st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
+st.set_page_config(page_title="Stock Adjustment Newspage", page_icon="icon.png", layout="wide")
 
 # --- 1.5. LOGIN GATEKEEPER ---
 if "logged_in" not in st.session_state:
@@ -41,65 +40,12 @@ if not st.session_state.logged_in:
 # --- 2. CONSTANTS ---
 URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
 CREDENTIALS_FILE      = "users_2.csv"
-DB_PATH               = "accounts.db"
 REASON_CODE           = "SA2"
 WAREHOUSE             = "GOOD_WHS"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
 # --- 3. HELPER FUNCTIONS ---
-
-def init_db():
-    """
-    Initialize SQLite database.
-    Auto-migrates from users_2.csv on first run if the table is empty.
-    """
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS accounts (
-            user_id     TEXT PRIMARY KEY,
-            distributor TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-
-    # Migrate from CSV if DB is empty
-    count = conn.execute("SELECT COUNT(*) FROM accounts").fetchone()[0]
-    if count == 0 and os.path.exists(CREDENTIALS_FILE):
-        for enc in ['utf-8-sig', 'cp1252', 'iso-8859-1']:
-            try:
-                with open(CREDENTIALS_FILE, mode="r", encoding=enc) as f:
-                    reader = csv.DictReader(f)
-                    reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
-                    rows = []
-                    for row in reader:
-                        cleaned = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
-                        if "user_id" in cleaned and "Distributor" in cleaned:
-                            rows.append((cleaned["user_id"], cleaned["Distributor"]))
-                    if rows:
-                        conn.executemany(
-                            "INSERT OR IGNORE INTO accounts (user_id, distributor) VALUES (?, ?)",
-                            rows
-                        )
-                        conn.commit()
-                break
-            except (UnicodeDecodeError, TypeError):
-                continue
-
-    conn.close()
-
-
-@st.cache_data(ttl=300)
-def load_accounts():
-    """Load accounts from SQLite. Returns list of dicts with user_id and Distributor."""
-    init_db()
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    rows = conn.execute(
-        "SELECT user_id, distributor FROM accounts ORDER BY distributor"
-    ).fetchall()
-    conn.close()
-    return [{"user_id": r[0], "Distributor": r[1]} for r in rows]
-
 
 def load_data(file):
     if file is None:
@@ -128,6 +74,26 @@ def load_data(file):
     return df
 
 
+@st.cache_data(ttl=300)
+def load_accounts():
+    accounts = []
+    if not os.path.exists(CREDENTIALS_FILE):
+        return accounts
+    for enc in ['utf-8-sig', 'cp1252', 'iso-8859-1']:
+        try:
+            with open(CREDENTIALS_FILE, mode="r", encoding=enc) as f:
+                reader = csv.DictReader(f)
+                reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
+                for row in reader:
+                    cleaned_row = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
+                    if "user_id" in cleaned_row and "Distributor" in cleaned_row:
+                        accounts.append(cleaned_row)
+                return accounts
+        except (UnicodeDecodeError, TypeError):
+            continue
+    return accounts
+
+
 @st.cache_resource
 def ensure_playwright():
     try:
@@ -148,21 +114,6 @@ def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
     )
 
 
-def render_terminal(placeholder, logs_history: list):
-    display_logs = "<br>".join(logs_history[-100:])
-    html_content = f"""
-    <div class="terminal-box" id="ext_term_box">
-        {display_logs}
-        <br><span class="blink_me">&#9608;</span>
-    </div>
-    <script>
-        var t = window.parent.document.getElementById('ext_term_box') || document.getElementById('ext_term_box');
-        if (t) t.scrollTop = t.scrollHeight;
-    </script>
-    """
-    placeholder.markdown(html_content, unsafe_allow_html=True)
-
-
 # --- 4. STATE MANAGEMENT ---
 if 'app_page' not in st.session_state:
     st.session_state.app_page = "Reconcile"
@@ -175,39 +126,26 @@ if 'np_df' not in st.session_state:
 if 'selected_distributor_str' not in st.session_state:
     st.session_state.selected_distributor_str = None
 
-# --- 5. CSS ---
+# --- 5. CUSTOM CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
     .terminal-box {
-        background-color: #0d1117;
+        background-color: transparent;
         color: #f0f6fc;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.82rem;
-        padding: 14px 18px;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-        height: 320px;
+        padding: 5px 0;
+        border: none;
+        box-shadow: none;
+        height: 350px;
         overflow-y: auto;
         line-height: 1.8;
         -ms-overflow-style: none;
         scrollbar-width: none;
-        margin-top: 8px;
-        margin-bottom: 32px;
     }
     .terminal-box::-webkit-scrollbar { display: none; }
-
-    .terminal-label {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.1em;
-        color: #8b949e;
-        text-transform: uppercase;
-        margin-bottom: 4px;
-    }
 
     .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #10b981; }
     @keyframes blinker { 50% { opacity: 0; } }
@@ -376,6 +314,7 @@ st.markdown("""
         display: block !important;
     }
 
+    /* Container border styling agar blok kiri-kanan rapi */
     div[data-testid="stContainer"] {
         border: 1px solid rgba(59, 130, 246, 0.25);
         border-radius: 8px;
@@ -392,28 +331,19 @@ st.markdown("""
 
 # ─── 6. PAGE: RECONCILE ──────────────────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
-    hdr_col1, hdr_col2 = st.columns([5, 1])
-    with hdr_col1:
-        st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-        st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
-        st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
-    with hdr_col2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Stock Adjustment", use_container_width=True):
-            st.session_state.reconcile_result = None
-            st.session_state.reconcile_summary = None
-            st.session_state.app_page = "Bot"
-            st.rerun()
+    st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     col1, col2 = st.columns(2)
 
-    # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
     with col1:
         with st.container(border=True):
             st.markdown("**Newspage Stock Data**")
 
-            with st.expander("Extract from Master Server", expanded=st.session_state.np_df is None):
+            # ── Extract-from-server panel ──────────────────────────────────
+            with st.expander("🔌 Extract from Master Server", expanded=st.session_state.np_df is None):
                 np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...")
                 np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...")
                 extract_btn = st.button(
@@ -423,19 +353,234 @@ if st.session_state.app_page == "Reconcile":
                     disabled=not (np_user and np_pass)
                 )
 
+                if extract_btn:
+                    user_id_np = np_user.strip()
+                    pass_np    = np_pass.strip()
+
+                    st.markdown("**Extraction Log:**")
+                    ext_log_placeholder = st.empty()
+
+                    ext_logs_history  = []
+                    ext_last_log_time = [time.time()]
+
+                    def ext_ui_log(module, msg):
+                        now      = time.time()
+                        diff_ms  = int((now - ext_last_log_time[0]) * 1000)
+                        ext_last_log_time[0] = now
+                        timestamp = time.strftime('%H:%M:%S')
+                        tag_class = f"tag-{module.lower()}"
+                        new_log = (
+                            f"<span class='log-time'>[{timestamp}]</span>"
+                            f"<span class='log-ms'>[+{diff_ms}ms]</span>"
+                            f"<span class='log-tag {tag_class}'>[{module}]</span>"
+                            f"<span class='log-msg'>{msg}</span>"
+                        )
+                        ext_logs_history.append(new_log)
+                        display_logs = "<br>".join(ext_logs_history[-100:])
+                        html_content = f"""
+                        <div class="terminal-box" id="ext_term_box">
+                            {display_logs}
+                            <br><span class="blink_me">&#9608;</span>
+                        </div>
+                        <script>
+                            var t = window.parent.document.getElementById('ext_term_box') || document.getElementById('ext_term_box');
+                            if (t) t.scrollTop = t.scrollHeight;
+                        </script>
+                        """
+                        ext_log_placeholder.markdown(html_content, unsafe_allow_html=True)
+
+                    ext_ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
+                    ensure_playwright()
+
+                    try:
+                        if sys.platform == "win32":
+                            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                        asyncio.set_event_loop(asyncio.new_event_loop())
+
+                        with sync_playwright() as p:
+                            ext_ui_log("SYS", "Spawning browser context with isolated session...")
+                            browser = p.chromium.launch(headless=True)
+                            context = browser.new_context(no_viewport=True)
+                            page = context.new_page()
+
+                            # 1. Login ke Master Server
+                            ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
+                            page.goto(URL_LOGIN, wait_until="domcontentloaded")
+                            ext_ui_log("AUTH", "DOM ready. Filling credentials...")
+                            page.locator("id=txtUserid").fill(user_id_np)
+                            page.locator("id=txtPasswd").fill(pass_np)
+                            page.locator("id=btnLogin").click(force=True)
+
+                            # 2. Bypass Active Session Warning (kalau ada)
+                            try:
+                                btn = page.locator("id=SYS_ASCX_btnContinue")
+                                btn.wait_for(state="visible", timeout=5_000)
+                                ext_ui_log("AUTH", "Active session interceptor detected. Bypassing...")
+                                btn.click(force=True)
+                            except Exception:
+                                ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
+
+                            page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                            ext_ui_log("AUTH", "Login successful. Session established.")
+                            ext_ui_log("SUCCESS", "Handshake verified.")
+
+                            # 3. Masuk ke modul Import/Export Job
+                            ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
+                            time.sleep(3)
+                            menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
+                            menu_job.wait_for(state="attached", timeout=15000)
+                            menu_job.dispatch_event("click")
+                            time.sleep(4)
+
+                            # 4. Tambah Job Baru (Add Value)
+                            ext_ui_log("NAV", "Opening new job [Add Value]...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click(force=True)
+                            time.sleep(3)
+
+                            # 5. Set Tipe Job & Deskripsi
+                            ext_ui_log("INJECT", "Setting job type: Export [E], desc: Text Inventory Master...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TYPE_Value").select_option("E")
+                            time.sleep(2)
+                            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_DESC_Value").fill("Text Inventory Master")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TIMEOUT_Value").fill("9999999")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_EXE_TYPE_Value").select_option("M")
+                            time.sleep(2)
+
+                            # 6. Lanjut (Next)
+                            ext_ui_log("NAV", "Proceeding to next step...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click(force=True)
+                            time.sleep(3)
+
+                            # 7. Bypass Disclaimer
+                            ext_ui_log("SYS", "Bypassing disclaimer prompt...")
+                            page.locator("id=pag_FW_DisclaimerMessage_btn_okay_Value").click(force=True)
+                            time.sleep(2)
+
+                            # 8. Buka Interface Selection Popup
+                            ext_ui_log("NAV", "Opening interface selection popup...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click(force=True)
+                            time.sleep(3)
+
+                            # 9. Search Interface Target
+                            ext_ui_log("INJECT", "Searching target interface: E_20150315090000028...")
+                            page.locator("id=pop_Dynamic_gft_List_2_FilterField_Value").fill("E_20150315090000028")
+                            page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click(force=True)
+                            time.sleep(2)
+
+                            # 10. Select Target Interface
+                            ext_ui_log("INJECT", "Selecting target interface from results...")
+                            page.get_by_text("E_20150315090000028", exact=True).click(force=True)
+                            time.sleep(2)
+
+                            # 11. Set File Type & Separator
+                            ext_ui_log("INJECT", "Setting file type: Delimited [D], separator: standard...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
+                            time.sleep(1)
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
+                            time.sleep(3)
+
+                            # 12. Set Filter Warehouse (GOOD_WHS)
+                            ext_ui_log("INJECT", f"Applying warehouse filter: [{WAREHOUSE}]...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
+                            time.sleep(2)
+
+                            # 13. Set Parameter 1
+                            ext_ui_log("INJECT", "Setting dynamic parameter: 1...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
+
+                            # 14. Add Parameter ke Job
+                            ext_ui_log("SYS", "Committing parameters to job definition...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
+                            time.sleep(3)
+
+                            # 15. Simpan dan Execute Payload
+                            ext_ui_log("SERVER", "Saving job and dispatching execution to server...")
+                            page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
+
+                            # 16. Konfirmasi Prompt Dialog
+                            ext_ui_log("SERVER", "Awaiting server confirmation prompt...")
+                            page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=15000)
+                            page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
+                            ext_ui_log("SERVER", "Job dispatched. Waiting for export to complete...")
+
+                            # 17. Intercept Tombol Download (Bisa memakan waktu cukup lama)
+                            ext_ui_log("SERVER", "Intercepting download link — this may take up to 4 minutes...")
+                            with page.expect_download(timeout=240000) as download_info:
+                                download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
+                                download_btn.wait_for(state="visible", timeout=240000)
+                                download_btn.click(force=True)
+
+                            # 18. Simpan File Extract ke Environment
+                            download      = download_info.value
+                            real_filename = download.suggested_filename
+                            file_path     = f"temp_ext_{real_filename}"
+                            ext_ui_log("SUCCESS", f"Download captured: {real_filename}. Saving to environment...")
+                            download.save_as(file_path)
+
+                            browser.close()
+                            ext_ui_log("SYS", "Browser closed. Releasing session memory...")
+
+                            # 19. Smart Parser: Baca Zip/Excel/CSV
+                            ext_ui_log("SYS", f"Parsing payload file: {real_filename}...")
+                            df_ext = None
+                            if real_filename.lower().endswith('.zip'):
+                                with zipfile.ZipFile(file_path) as z:
+                                    target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith((".csv", ".txt"))), None)
+                                    if not target:
+                                        target = next((n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))), None)
+                                    if target:
+                                        ext_ui_log("SYS", f"ZIP target identified: {target}")
+                                        with z.open(target) as f:
+                                            df_ext = pd.read_csv(f, sep='\t', dtype=str, on_bad_lines='skip')
+                                            if df_ext.shape[1] <= 1:
+                                                f.seek(0)
+                                                df_ext = pd.read_csv(f, sep=',', dtype=str, on_bad_lines='skip')
+                            elif real_filename.lower().endswith(('.xls', '.xlsx')):
+                                df_ext = pd.read_excel(file_path, dtype=str)
+                            else:
+                                for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
+                                    for separator in ['\t', ',', ';', '|']:
+                                        try:
+                                            temp_df = pd.read_csv(file_path, sep=separator, dtype=str, encoding=enc, on_bad_lines='skip')
+                                            if temp_df is not None and temp_df.shape[1] > 1:
+                                                df_ext = temp_df
+                                                ext_ui_log("SYS", f"Parser success — enc: {enc}, sep: '{separator}'")
+                                                break
+                                        except Exception:
+                                            continue
+                                    if df_ext is not None and df_ext.shape[1] > 1:
+                                        break
+
+                            # 20. Validasi Format DataFrame
+                            if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
+                                df_ext.columns = [str(c).strip() for c in df_ext.columns]
+                                ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
+                                st.session_state.np_df = df_ext
+                                st.rerun()
+                            else:
+                                ext_ui_log("ERROR", "DataFrame validation failed — bad format or empty file.")
+                                st.error("Gagal membaca file dari server, cek format ekstraksi.")
+
+                    except PlaywrightTimeoutError:
+                        ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon dalam batas waktu.")
+                        st.error("Operation Timeout. Server tidak merespon dalam batas waktu.")
+                    except Exception as e:
+                        ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
+                        st.error(f"System error: {e}")
+
+            # ── Status banner or manual upload fallback ────────────────────
             if st.session_state.np_df is not None:
                 st.markdown(make_solid_box(
-                    f"Extracted — {len(st.session_state.np_df)} items loaded from server",
+                    f"✅ Extracted — {len(st.session_state.np_df)} items loaded from server",
                     "#082f49", "#38bdf8"
                 ), unsafe_allow_html=True)
-                if st.button("Clear extracted data", use_container_width=True):
+                if st.button("🗑 Clear extracted data", use_container_width=True):
                     st.session_state.np_df = None
                     st.rerun()
                 file1 = None
             else:
                 file1 = st.file_uploader("Or upload Newspage stock file manually", type=['csv', 'xlsx', 'zip'])
 
-    # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
     with col2:
         with st.container(border=True):
             st.markdown("**Distributor Stock Data**")
@@ -463,212 +608,11 @@ if st.session_state.app_page == "Reconcile":
                 st.rerun()
             if not _dist_locked and st.session_state.selected_distributor_str:
                 st.markdown(make_solid_box(
-                    f"{st.session_state.selected_distributor_str}",
+                    f"✔ {st.session_state.selected_distributor_str}",
                     "#0f2f1d", "#4ade80"
                 ), unsafe_allow_html=True)
 
-    # ── Extraction Terminal
-    ext_log_placeholder = st.empty()
-
-    # ── Extraction Logic
-    if extract_btn:
-        user_id_np = np_user.strip()
-        pass_np    = np_pass.strip()
-
-        ext_logs_history  = []
-        ext_last_log_time = [time.time()]
-
-        def ext_ui_log(module, msg):
-            now      = time.time()
-            diff_ms  = int((now - ext_last_log_time[0]) * 1000)
-            ext_last_log_time[0] = now
-            timestamp = time.strftime('%H:%M:%S')
-            tag_class = f"tag-{module.lower()}"
-            new_log = (
-                f"<span class='log-time'>[{timestamp}]</span>"
-                f"<span class='log-ms'>[+{diff_ms}ms]</span>"
-                f"<span class='log-tag {tag_class}'>[{module}]</span>"
-                f"<span class='log-msg'>{msg}</span>"
-            )
-            ext_logs_history.append(new_log)
-            render_terminal(ext_log_placeholder, ext_logs_history)
-
-        ext_ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
-        ensure_playwright()
-
-        try:
-            if sys.platform == "win32":
-                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-            asyncio.set_event_loop(asyncio.new_event_loop())
-
-            with sync_playwright() as p:
-                ext_ui_log("SYS", "Spawning browser context with isolated session...")
-                browser = p.chromium.launch(headless=True)
-                
-                context_options = {"no_viewport": True}
-                if os.path.exists("np_state.json"):
-                    context_options["storage_state"] = "np_state.json"
-                    ext_ui_log("SYS", "Loading saved session state...")
-                    
-                context = browser.new_context(**context_options)
-                page    = context.new_page()
-
-                logged_in = False
-                if os.path.exists("np_state.json"):
-                    ext_ui_log("AUTH", "Verifying saved session...")
-                    page.goto("https://rb-id.np.accenture.com/RB_ID/Default.aspx", wait_until="domcontentloaded")
-                    if "Logon.aspx" not in page.url:
-                        logged_in = True
-                        ext_ui_log("AUTH", "Session resumed successfully.")
-                        ext_ui_log("SUCCESS", "Handshake verified.")
-                    else:
-                        ext_ui_log("AUTH", "Session expired. Falling back to manual login...")
-
-                if not logged_in:
-                    ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
-                    page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                    ext_ui_log("AUTH", "DOM ready. Filling credentials...")
-                    page.locator("id=txtUserid").fill(user_id_np)
-                    page.locator("id=txtPasswd").fill(pass_np)
-                    page.locator("id=btnLogin").click(force=True)
-
-                    try:
-                        btn = page.locator("id=SYS_ASCX_btnContinue")
-                        btn.wait_for(state="visible", timeout=5_000)
-                        ext_ui_log("AUTH", "Active session interceptor detected. Bypassing...")
-                        btn.click(force=True)
-                    except Exception:
-                        ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
-
-                    page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
-                    context.storage_state(path="np_state.json")
-                    ext_ui_log("AUTH", "Login successful. Session established & saved.")
-                    ext_ui_log("SUCCESS", "Handshake verified.")
-
-                ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
-                time.sleep(3)
-                menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
-                menu_job.wait_for(state="attached", timeout=60000)
-                menu_job.dispatch_event("click")
-                time.sleep(4)
-
-                ext_ui_log("NAV", "Opening new job [Add Value]...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click(force=True)
-                time.sleep(3)
-
-                ext_ui_log("INJECT", "Setting job type: Export [E], desc: Text Inventory Master...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TYPE_Value").select_option("E")
-                time.sleep(2)
-                page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_DESC_Value").fill("Text Inventory Master")
-                page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TIMEOUT_Value").fill("9999999")
-                page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_EXE_TYPE_Value").select_option("M")
-                time.sleep(2)
-
-                ext_ui_log("NAV", "Proceeding to next step...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click(force=True)
-                time.sleep(3)
-
-                ext_ui_log("SYS", "Bypassing disclaimer prompt...")
-                page.locator("id=pag_FW_DisclaimerMessage_btn_okay_Value").click(force=True)
-                time.sleep(2)
-
-                ext_ui_log("NAV", "Opening interface selection popup...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click(force=True)
-                time.sleep(3)
-
-                ext_ui_log("INJECT", "Searching target interface: E_20150315090000028...")
-                page.locator("id=pop_Dynamic_gft_List_2_FilterField_Value").fill("E_20150315090000028")
-                page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click(force=True)
-                time.sleep(2)
-
-                ext_ui_log("INJECT", "Selecting target interface from results...")
-                page.get_by_text("E_20150315090000028", exact=True).click(force=True)
-                time.sleep(2)
-
-                ext_ui_log("INJECT", "Setting file type: Delimited [D], separator: standard...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
-                time.sleep(1)
-                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
-                time.sleep(3)
-
-                ext_ui_log("INJECT", f"Applying warehouse filter: [{WAREHOUSE}]...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
-                time.sleep(2)
-
-                ext_ui_log("SYS", "Committing parameters to job definition...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
-                time.sleep(3)
-
-                ext_ui_log("SERVER", "Saving job and dispatching execution to server...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
-
-                ext_ui_log("SERVER", "Awaiting server confirmation prompt...")
-                page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=15000)
-                page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
-                ext_ui_log("SERVER", "Job dispatched. Waiting for export to complete...")
-
-                ext_ui_log("SERVER", "Intercepting download link — this may take up to 4 minutes...")
-                with page.expect_download(timeout=240000) as download_info:
-                    download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
-                    download_btn.wait_for(state="visible", timeout=240000)
-                    download_btn.click(force=True)
-
-                download      = download_info.value
-                real_filename = download.suggested_filename
-                file_path     = f"temp_ext_{real_filename}"
-                ext_ui_log("SUCCESS", f"Download captured: {real_filename}. Saving to environment...")
-                download.save_as(file_path)
-
-                browser.close()
-                ext_ui_log("SYS", "Browser closed. Releasing session memory...")
-
-                ext_ui_log("SYS", f"Parsing payload file: {real_filename}...")
-                df_ext = None
-                if real_filename.lower().endswith('.zip'):
-                    with zipfile.ZipFile(file_path) as z:
-                        target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith((".csv", ".txt"))), None)
-                        if not target:
-                            target = next((n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))), None)
-                        if target:
-                            ext_ui_log("SYS", f"ZIP target identified: {target}")
-                            with z.open(target) as f:
-                                df_ext = pd.read_csv(f, sep='\t', dtype=str, on_bad_lines='skip')
-                                if df_ext.shape[1] <= 1:
-                                    f.seek(0)
-                                    df_ext = pd.read_csv(f, sep=',', dtype=str, on_bad_lines='skip')
-                elif real_filename.lower().endswith(('.xls', '.xlsx')):
-                    df_ext = pd.read_excel(file_path, dtype=str)
-                else:
-                    for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
-                        for separator in ['\t', ',', ';', '|']:
-                            try:
-                                temp_df = pd.read_csv(file_path, sep=separator, dtype=str, encoding=enc, on_bad_lines='skip')
-                                if temp_df is not None and temp_df.shape[1] > 1:
-                                    df_ext = temp_df
-                                    ext_ui_log("SYS", f"Parser success — enc: {enc}, sep: '{separator}'")
-                                    break
-                            except Exception:
-                                continue
-                        if df_ext is not None and df_ext.shape[1] > 1:
-                            break
-
-                if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
-                    df_ext.columns = [str(c).strip() for c in df_ext.columns]
-                    ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
-                    st.session_state.np_df = df_ext
-                    st.rerun()
-                else:
-                    ext_ui_log("ERROR", "DataFrame validation failed — bad format or empty file.")
-                    st.error("Gagal membaca file dari server, cek format ekstraksi.")
-
-        except PlaywrightTimeoutError:
-            ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon dalam batas waktu.")
-            st.error("Operation Timeout. Server tidak merespon dalam batas waktu.")
-        except Exception as e:
-            ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
-            st.error(f"System error: {e}")
-
-    # ── Column mapping & compare
+    # Resolve NP data source: extracted or uploaded
     np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
 
     if np_source_ready and file2:
@@ -716,10 +660,6 @@ if st.session_state.app_page == "Reconcile":
                 d1 = d1.dropna(subset=[sku_col1])
                 d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
                 d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
-                
-                # Tambahan replace untuk data Newspage (Otomatis prefix 0 untuk 373100, 373103, 373104)
-                d1[sku_col1] = d1[sku_col1].replace({'373100': '0373100', '373103': '0373103', '373104': '0373104'})
-                
                 d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
                 d1_agg = (
                     d1.groupby(sku_col1)
@@ -727,15 +667,11 @@ if st.session_state.app_page == "Reconcile":
                     .reset_index()
                     .rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'})
                 )
-                
                 d2 = df2[[sku_col2, qty_col2]].copy()
                 d2 = d2.dropna(subset=[sku_col2])
                 d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
                 d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
-                
-                # Update replace untuk data Distributor (tambah 373104)
-                d2[sku_col2] = d2[sku_col2].replace({'373100': '0373100', '373103': '0373103', '373104': '0373104'})
-                
+                d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
                 d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0)
                 d2_agg = (
                     d2.groupby(sku_col2)[qty_col2]
@@ -768,9 +704,14 @@ if st.session_state.app_page == "Reconcile":
                     st.session_state.app_page = "Bot"
                     st.rerun()
 
+    if st.button("Stock Adjustment"):
+        st.session_state.reconcile_result = None
+        st.session_state.reconcile_summary = None
+        st.session_state.app_page = "Bot"
+        st.rerun()
 
 
-# ─── 7. PAGE: STOCK ADJUSTMENT BOT
+# ─── 7. PAGE: STOCK ADJUSTMENT BOT ───────────────────────────────────────────
 elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
@@ -796,15 +737,14 @@ elif st.session_state.app_page == "Bot":
     st.subheader("Configuration")
     accounts = load_accounts()
     if not accounts:
-        st.error(f"No account data found. Ensure '{CREDENTIALS_FILE}' exists or accounts.db is populated.")
+        st.error(f"No account data found. Ensure '{CREDENTIALS_FILE}' exists in the app directory.")
         st.stop()
 
     cfg_col1, cfg_col2 = st.columns(2)
 
+    # --- Kiri: container border agar rapi ---
     with cfg_col1:
         with st.container(border=True):
-            has_session = os.path.exists("np_state.json")
-            
             _bot_acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts]
             _bot_auto_idx    = (
                 _bot_acc_options.index(st.session_state.selected_distributor_str)
@@ -817,6 +757,7 @@ elif st.session_state.app_page == "Bot":
                 index=_bot_auto_idx,
                 placeholder="-- Select account --"
             )
+            # Keep session state in sync if user changes the value here
             if selected_acc_str and selected_acc_str != st.session_state.selected_distributor_str:
                 st.session_state.selected_distributor_str = selected_acc_str
             selected_account = None
@@ -829,14 +770,20 @@ elif st.session_state.app_page == "Bot":
                 user_password = st.text_input(
                     f"Password for {selected_account['user_id']}:",
                     type="password",
-                    placeholder="Session active (password optional)" if has_session else "Enter password..."
+                    placeholder="Enter password..."
                 )
-                if len(user_password) > 3 or has_session:
-                    msg = "Session Active (Ready)" if has_session and len(user_password) <= 3 else f"Password set — {selected_account['Distributor']} (validated on run)"
-                    st.markdown(make_solid_box(msg, "#0f2f1d", "#4ade80"), unsafe_allow_html=True)
+                if len(user_password) > 3:
+                    st.markdown(make_solid_box(
+                        f"Password set — {selected_account['Distributor']} (validated on run)",
+                        "#0f2f1d", "#4ade80"
+                    ), unsafe_allow_html=True)
                 else:
-                    st.markdown(make_solid_box("Waiting for password...", "#1e1b4b", "#a5b4fc"), unsafe_allow_html=True)
+                    st.markdown(make_solid_box(
+                        "Waiting for password...",
+                        "#1e1b4b", "#a5b4fc"
+                    ), unsafe_allow_html=True)
 
+    # --- Kanan: container border agar rapi ---
     with cfg_col2:
         with st.container(border=True):
             df_to_process = None
@@ -869,10 +816,10 @@ elif st.session_state.app_page == "Bot":
                         st.error(f"Failed to read file: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    is_ready   = (selected_account is not None) and (len(user_password) > 3 or has_session) and (df_to_process is not None)
+    is_ready = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
-    st.subheader("Product Table")
+    st.subheader("Product table")
     if not is_ready:
         st.warning("Select an account and ensure data is available before running the bot.")
         st.stop()
@@ -884,21 +831,20 @@ elif st.session_state.app_page == "Bot":
         df_view['Keterangan'] = '-'
     table_placeholder = st.dataframe(df_view, use_container_width=True)
 
-    # ── Bot Terminal
-    st.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
+    st.markdown("Log:")
     log_placeholder = st.empty()
 
     if run_button:
         with st.spinner("Initializing Chromium engine..."):
             ensure_playwright()
 
-        bot_logs_history  = []
-        bot_last_log_time = [time.time()]
+        logs_history = []
+        last_log_time = [time.time()]
 
         def ui_log(module, msg):
-            now      = time.time()
-            diff_ms  = int((now - bot_last_log_time[0]) * 1000)
-            bot_last_log_time[0] = now
+            now = time.time()
+            diff_ms = int((now - last_log_time[0]) * 1000)
+            last_log_time[0] = now
             timestamp = time.strftime('%H:%M:%S')
             tag_class = f"tag-{module.lower()}"
             new_log = (
@@ -907,8 +853,19 @@ elif st.session_state.app_page == "Bot":
                 f"<span class='log-tag {tag_class}'>[{module}]</span>"
                 f"<span class='log-msg'>{msg}</span>"
             )
-            bot_logs_history.append(new_log)
-            render_terminal(log_placeholder, bot_logs_history)
+            logs_history.append(new_log)
+            display_logs = "<br>".join(logs_history[-100:])
+            html_content = f"""
+            <div class="terminal-box" id="term_box">
+                {display_logs}
+                <br><span class="blink_me">&#9608;</span>
+            </div>
+            <script>
+                var t = window.parent.document.getElementById('term_box') || document.getElementById('term_box');
+                if (t) t.scrollTop = t.scrollHeight;
+            </script>
+            """
+            log_placeholder.markdown(html_content, unsafe_allow_html=True)
 
         global_start_time = time.time()
         success_count, failed_count = 0, 0
@@ -924,46 +881,27 @@ elif st.session_state.app_page == "Bot":
             with sync_playwright() as p:
                 ui_log("SYS", "Spawning browser context with isolated session...")
                 browser = p.chromium.launch(headless=True)
-                
-                context_options = {"no_viewport": True}
-                if os.path.exists("np_state.json"):
-                    context_options["storage_state"] = "np_state.json"
-                    ui_log("SYS", "Loading saved session state...")
-                    
-                context = browser.new_context(**context_options)
-                page    = context.new_page()
+                context = browser.new_context(no_viewport=True)
+                page = context.new_page()
 
-                logged_in = False
-                if os.path.exists("np_state.json"):
-                    ui_log("AUTH", "Verifying saved session...")
-                    page.goto("https://rb-id.np.accenture.com/RB_ID/Default.aspx", wait_until="domcontentloaded")
-                    if "Logon.aspx" not in page.url:
-                        logged_in = True
-                        ui_log("AUTH", "Session resumed successfully.")
-                        ui_log("SUCCESS", "Handshake verified.")
-                    else:
-                        ui_log("AUTH", "Session expired. Falling back to manual login...")
+                ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
+                page.goto(URL_LOGIN, wait_until="domcontentloaded")
+                ui_log("AUTH", "DOM ready. Filling credentials...")
+                page.locator("id=txtUserid").fill(user_id)
+                page.locator("id=txtPasswd").fill(password)
+                page.locator("id=btnLogin").click(force=True)
 
-                if not logged_in:
-                    ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
-                    page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                    ui_log("AUTH", "DOM ready. Filling credentials...")
-                    page.locator("id=txtUserid").fill(user_id)
-                    page.locator("id=txtPasswd").fill(password)
-                    page.locator("id=btnLogin").click(force=True)
+                try:
+                    btn = page.locator("id=SYS_ASCX_btnContinue")
+                    btn.wait_for(state="visible", timeout=5_000)
+                    ui_log("AUTH", "Active session interceptor detected. Bypassing...")
+                    btn.click(force=True)
+                except Exception:
+                    ui_log("SYS", "No interceptor detected. Clean session acquired.")
 
-                    try:
-                        btn = page.locator("id=SYS_ASCX_btnContinue")
-                        btn.wait_for(state="visible", timeout=5_000)
-                        ui_log("AUTH", "Active session interceptor detected. Bypassing...")
-                        btn.click(force=True)
-                    except Exception:
-                        ui_log("SYS", "No interceptor detected. Clean session acquired.")
-
-                    page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
-                    context.storage_state(path="np_state.json")
-                    ui_log("AUTH", "Login successful. Session established & saved.")
-                    ui_log("SUCCESS", "Handshake verified.")
+                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                ui_log("AUTH", "Login successful. Session established.")
+                ui_log("SUCCESS", "Handshake verified.")
 
                 ui_log("NAV", "Navigating to Inventory > Stock Adjustment...")
                 page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
@@ -986,7 +924,7 @@ elif st.session_state.app_page == "Bot":
                 ui_log("SYS", "Ready. Opening data stream for payload injection...")
 
                 progress_bar = st.progress(0)
-                total_rows   = len(df_view)
+                total_rows = len(df_view)
                 for i, (idx, row) in enumerate(df_view.iterrows()):
                     sku = str(row['sku']).strip()
                     try:
@@ -1011,12 +949,12 @@ elif st.session_state.app_page == "Bot":
                             "document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''",
                             timeout=TIMEOUT_MS
                         )
-                        df_view.at[idx, 'Status']     = 'Success'
+                        df_view.at[idx, 'Status'] = 'Success'
                         df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
                         success_count += 1
                         ui_log("SUCCESS", "Row committed.")
                     except Exception:
-                        df_view.at[idx, 'Status']     = 'Failed'
+                        df_view.at[idx, 'Status'] = 'Failed'
                         df_view.at[idx, 'Keterangan'] = 'Node Timeout'
                         failed_count += 1
                         ui_log("ERROR", f"Timeout on SKU [{sku}]. Skipping.")
