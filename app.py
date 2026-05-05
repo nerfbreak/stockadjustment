@@ -127,28 +127,26 @@ st.markdown("""
     .log-msg    { color: #f0f6fc; font-weight: 500; font-family: 'Inter', sans-serif; }
     .tag-sys     { color: #a855f7; } .tag-auth    { color: #eab308; } .tag-nav     { color: #3b82f6; } .tag-inject  { color: #06b6d4; } .tag-success { color: #22c55e; } .tag-error   { color: #ef4444; } .tag-server  { color: #f43f5e; }
     
-    /* BACKGROUND PILLS CSS */
-    .pill-np {
-        background-color: rgba(59, 130, 246, 0.15);
+    /* HEADER BOXES CSS */
+    .box-np {
+        background-color: rgba(59, 130, 246, 0.1);
         color: #60a5fa;
-        padding: 6px 16px;
-        border-radius: 50px;
-        font-size: 0.85rem;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 0.9rem;
         font-weight: 700;
-        border: 1px solid rgba(59, 130, 246, 0.4);
-        display: inline-block;
+        border-left: 4px solid #3b82f6;
         margin-bottom: 16px;
         letter-spacing: 0.5px;
     }
-    .pill-dist {
-        background-color: rgba(74, 222, 128, 0.15);
+    .box-dist {
+        background-color: rgba(74, 222, 128, 0.1);
         color: #4ade80;
-        padding: 6px 16px;
-        border-radius: 50px;
-        font-size: 0.85rem;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 0.9rem;
         font-weight: 700;
-        border: 1px solid rgba(74, 222, 128, 0.4);
-        display: inline-block;
+        border-left: 4px solid #4ade80;
         margin-bottom: 16px;
         letter-spacing: 0.5px;
     }
@@ -182,7 +180,7 @@ col1, col2 = st.columns(2)
 # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
 with col1:
     with st.container(border=True):
-        st.markdown("<div class='pill-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
         with np_col1:
             np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...", key="np_user_input")
@@ -199,7 +197,7 @@ with col1:
 # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
 with col2:
     with st.container(border=True):
-        st.markdown("<div class='pill-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
         # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
