@@ -523,8 +523,9 @@ if st.session_state.app_page == "Reconcile":
                     ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
 
                 page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                context.storage_state(path="np_state.json") # Simpan Sesi Login di sini
                 ext_ui_log("AUTH", "Login successful. Session established.")
-                ext_ui_log("SUCCESS", "Handshake verified.")
+                ext_ui_log("SUCCESS", "Handshake verified and session saved.")
 
                 ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
                 time.sleep(3)
@@ -575,9 +576,6 @@ if st.session_state.app_page == "Reconcile":
                 ext_ui_log("INJECT", f"Applying warehouse filter: [{WAREHOUSE}]...")
                 page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
                 time.sleep(2)
-
-                ext_ui_log("INJECT", "Setting dynamic parameter: 1...")
-                page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
 
                 ext_ui_log("SYS", "Committing parameters to job definition...")
                 page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
@@ -779,6 +777,8 @@ elif st.session_state.app_page == "Bot":
 
     with cfg_col1:
         with st.container(border=True):
+            has_session = os.path.exists("np_state.json")
+            
             _bot_acc_options = [f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts]
             _bot_auto_idx    = (
                 _bot_acc_options.index(st.session_state.selected_distributor_str)
@@ -803,18 +803,13 @@ elif st.session_state.app_page == "Bot":
                 user_password = st.text_input(
                     f"Password for {selected_account['user_id']}:",
                     type="password",
-                    placeholder="Enter password..."
+                    placeholder="Session active (password optional)" if has_session else "Enter password..."
                 )
-                if len(user_password) > 3:
-                    st.markdown(make_solid_box(
-                        f"Password set — {selected_account['Distributor']} (validated on run)",
-                        "#0f2f1d", "#4ade80"
-                    ), unsafe_allow_html=True)
+                if len(user_password) > 3 or has_session:
+                    msg = "Session Active (Ready)" if has_session and len(user_password) <= 3 else f"Password set — {selected_account['Distributor']} (validated on run)"
+                    st.markdown(make_solid_box(msg, "#0f2f1d", "#4ade80"), unsafe_allow_html=True)
                 else:
-                    st.markdown(make_solid_box(
-                        "Waiting for password...",
-                        "#1e1b4b", "#a5b4fc"
-                    ), unsafe_allow_html=True)
+                    st.markdown(make_solid_box("Waiting for password...", "#1e1b4b", "#a5b4fc"), unsafe_allow_html=True)
 
     with cfg_col2:
         with st.container(border=True):
@@ -848,7 +843,7 @@ elif st.session_state.app_page == "Bot":
                         st.error(f"Failed to read file: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    is_ready   = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
+    is_ready   = (selected_account is not None) and (len(user_password) > 3 or has_session) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
     st.subheader("Product Table")
@@ -903,27 +898,46 @@ elif st.session_state.app_page == "Bot":
             with sync_playwright() as p:
                 ui_log("SYS", "Spawning browser context with isolated session...")
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(no_viewport=True)
+                
+                context_options = {"no_viewport": True}
+                if os.path.exists("np_state.json"):
+                    context_options["storage_state"] = "np_state.json"
+                    ui_log("SYS", "Loading saved session state...")
+                    
+                context = browser.new_context(**context_options)
                 page    = context.new_page()
 
-                ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
-                page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                ui_log("AUTH", "DOM ready. Filling credentials...")
-                page.locator("id=txtUserid").fill(user_id)
-                page.locator("id=txtPasswd").fill(password)
-                page.locator("id=btnLogin").click(force=True)
+                logged_in = False
+                if os.path.exists("np_state.json"):
+                    ui_log("AUTH", "Verifying saved session...")
+                    page.goto("https://rb-id.np.accenture.com/RB_ID/Default.aspx", wait_until="domcontentloaded")
+                    if "Logon.aspx" not in page.url:
+                        logged_in = True
+                        ui_log("AUTH", "Session resumed successfully.")
+                        ui_log("SUCCESS", "Handshake verified.")
+                    else:
+                        ui_log("AUTH", "Session expired. Falling back to manual login...")
 
-                try:
-                    btn = page.locator("id=SYS_ASCX_btnContinue")
-                    btn.wait_for(state="visible", timeout=5_000)
-                    ui_log("AUTH", "Active session interceptor detected. Bypassing...")
-                    btn.click(force=True)
-                except Exception:
-                    ui_log("SYS", "No interceptor detected. Clean session acquired.")
+                if not logged_in:
+                    ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
+                    page.goto(URL_LOGIN, wait_until="domcontentloaded")
+                    ui_log("AUTH", "DOM ready. Filling credentials...")
+                    page.locator("id=txtUserid").fill(user_id)
+                    page.locator("id=txtPasswd").fill(password)
+                    page.locator("id=btnLogin").click(force=True)
 
-                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
-                ui_log("AUTH", "Login successful. Session established.")
-                ui_log("SUCCESS", "Handshake verified.")
+                    try:
+                        btn = page.locator("id=SYS_ASCX_btnContinue")
+                        btn.wait_for(state="visible", timeout=5_000)
+                        ui_log("AUTH", "Active session interceptor detected. Bypassing...")
+                        btn.click(force=True)
+                    except Exception:
+                        ui_log("SYS", "No interceptor detected. Clean session acquired.")
+
+                    page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                    context.storage_state(path="np_state.json")
+                    ui_log("AUTH", "Login successful. Session established & saved.")
+                    ui_log("SUCCESS", "Handshake verified.")
 
                 ui_log("NAV", "Navigating to Inventory > Stock Adjustment...")
                 page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
