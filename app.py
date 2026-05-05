@@ -536,7 +536,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     # Bungkus button pakai st.empty() agar bisa dihilangkan saat proses berjalan
     btn_placeholder = st.empty()
     
-    if btn_placeholder.button("PROCEED TO STOCK ADJUSTMENT ENGINE", type="primary", use_container_width=True):
+    if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
         btn_placeholder.empty() # Hilangkan tombol segera setelah diklik
         
         bot_user = st.session_state.np_user_input.strip()
