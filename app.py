@@ -512,7 +512,7 @@ if np_source_ready and file2:
 # ── Review Table & Engine Execution ───────────────────────────────────────────
 if st.session_state.reconcile_summary is not None and st.session_state.reconcile_result is not None:
     st.markdown("---")
-    st.subheader("Stock review")
+    st.subheader("Compare Results")
     m1, m2 = st.columns(2)
     m1.metric("Match", st.session_state.reconcile_summary['total_match'])
     m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
@@ -526,7 +526,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     if 'Keterangan' not in df_view.columns:
         df_view['Keterangan'] = '-'
         
-    st.subheader("Adjustment Queue")
+    st.subheader("Adjustment SKU List")
     table_placeholder = st.dataframe(df_view, use_container_width=True)
 
     # Placeholder untuk label Execution Log (awalnya kosong)
