@@ -232,10 +232,13 @@ if st.session_state.np_df is not None:
         st.rerun()
 
 # ── Extraction Terminal ───────────────────────────────────────────────────
+ext_label_placeholder = st.empty()
 ext_log_placeholder = st.empty()
 
 # ── Extraction Logic ──────────────────────────────────────────────────────
 if extract_btn:
+    ext_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
+    
     user_id_np = np_user.strip()
     pass_np    = np_pass.strip()
 
