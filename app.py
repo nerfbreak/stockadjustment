@@ -528,7 +528,12 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     st.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
     log_placeholder = st.empty()
 
-    if st.button("PROCEED TO STOCK ADJUSTMENT ENGINE", type="primary", use_container_width=True):
+    # Bungkus button pakai st.empty() agar bisa dihilangkan saat proses berjalan
+    btn_placeholder = st.empty()
+    
+    if btn_placeholder.button("PROCEED TO STOCK ADJUSTMENT ENGINE", type="primary", use_container_width=True):
+        btn_placeholder.empty() # Hilangkan tombol segera setelah diklik
+        
         bot_user = st.session_state.np_user_input.strip()
         bot_pass = st.session_state.np_pass_input.strip()
         
