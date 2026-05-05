@@ -1,14 +1,12 @@
 import streamlit as st
 import pandas as pd
 import zipfile
-import csv
 import time
 import os
 import subprocess
 import asyncio
 import traceback
 import sys
-import sqlite3
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 # --- 1. PAGE CONFIG ---
@@ -40,54 +38,12 @@ if not st.session_state.logged_in:
 
 # --- 2. CONSTANTS ---
 URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
-CREDENTIALS_FILE      = "users_2.csv"
-DB_PATH               = "accounts.db"
 REASON_CODE           = "SA2"
 WAREHOUSE             = "GOOD_WHS"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
 # --- 3. HELPER FUNCTIONS ---
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS accounts (
-            user_id     TEXT PRIMARY KEY,
-            distributor TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-    count = conn.execute("SELECT COUNT(*) FROM accounts").fetchone()[0]
-    if count == 0 and os.path.exists(CREDENTIALS_FILE):
-        for enc in ['utf-8-sig', 'cp1252', 'iso-8859-1']:
-            try:
-                with open(CREDENTIALS_FILE, mode="r", encoding=enc) as f:
-                    reader = csv.DictReader(f)
-                    reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
-                    rows = []
-                    for row in reader:
-                        cleaned = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
-                        if "user_id" in cleaned and "Distributor" in cleaned:
-                            rows.append((cleaned["user_id"], cleaned["Distributor"]))
-                    if rows:
-                        conn.executemany("INSERT OR IGNORE INTO accounts (user_id, distributor) VALUES (?, ?)", rows)
-                        conn.commit()
-                break
-            except (UnicodeDecodeError, TypeError):
-                continue
-    conn.close()
-
-
-@st.cache_data(ttl=300)
-def load_accounts():
-    init_db()
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    rows = conn.execute("SELECT user_id, distributor FROM accounts ORDER BY distributor").fetchall()
-    conn.close()
-    return [{"user_id": r[0], "Distributor": r[1]} for r in rows]
-
-
 def load_data(file):
     if file is None:
         return None
