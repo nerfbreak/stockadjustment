@@ -150,6 +150,28 @@ st.markdown("""
         margin-bottom: 16px;
         letter-spacing: 0.5px;
     }
+    .box-review {
+        background-color: rgba(6, 182, 212, 0.1);
+        color: #22d3ee;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        border-left: 4px solid #06b6d4;
+        margin-bottom: 16px;
+        letter-spacing: 0.5px;
+    }
+    .box-queue {
+        background-color: rgba(168, 85, 247, 0.1);
+        color: #c084fc;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        border-left: 4px solid #a855f7;
+        margin-bottom: 16px;
+        letter-spacing: 0.5px;
+    }
 
     button[kind="primary"] { background-color: #2563eb !important; color: #ffffff !important; border: none !important; font-weight: 700 !important; letter-spacing: 0.5px !important; text-transform: uppercase !important; transition: all 0.2s ease !important; border-radius: 6px !important; font-family: 'Inter', sans-serif !important; }
     button[kind="primary"]:hover { background-color: #1d4ed8 !important; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important; transform: translateY(-1px) !important; }
@@ -409,7 +431,7 @@ if np_source_ready and file2:
     if df1 is not None and df2 is not None:
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader("Newspage setup")
+            st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
             idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
             if 'Product Description' in df1.columns:
                 idx_desc1 = df1.columns.get_loc('Product Description')
@@ -427,7 +449,7 @@ if np_source_ready and file2:
             qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
 
         with c2:
-            st.subheader("Distributor setup")
+            st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
             idx_sku2 = 20 if len(df2.columns) > 20 else 0
             qty2_col_match = next(
                 (col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"),
@@ -493,7 +515,7 @@ if np_source_ready and file2:
 # ── Review Table & Engine Execution ───────────────────────────────────────────
 if st.session_state.reconcile_summary is not None and st.session_state.reconcile_result is not None:
     st.markdown("---")
-    st.subheader("Stock review")
+    st.markdown("<div class='box-review'>Stock Review</div>", unsafe_allow_html=True)
     m1, m2 = st.columns(2)
     m1.metric("Match", st.session_state.reconcile_summary['total_match'])
     m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
@@ -507,7 +529,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     if 'Keterangan' not in df_view.columns:
         df_view['Keterangan'] = '-'
         
-    st.subheader("Adjustment Queue")
+    st.markdown("<div class='box-queue'>Adjustment Queue</div>", unsafe_allow_html=True)
     table_placeholder = st.dataframe(df_view, use_container_width=True)
 
     # Placeholder untuk label Execution Log (awalnya kosong)
