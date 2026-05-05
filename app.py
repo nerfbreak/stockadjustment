@@ -413,15 +413,15 @@ if st.session_state.app_page == "Reconcile":
         with st.container(border=True):
             st.markdown("**Newspage Stock Data**")
 
-            with st.expander("Extract from Master Server", expanded=st.session_state.np_df is None):
-                np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...")
-                np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...")
-                extract_btn = st.button(
-                    "Extract Inventory Master",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=not (np_user and np_pass)
-                )
+            st.markdown("**Extract from Master Server**")
+            np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...")
+            np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...")
+            extract_btn = st.button(
+                "Extract Inventory Master",
+                type="primary",
+                use_container_width=True,
+                disabled=not (np_user and np_pass)
+            )
 
             if st.session_state.np_df is not None:
                 st.markdown(make_solid_box(
