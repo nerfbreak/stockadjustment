@@ -173,6 +173,52 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
 
+    /* CUSTOM METRICS CSS */
+    .metric-box-match {
+        background-color: rgba(74, 222, 128, 0.1);
+        border-left: 4px solid #4ade80;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    .metric-box-match .metric-label {
+        color: #4ade80;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .metric-box-match .metric-value {
+        color: #f0f6fc;
+        font-size: 2.2rem;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+        margin-top: 4px;
+        line-height: 1;
+    }
+    .metric-box-mismatch {
+        background-color: rgba(248, 113, 113, 0.1);
+        border-left: 4px solid #f87171;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    .metric-box-mismatch .metric-label {
+        color: #f87171;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .metric-box-mismatch .metric-value {
+        color: #f0f6fc;
+        font-size: 2.2rem;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+        margin-top: 4px;
+        line-height: 1;
+    }
+
     button[kind="primary"] { background-color: #2563eb !important; color: #ffffff !important; border: none !important; font-weight: 700 !important; letter-spacing: 0.5px !important; text-transform: uppercase !important; transition: all 0.2s ease !important; border-radius: 6px !important; font-family: 'Inter', sans-serif !important; }
     button[kind="primary"]:hover { background-color: #1d4ed8 !important; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important; transform: translateY(-1px) !important; }
     button[kind="primary"]:active { transform: translateY(0) !important; }
@@ -297,6 +343,7 @@ if extract_btn:
             ext_ui_log("SUCCESS", "Handshake verified.")
 
             ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
+            # Extra sleep supaya menu render sempurna sebelum dicari selector-nya
             time.sleep(5) 
             menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
             menu_job.wait_for(state="attached", timeout=TIMEOUT_MS)
@@ -514,8 +561,25 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     st.markdown("---")
     st.markdown("<div class='box-review'>Stock Review</div>", unsafe_allow_html=True)
     m1, m2 = st.columns(2)
-    m1.metric("Match", st.session_state.reconcile_summary['total_match'])
-    m2.metric("Stock difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
+    
+    match_count = st.session_state.reconcile_summary['total_match']
+    mismatch_count = st.session_state.reconcile_summary['total_mismatch']
+    
+    with m1:
+        st.markdown(f'''
+            <div class="metric-box-match">
+                <div class="metric-label">Match</div>
+                <div class="metric-value">{match_count}</div>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+    with m2:
+        st.markdown(f'''
+            <div class="metric-box-mismatch">
+                <div class="metric-label">Stock difference</div>
+                <div class="metric-value">{mismatch_count}</div>
+            </div>
+        ''', unsafe_allow_html=True)
     
     st.dataframe(
         st.session_state.reconcile_summary['df_view'], 
