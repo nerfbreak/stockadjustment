@@ -7,6 +7,8 @@ import subprocess
 import asyncio
 import traceback
 import sys
+import requests
+from streamlit_lottie import st_lottie
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 # --- 1. PAGE CONFIG ---
@@ -44,6 +46,16 @@ TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
 # --- 3. HELPER FUNCTIONS ---
+@st.cache_data
+def load_lottieurl(url: str):
+    try:
+        r = requests.get(url)
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except:
+        return None
+
 def load_data(file):
     if file is None:
         return None
@@ -246,7 +258,7 @@ col1, col2 = st.columns(2)
 # ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
 with col1:
     with st.container(border=True):
-        st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
         with np_col1:
             np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...", key="np_user_input")
@@ -263,8 +275,10 @@ with col1:
 # ── Kanan: Distributor Stock Data ─────────────────────────────────────────
 with col2:
     with st.container(border=True):
-        st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
+        st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
+        idx_sku2 = 20
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
+        # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
 
 # ── Info Extracted Data ───────────────────────────────────────────────────
@@ -470,18 +484,30 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     m1, m2 = st.columns(2); match_count = st.session_state.reconcile_summary['total_match']; mismatch_count = st.session_state.reconcile_summary['total_mismatch']
     with m1: st.markdown(f'''<div class="metric-box-match"><div class="metric-label">Match</div><div class="metric-value">{match_count}</div></div>''', unsafe_allow_html=True)
     with m2: st.markdown(f'''<div class="metric-box-mismatch"><div class="metric-label">Stock difference</div><div class="metric-value">{mismatch_count}</div></div>''', unsafe_allow_html=True)
-    st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True, column_config={"SKU": st.column_config.TextColumn("SKU", width="medium"), "Description": st.column_config.TextColumn("Description", width="large")})
+    st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True)
     st.markdown("<br>", unsafe_allow_html=True)
     df_view = st.session_state.reconcile_result.copy()
     if 'Status' not in df_view.columns: df_view['Status'] = 'Pending'
     if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = 'Menunggu antrean...'
     st.markdown("<div class='box-queue'>Adjustment Queue</div>", unsafe_allow_html=True)
     table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
-    log_label_placeholder = st.empty(); log_placeholder = st.empty(); btn_placeholder = st.empty()
+    
+    # Tempat buat lottie, label log, terminal log, dan button
+    lottie_placeholder = st.empty()
+    log_label_placeholder = st.empty()
+    log_placeholder = st.empty()
+    btn_placeholder = st.empty()
+    
     if btn_placeholder.button("PROCEED TO STOCK ADJUSTMENT ENGINE", type="primary", use_container_width=True):
         btn_placeholder.empty(); bot_user = st.session_state.np_user_input.strip(); bot_pass = st.session_state.np_pass_input.strip()
         if not bot_user or not bot_pass: st.error("Access Denied: NP User ID & Password required!")
         else:
+            # Munculin Animasi Lottie saat diproses
+            lottie_anim = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_t24tpvcu.json")
+            if lottie_anim:
+                with lottie_placeholder:
+                    st_lottie(lottie_anim, height=120)
+
             log_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True); ensure_playwright()
             bot_logs_history  = []; bot_last_log_time = [time.time()]
             def ui_log(module, msg):
@@ -525,4 +551,8 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     browser.close(); elapsed = int(time.time() - global_start_time)
                     st.markdown(make_solid_box(f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s", "#166534", "#ffffff"), unsafe_allow_html=True)
                     if success_count > 0: st.toast('System override complete!'); st.session_state.reconcile_result = None
-            except Exception as e: st.error("System halted."); ui_log("ERROR", f"FAILURE: {e}")
+                    lottie_placeholder.empty() # Hilangkan Lottie setelah selesai
+
+            except Exception as e: 
+                st.error("System halted."); ui_log("ERROR", f"FAILURE: {e}")
+                lottie_placeholder.empty() # Hilangkan Lottie jika error
