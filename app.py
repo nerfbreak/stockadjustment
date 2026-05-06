@@ -494,6 +494,13 @@ if np_source_ready and file2:
             d1[sku_col1] = d1[sku_col1].apply(lambda x: '0' + str(x) if str(x) in TARGET_SKUS else x)
             
             d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0); d1_agg = (d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'}))
+            
+            # --- FILTER DISTRIBUTOR STOCK DATA TERLEBIH DAHULU ---
+            if 'Export' in df2.columns:
+                df2 = df2[pd.to_numeric(df2['Export'], errors='coerce') == 1]
+            if 'Nama Gudang' in df2.columns:
+                df2 = df2[df2['Nama Gudang'].astype(str).str.strip().str.upper() == 'GUDANG UTAMA']
+                
             d2 = df2[[sku_col2, qty_col2]].copy(); d2 = d2.dropna(subset=[sku_col2]); d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
             d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; 
             
@@ -691,6 +698,18 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     ui_log("SYS", "Holding session for 5 seconds to ensure Newspage database write...")
                     time.sleep(5)
                     # -------------------------------------------------------------
+                    
+                    # --- LOGOUT SEQUENCE ---
+                    ui_log("AUTH", "Initiating system logout sequence...")
+                    try:
+                        # Listener untuk menangkap pop up confirm dan otomatis menekan "Enter" (Accept)
+                        page.once("dialog", lambda dialog: dialog.accept())
+                        page.locator("id=btnLogout").click(timeout=10000)
+                        ui_log("AUTH", "Pop up confirm logout muncul, otomatis menekan Enter...")
+                        time.sleep(2)
+                        ui_log("SUCCESS", "Logged out successfully.")
+                    except Exception as e:
+                        ui_log("ERROR", "Logout button not found or timeout.")
                         
                     ui_log("SYS", "Closing browser and releasing memory...")
                     browser.close()
