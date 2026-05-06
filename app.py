@@ -486,7 +486,7 @@ if st.session_state.app_page == "Reconcile":
 
                             # 13. Set Parameter 1
                             ext_ui_log("INJECT", "Setting dynamic parameter: 1...")
-                            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
+                            # page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl08_dyn_Field_txt_Value").fill("1")
 
                             # 14. Add Parameter ke Job
                             ext_ui_log("SYS", "Committing parameters to job definition...")
