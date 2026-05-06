@@ -124,13 +124,6 @@ if 'reconcile_summary' not in st.session_state:
 if 'np_df' not in st.session_state:
     st.session_state.np_df = None
 
-# Tambahan state untuk sinkronisasi tombol Compare Stock
-if 'is_bot_running' not in st.session_state:
-    st.session_state.is_bot_running = False
-if 'prev_file2' not in st.session_state:
-    st.session_state.prev_file2 = None
-
-
 # --- 5. CUSTOM CSS ---
 st.markdown("""
     <style>
@@ -241,30 +234,21 @@ with col2:
     with st.container(border=True):
         st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         
-        def handle_fragment_upload():
-            f = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
-            st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
-            
-            # Pemicu Sinkronisasi Full-Page
-            curr_f = getattr(f, "file_id", f.name if f else None) if f else None
-            if curr_f != st.session_state.prev_file2:
-                st.session_state.prev_file2 = curr_f
-                # Jika bot TIDAK sedang mengeksekusi, refresh halaman penuh biar tombol muncul
-                if not st.session_state.is_bot_running:
-                    st.rerun()
-
         if hasattr(st, "fragment"):
             @st.fragment
             def render_upload_dist():
-                handle_fragment_upload()
+                st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+                st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
             render_upload_dist()
         elif hasattr(st, "experimental_fragment"):
             @st.experimental_fragment
             def render_upload_dist():
-                handle_fragment_upload()
+                st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+                st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
             render_upload_dist()
         else:
-            handle_fragment_upload()
+            st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+            st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
         
         file2 = st.session_state.get("file2_uploader")
 
@@ -284,8 +268,6 @@ ext_log_placeholder = st.empty()
 
 # ── Extraction Logic ──────────────────────────────────────────────────────
 if extract_btn:
-    st.session_state.is_bot_running = True
-    
     user_id_np, pass_np = "", ""
     if supabase:
         try:
@@ -296,7 +278,6 @@ if extract_btn:
         except: pass
 
     if not user_id_np or not pass_np:
-        st.session_state.is_bot_running = False
         st.error("Gagal! Kredensial untuk distributor ini tidak ditemukan di Supabase.")
         st.stop()
 
@@ -425,16 +406,11 @@ if extract_btn:
                 df_ext.columns = [str(c).strip() for c in df_ext.columns]
                 ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
                 st.session_state.np_df = df_ext
-                st.session_state.is_bot_running = False
                 st.rerun()
-            else: 
-                st.session_state.is_bot_running = False
-                ext_ui_log("ERROR", "DataFrame validation failed."); st.error("Gagal membaca file dari server.")
+            else: ext_ui_log("ERROR", "DataFrame validation failed."); st.error("Gagal membaca file dari server.")
     except PlaywrightTimeoutError: 
-        st.session_state.is_bot_running = False
         ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon."); st.error("Operation Timeout.")
     except Exception as e: 
-        st.session_state.is_bot_running = False
         ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}"); st.error(f"System error: {e}")
 
 # ── Column mapping & compare ──────────────────────────────────────────────
@@ -444,7 +420,6 @@ if np_source_ready and file2:
     df1 = st.session_state.np_df if st.session_state.np_df is not None else load_data(file1)
     df2 = load_data(file2)
     if df1 is not None and df2 is not None:
-        st.markdown("<h3>Results</h3>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             with st.container(border=True):
@@ -519,7 +494,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     btn_placeholder = st.empty()
     
     if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
-        st.session_state.is_bot_running = True
         btn_placeholder.empty()
         
         bot_user, bot_pass = "", ""
@@ -532,7 +506,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             except: pass
 
         if not bot_user or not bot_pass: 
-            st.session_state.is_bot_running = False
             st.error("Access Denied: Kredensial tidak ditemukan di brankas Supabase!")
         else:
             log_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True); ensure_playwright()
@@ -670,10 +643,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     if success_count > 0: 
                         st.toast('System override complete!')
                         st.session_state.reconcile_result = None
-                        
-                    st.session_state.is_bot_running = False
 
             except Exception as e: 
-                st.session_state.is_bot_running = False
                 st.error("System halted.")
                 ui_log("ERROR", f"FAILURE: {e}")
