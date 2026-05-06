@@ -464,7 +464,7 @@ if np_source_ready and file2:
                 qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
                 st.markdown("<div style='margin-bottom: 84px;'></div>", unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        # st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Compare Stock", type="primary", use_container_width=True):
             d1 = df1[[sku_col1, desc_col1, qty_col1]].copy(); d1 = d1.dropna(subset=[sku_col1]); d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
             d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
