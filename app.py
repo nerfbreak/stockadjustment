@@ -11,6 +11,7 @@ import json
 import requests
 from streamlit_lottie import st_lottie
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from supabase import create_client, Client
 
 # --- 1. PAGE CONFIG ---
 st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
@@ -47,9 +48,20 @@ TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
 # --- LOTTIE FILES ---
-# LOTTIE_LOADING_GEARS = "https://lottie.host/75ae5e04-17cb-414c-a587-bb774c710582/4QNrO4HpH7.json"
-# LOTTIE_ROBOT_WORK    = "https://lottie.host/937b3eb3-025e-47f8-8a7e-5f71b8b3a44a/WE3uvVfwS7.json"
-# LOTTIE_SUCCESS_CHECK = "https://lottie.host/ef928c01-eb48-4cfb-9591-2b50716ec5cf/BGdMG1y3t8.json"
+LOTTIE_LOADING_GEARS = "https://assets9.lottiefiles.com/packages/lf20_icthread.json"
+LOTTIE_ROBOT_WORK    = "https://lottie.host/b2345d9d-9fa8-471d-8231-415ad3ba9a41/dig4dDIjNd.json"
+LOTTIE_SUCCESS_CHECK = "https://assets10.lottiefiles.com/packages/lf20_vuliyhde.json"
+
+# --- 2.5 INIT SUPABASE ---
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets.get("SUPABASE_URL", "")
+    key = st.secrets.get("SUPABASE_KEY", "")
+    if url and key:
+        return create_client(url, key)
+    return None
+
+supabase = init_supabase()
 
 # --- 3. HELPER FUNCTIONS ---
 @st.cache_data
@@ -266,15 +278,25 @@ with col1:
     with st.container(border=True):
         st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
+        
+        # Tarik data dari vault Supabase
+        list_dist = []
+        if supabase:
+            try:
+                res = supabase.table("distributor_vault").select("nama_distributor").execute()
+                list_dist = [d['nama_distributor'] for d in res.data]
+            except: pass
+        if not list_dist: list_dist = ["Belum ada data di Brankas"]
+
         with np_col1:
-            np_user = st.text_input("NP User ID", placeholder="Enter Newspage user ID...", key="np_user_input")
+            selected_distributor = st.selectbox("Nama Distributor", list_dist, key="distributor_select")
         with np_col2:
-            np_pass = st.text_input("NP Password", type="password", placeholder="Enter password...", key="np_pass_input")
+            st.text_input("NP Password", value="••••••••", type="password", disabled=True, help="Password ditarik otomatis dari brankas", key="np_pass_dummy")
+        
         extract_btn = st.button(
             "Extract Inventory Master",
             type="primary",
-            use_container_width=True,
-            disabled=not (np_user and np_pass)
+            use_container_width=True
         )
         file1 = None
 
@@ -283,7 +305,6 @@ with col2:
     with st.container(border=True):
         st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
-        # Spacer buatan dengan margin 28px agar sejajar dengan sisi kiri
         st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
 
 # ── Info Extracted Data ───────────────────────────────────────────────────
@@ -303,15 +324,26 @@ ext_log_placeholder = st.empty()
 
 # ── Extraction Logic ──────────────────────────────────────────────────────
 if extract_btn:
-    # Tampilkan Animasi Lottie Loading dari file JSON online
+    # Tarik ID dan Pass dari Supabase
+    user_id_np, pass_np = "", ""
+    if supabase:
+        try:
+            res = supabase.table("distributor_vault").select("np_user_id, np_password").eq("nama_distributor", selected_distributor).execute()
+            if res.data:
+                user_id_np = res.data[0]['np_user_id']
+                pass_np = res.data[0]['np_password']
+        except: pass
+
+    if not user_id_np or not pass_np:
+        st.error("Gagal! Kredensial untuk distributor ini tidak ditemukan di Supabase.")
+        st.stop()
+
     anim_loading = load_lottie(LOTTIE_LOADING_GEARS)
     if anim_loading:
         with ext_lottie_placeholder:
             st_lottie(anim_loading, height=100, key="extract_anim")
 
     ext_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True)
-    user_id_np = np_user.strip()
-    pass_np    = np_pass.strip()
     ext_logs_history  = []
     ext_last_log_time = [time.time()]
 
@@ -337,7 +369,7 @@ if extract_btn:
             page    = context.new_page()
             ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
             page.goto(URL_LOGIN, wait_until="domcontentloaded")
-            ext_ui_log("AUTH", "DOM ready. Filling credentials...")
+            ext_ui_log("AUTH", f"DOM ready. Injecting credentials for [{selected_distributor}]...")
             page.locator("id=txtUserid").fill(user_id_np)
             page.locator("id=txtPasswd").fill(pass_np)
             page.locator("id=btnLogin").click(force=True)
@@ -455,7 +487,6 @@ if np_source_ready and file2:
     df2 = load_data(file2)
     if df1 is not None and df2 is not None:
         c1, c2 = st.columns(2)
-        # BUNGKUS DALAM KOTAK SETUP
         with c1:
             with st.container(border=True):
                 st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
@@ -476,7 +507,6 @@ if np_source_ready and file2:
                 else: idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
                 sku_col2 = st.selectbox("SKU column (Dist)", df2.columns, index=idx_sku2)
                 qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
-                # Spacer agar tinggi kotak sama
                 st.markdown("<div style='margin-bottom: 84px;'></div>", unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -492,7 +522,6 @@ if np_source_ready and file2:
             merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch'); mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
             
             if len(mismatches) == 0: 
-                # Tampilkan lottie success jika komparasi sempurna
                 anim_success = load_lottie(LOTTIE_SUCCESS_CHECK)
                 if anim_success: st_lottie(anim_success, height=150, key="compare_success")
                 st.success("Analysis complete: all items matched!")
@@ -517,17 +546,27 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     st.markdown("<div class='box-queue'>Adjustment SKU List</div>", unsafe_allow_html=True)
     table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
     
-    # Tempat buat lottie, label log, terminal log, dan button
     lottie_placeholder = st.empty()
     log_label_placeholder = st.empty()
     log_placeholder = st.empty()
     btn_placeholder = st.empty()
     
     if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
-        btn_placeholder.empty(); bot_user = st.session_state.np_user_input.strip(); bot_pass = st.session_state.np_pass_input.strip()
-        if not bot_user or not bot_pass: st.error("Access Denied: NP User ID & Password required!")
+        btn_placeholder.empty()
+        
+        # Tarik Kredensial dari Supabase untuk bot Playwright
+        bot_user, bot_pass = "", ""
+        if supabase:
+            try:
+                res = supabase.table("distributor_vault").select("np_user_id, np_password").eq("nama_distributor", selected_distributor).execute()
+                if res.data:
+                    bot_user = res.data[0]['np_user_id']
+                    bot_pass = res.data[0]['np_password']
+            except: pass
+
+        if not bot_user or not bot_pass: 
+            st.error("Access Denied: Kredensial tidak ditemukan di brankas Supabase!")
         else:
-            # Munculin Animasi Lottie Online saat diproses
             lottie_anim = load_lottie(LOTTIE_ROBOT_WORK)
             if lottie_anim:
                 with lottie_placeholder:
@@ -543,6 +582,10 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                 
             global_start_time = time.time(); success_count, failed_count = 0, 0
             ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
+            
+            if supabase:
+                ui_log("SYS", "Supabase client active. Audit Trail recording is ON.")
+
             try:
                 if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
                 asyncio.set_event_loop(asyncio.new_event_loop())
@@ -550,6 +593,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     ui_log("SYS", "Spawning browser context..."); browser = p.chromium.launch(headless=True); context = browser.new_context(no_viewport=True); page = context.new_page()
                     ui_log("AUTH", f"Connecting to Newspage..."); page.goto(URL_LOGIN, wait_until="domcontentloaded")
                     
+                    ui_log("AUTH", f"Injecting hidden credentials for [{selected_distributor}]...")
                     page.locator("id=txtUserid").fill(bot_user); page.locator("id=txtPasswd").fill(bot_pass); page.locator("id=btnLogin").click(force=True)
                     try:
                         btn = page.locator("id=SYS_ASCX_btnContinue"); btn.wait_for(state="visible", timeout=5_000); btn.click(force=True)
@@ -597,11 +641,28 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                             df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
                             success_count += 1
                             ui_log("SUCCESS", f"Transaction {i+1} committed. Grid updated.")
+                            
+                            if supabase:
+                                try:
+                                    supabase.table("adjustment_logs").insert({
+                                        "sku": sku, "qty": int(qty), "status": "Success", 
+                                        "keterangan": f"Attached {qty} EA", "np_user": bot_user
+                                    }).execute()
+                                except: pass
+
                         except Exception as loop_err: 
                             df_view.at[idx, 'Status'] = 'Failed'
                             df_view.at[idx, 'Keterangan'] = 'Node Timeout'
                             failed_count += 1
                             ui_log("ERROR", f"Timeout on SKU [{sku}]. Node unresponsive. Skipping.")
+                            
+                            if supabase:
+                                try:
+                                    supabase.table("adjustment_logs").insert({
+                                        "sku": sku, "qty": int(qty) if qty.replace('-','').isdigit() else 0, "status": "Failed", 
+                                        "keterangan": "Node Timeout", "np_user": bot_user
+                                    }).execute()
+                                except: pass
                             
                         progress_bar.progress((i+1)/total_rows)
                         if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows-1: 
@@ -625,7 +686,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     
                     st.markdown(make_solid_box(f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s", "#166534", "#ffffff"), unsafe_allow_html=True)
                     
-                    lottie_placeholder.empty() # Hilangkan Lottie Robot setelah selesai
+                    lottie_placeholder.empty()
 
                     if success_count > 0: 
                         anim_success = load_lottie(LOTTIE_SUCCESS_CHECK)
@@ -636,6 +697,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                         st.session_state.reconcile_result = None
 
             except Exception as e: 
-                lottie_placeholder.empty() # Hilangkan Lottie jika error
+                lottie_placeholder.empty()
                 st.error("System halted.")
                 ui_log("ERROR", f"FAILURE: {e}")
