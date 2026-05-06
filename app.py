@@ -135,7 +135,7 @@ if 'current_np_user_id' not in st.session_state:
     st.session_state.current_np_user_id = ""
 
 
-# --- 5. CUSTOM CSS ---
+# --- 5. CUSTOM CSS & WAKE LOCK SCRIPT ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -202,6 +202,24 @@ st.markdown("""
     hr { border: none !important; height: 1px !important; background-color: #334155 !important; margin-top: 1.5rem !important; margin-bottom: 1.5rem !important; }
     div[data-testid="stContainer"] { border: 1px solid #334155; border-radius: 10px; padding: 20px; background-color: #0f172a; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
     </style>
+    
+    <script>
+    // --- SCRIPT ANTI LAYAR MATI UNTUK BROWSER MOBILE ---
+    let wakeLock = null;
+    const requestWakeLock = async () => {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+      } catch (err) {
+        console.log(`${err.name}, ${err.message}`);
+      }
+    };
+    requestWakeLock();
+    document.addEventListener('visibilitychange', async () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    });
+    </script>
 """, unsafe_allow_html=True)
 
 # ─── 6. PAGE: MAIN RECONCILE & ENGINE ─────────────────────────────────────────
@@ -574,7 +592,8 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             st.session_state.is_bot_running = False
             st.error("Access Denied: Kredensial tidak ditemukan di Database!")
         else:
-            log_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True); ensure_playwright()
+            # --- PENAMBAHAN LABEL LOG SESUAI REQUEST ---
+            log_label_placeholder.markdown(f"<div class='terminal-label'>Log - Active Account: <span style='color: #38bdf8;'>{selected_distributor} ({bot_user})</span></div>", unsafe_allow_html=True); ensure_playwright()
             bot_logs_history  = []; bot_last_log_time = [time.time()]
             
             def ui_log(module, msg):
