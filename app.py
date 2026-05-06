@@ -130,6 +130,10 @@ if 'is_bot_running' not in st.session_state:
 if 'prev_file2' not in st.session_state:
     st.session_state.prev_file2 = None
 
+# Variabel untuk menampung user_id (dipakai di logic perkalian SKU)
+if 'current_np_user_id' not in st.session_state:
+    st.session_state.current_np_user_id = ""
+
 
 # --- 5. CUSTOM CSS ---
 st.markdown("""
@@ -227,6 +231,15 @@ with col1:
 
         with np_col1:
             selected_distributor = st.selectbox("Nama Distributor", list_dist, key="distributor_select")
+            
+            # --- Menyimpan User ID ke dalam session_state agar bisa dipakai saat Compare ---
+            if supabase:
+                try:
+                    res = supabase.table("distributor_vault").select("np_user_id").eq("nama_distributor", selected_distributor).execute()
+                    if res.data:
+                        st.session_state.current_np_user_id = res.data[0]['np_user_id']
+                except: pass
+                
         with np_col2:
             st.text_input("NP Password", value="••••••••", type="password", disabled=True, help="Password ditarik otomatis dari Database", key="np_pass_dummy")
         
@@ -487,7 +500,14 @@ if np_source_ready and file2:
             # --- PENAMBAHAN '0' KHUSUS UNTUK DAFTAR SKU TARGET DI DISTRIBUTOR ---
             d2[sku_col2] = d2[sku_col2].apply(lambda x: '0' + str(x) if str(x) in TARGET_SKUS else x)
             
-            d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0); d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
+            d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0); 
+            
+            # --- LOGIC PERKALIAN KHUSUS ---
+            # Jika user ID adalah Purwokerto atau Tegal, kalikan QTY SKU tertentu dengan 24
+            if st.session_state.current_np_user_id in ["NPSYS3000019163", "NPSYS3000018661"]:
+                d2.loc[d2[sku_col2].isin(["8021803", "8021804"]), qty_col2] *= 24
+
+            d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
             
             merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
             merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
@@ -589,12 +609,12 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     total_rows = len(df_view)
                     
                     for i, (idx, row) in enumerate(df_view.iterrows()):
-                        sku = str(row['sku']).strip()
+                        sku = str(row['SKU']).strip()
                         
                         try: 
-                            qty = str(int(float(row['qty'])))
+                            qty = str(int(float(row['Qty'])))
                         except Exception: 
-                            qty = str(row['qty']).strip()
+                            qty = str(row['Qty']).strip()
 
                         ui_log("INJECT", f"Processing Payload {i+1}/{total_rows} | Target SKU: [{sku}]")
                         
