@@ -672,7 +672,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                             page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
                             
                             df_view.at[idx, 'Status'] = 'Success'
-                            df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
+                            df_view.at[idx, 'Keterangan'] = f'Input {qty} EA'
                             success_count += 1
                             ui_log("SUCCESS", f"Transaction {i+1} committed. Grid updated.")
                             
@@ -724,7 +724,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                         # Listener untuk menangkap pop up confirm dan otomatis menekan "Enter" (Accept)
                         page.once("dialog", lambda dialog: dialog.accept())
                         page.locator("id=btnLogout").click(timeout=10000)
-                        ui_log("AUTH", "Pop up confirm logout muncul, otomatis menekan Enter...")
+                        ui_log("AUTH", "Pop up confirm logout...")
                         time.sleep(2)
                         ui_log("SUCCESS", "Logged out successfully.")
                     except Exception as e:
