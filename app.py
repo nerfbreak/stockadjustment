@@ -47,9 +47,9 @@ TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
 # --- LOTTIE FILES ---
-LOTTIE_LOADING_GEARS = "https://assets9.lottiefiles.com/packages/lf20_icthread.json" # Ganti pakai link lottie.host lu kalo ini keblokir
-LOTTIE_ROBOT_WORK    = "https://lottie.host/96e06b2c-9567-41ce-81b5-c604a177c8c9/OH9fhS38Yv.json"
-LOTTIE_SUCCESS_CHECK = "https://assets10.lottiefiles.com/packages/lf20_vuliyhde.json" # Ganti pakai link lottie.host lu kalo ini keblokir
+LOTTIE_LOADING_GEARS = "https://lottie.host/1c5ea676-8b18-4aa4-a3e1-6ca4da6fc0c6/qFJIaFpD8Q.json"
+LOTTIE_ROBOT_WORK    = "https://lottie.host/937b3eb3-025e-47f8-8a7e-5f71b8b3a44a/WE3uvVfwS7.json"
+LOTTIE_SUCCESS_CHECK = "https://lottie.host/ef928c01-eb48-4cfb-9591-2b50716ec5cf/BGdMG1y3t8.json"
 
 # --- 3. HELPER FUNCTIONS ---
 @st.cache_data
