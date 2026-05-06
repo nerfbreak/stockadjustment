@@ -436,7 +436,7 @@ if extract_btn:
 # ── Column mapping & compare ──────────────────────────────────────────────
 np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
 if np_source_ready and file2:
-    st.divider()
+    # st.divider()
     df1 = st.session_state.np_df if st.session_state.np_df is not None else load_data(file1)
     df2 = load_data(file2)
     if df1 is not None and df2 is not None:
