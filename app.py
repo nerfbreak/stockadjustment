@@ -309,7 +309,7 @@ if extract_btn:
         with ext_lottie_placeholder:
             st_lottie(anim_loading, height=100, key="extract_anim")
 
-    ext_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True)
+    ext_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True)
     user_id_np = np_user.strip()
     pass_np    = np_pass.strip()
     ext_logs_history  = []
@@ -533,7 +533,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                 with lottie_placeholder:
                     st_lottie(lottie_anim, height=150, key="bot_processing")
 
-            log_label_placeholder.markdown("<div class='terminal-label'>Execution Log</div>", unsafe_allow_html=True); ensure_playwright()
+            log_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True); ensure_playwright()
             bot_logs_history  = []; bot_last_log_time = [time.time()]
             
             def ui_log(module, msg):
