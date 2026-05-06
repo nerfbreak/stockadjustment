@@ -11,8 +11,38 @@ import sys
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 # --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Inventory ToolKit", layout="wide")
-os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+st.set_page_config(page_title="Stock Adjustment Newspage", page_icon="icon.png", layout="wide")
+# os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+
+# ==========================================
+# --- 1.5. SISTEM KEMANAN LOGIN (GATEKEEPER) ---
+# ==========================================
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    # Bikin tampilan form login agak ke tengah biar rapi
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        st.markdown("<h2 style='text-align: center; color: #FF1B6B;'>Login</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
+        
+        with st.form("login_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submit = st.form_submit_button("Login", use_container_width=True)
+            
+            if submit:
+                # Validasi ngecek ke Streamlit Secrets
+                if username == st.secrets["admin_user"] and password == st.secrets["admin_pass"]:
+                    st.session_state.logged_in = True
+                    st.rerun()  # Refresh halaman biar masuk ke aplikasi
+                else:
+                    st.error("Access Denied! Incorrect username or password.")
+                    
+    # HENTIKAN EKSEKUSI DI SINI JIKA BELUM LOGIN
+    st.stop() 
+# ==========================================
 
 # --- 2. CONSTANTS ---
 URL_LOGIN        = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
@@ -53,8 +83,11 @@ def load_accounts():
                 reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
                 for row in reader:
                     cleaned_row = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
-                    if "user_id" in cleaned_row and "password" in cleaned_row and "Distributor" in cleaned_row:
+                    
+                    # ---> YANG DIUBAH DI SINI: Nggak perlu ngecek kolom password lagi
+                    if "user_id" in cleaned_row and "Distributor" in cleaned_row:
                         accounts.append(cleaned_row)
+                        
                 return accounts
         except (UnicodeDecodeError, TypeError):
             continue
@@ -62,8 +95,14 @@ def load_accounts():
 
 @st.cache_resource
 def ensure_playwright():
-    try: subprocess.run(["playwright", "install", "chromium"], check=True, capture_output=True)
-    except: pass
+    try: 
+        # Panggil installer pakai sys.executable biar sistem nggak nyasar nyari path-nya
+        subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium"], 
+            check=True
+        )
+    except Exception as e: 
+        st.error(f"Gagal install engine browser: {e}")
 
 # --- 4. STATE MANAGEMENT & CUSTOM CSS ANIMATION ---
 if 'app_page' not in st.session_state: st.session_state.app_page = "Reconcile"
@@ -119,13 +158,237 @@ st.markdown("""
         background-color: #d41459 !important;
         box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important;
     }
+
+    /* TOMBOL PROCEED (Primary Button) NEON PINK */
+    button[kind="primary"] {
+        background-color: #FF1B6B !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 700 !important;
+        letter-spacing: 1px !important;
+        text-transform: uppercase !important;
+        transition: all 0.3s ease !important;
+    }
+
+    button[kind="primary"]:hover {
+        background-color: #d41459 !important;
+        box-shadow: 0 0 20px rgba(255, 27, 107, 0.8) !important;
+        transform: translateY(-2px) !important;
+    }
+
+    button[kind="primary"]:active {
+        transform: translateY(0px) !important;
+    }
+
+    /* TYPEWRITER KHUSUS SUBTITLE (DENGAN JEDA 5 DETIK) */
+    .typewriter-sub {
+        font-family: 'JetBrainsMono', monospace;
+        font-size: 1rem;       
+        color: #8b949e;        
+        overflow: hidden;
+        border-right: 0.15em solid #FF1B6B; /* Ini kursornya */
+        white-space: nowrap;
+        margin: 0;
+        /* Pemanggilan 2 animasi sekaligus: ngetik & ngedip */
+        animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
+    }
+
+    /* 1. ANIMASI TEKS MAJU MUNDUR & JEDA */
+    @keyframes typing-sub {
+        /* 0% ke 30% (3 detik): Proses ngetik 29 karakter */
+        0%   { width: 0; animation-timing-function: steps(29, end); }
+        
+        /* 30% ke 80% (5 detik): Teks diem full 29 karakter */
+        30%  { width: 29ch; animation-timing-function: step-end; }
+        80%  { width: 29ch; animation-timing-function: steps(29, end); }
+        
+        /* 80% ke 100% (2 detik): Proses hapus karakter ke 0 */
+        100% { width: 0; }
+    }
+
+    /* 2. ANIMASI KURSOR KEDAP-KEDIP (INI YANG BIKIN NGEDIP BRE!) */
+    @keyframes blink-caret {
+        from, to { border-color: transparent; }
+        50% { border-color: #FF1B6B; }
+    }
+
+    /* 1. EFEK MUNCUL MULUS PAS HALAMAN DIBUKA */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Nerapin efek ke semua blok utama di Streamlit */
+    [data-testid="stVerticalBlock"] > div {
+        animation: fadeSlideUp 0.6s ease-out backwards;
+    }
+    
+    /* Bikin efek berurutan (cascade) biar munculnya gantian */
+    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.1s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.2s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
+    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
+
+    /* 3. LIVE STATUS RADAR */
+    .live-indicator {
+        display: inline-flex;
+        align-items: center;
+        color: #4ade80; /* Hijau matrix */
+        font-family: 'JetBrainsMono', monospace;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+    .live-indicator::before {
+        content: '';
+        display: inline-block;
+        width: 10px; height: 10px;
+        background-color: #4ade80;
+        border-radius: 50%;
+        margin-right: 8px;
+        box-shadow: 0 0 10px #4ade80;
+        animation: pulse-radar 1.2s infinite alternate;
+    }
+    @keyframes pulse-radar {
+        from { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 5px #4ade80; }
+        to { transform: scale(1.3); opacity: 1; box-shadow: 0 0 15px #4ade80; }
+    }
+
+    /* 2. NEON BREATHING DIVIDER */
+    hr {
+        border: none !important;
+        height: 2px !important;
+        background: linear-gradient(90deg, transparent, #FF1B6B, transparent) !important;
+        animation: pulse-divider 2s infinite alternate !important;
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+
+    @keyframes pulse-divider {
+        0% { opacity: 0.3; filter: drop-shadow(0 0 2px #FF1B6B); }
+        100% { opacity: 1; filter: drop-shadow(0 0 10px #FF1B6B); }
+    }
+
+    /* 2. EFEK MONITOR TABUNG JADUL (SCANLINES) */
+    [data-testid="stAppViewContainer"] {
+        background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.15) 50%) !important;
+        background-size: 100% 4px !important;
+    }
+
+    /* 1. HACKER TEXT SELECTION */
+    ::selection {
+        background: #FF1B6B !important;
+        color: #000000 !important;
+        text-shadow: none !important;
+    }
+    ::-moz-selection { /* Buat yang pake Firefox */
+        background: #FF1B6B !important;
+        color: #000000 !important;
+        text-shadow: none !important;
+    }
+
+    /* 2. CYBERPUNK SCROLLBAR (BRUTE FORCE OVERRIDE) */
+    
+    /* Buat Chrome, Edge, Safari, Brave */
+    *::-webkit-scrollbar {
+        width: 8px !important;
+        height: 8px !important; /* Buat scroll bawah (horizontal) kalau ada */
+        background-color: #0d1117 !important;
+    }
+    *::-webkit-scrollbar-track {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 10px !important;
+    }
+    *::-webkit-scrollbar-thumb {
+        background-color: #FF1B6B !important;
+        border-radius: 10px !important;
+        border: 2px solid #0d1117 !important; /* Kasih ilusi jarak biar elegan */
+    }
+    *::-webkit-scrollbar-thumb:hover {
+        background-color: #d41459 !important;
+    }
+
+    /* Buat Firefox */
+    * {
+        scrollbar-width: thin !important;
+        scrollbar-color: #FF1B6B #0d1117 !important;
+    }
+
+    /* 3. CYBERPUNK RUNNING STATUS (Pojok Kanan Atas) */
+    [data-testid="stStatusWidget"] {
+        background-color: #0d1117 !important; /* Warna gelap terminal */
+        border: 1px solid #FF1B6B !important;
+        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important; /* Glow neon pink */
+        border-radius: 4px !important;
+        padding: 2px 10px !important;
+        animation: status-pulse 1s infinite alternate !important;
+    }
+
+    /* Ubah warna teks dan icon loadingnya jadi pink */
+    [data-testid="stStatusWidget"] * {
+        color: #FF1B6B !important;
+        font-family: 'JetBrainsMono', monospace !important;
+        font-weight: bold !important;
+        letter-spacing: 1px !important;
+    }
+
+    @keyframes status-pulse {
+        from { box-shadow: 0 0 5px rgba(255, 27, 107, 0.4); }
+        to { box-shadow: 0 0 20px rgba(255, 27, 107, 0.8); }
+    }
+    
+    /* BONUS: Kasih garis laser statis di paling atas layar biar tetep sangar */
+    header[data-testid="stHeader"] {
+        border-top: 2px solid #FF1B6B !important;
+        box-shadow: 0 -5px 20px #FF1B6B !important;
+    }
+
+    /* 2. TYPEWRITER + FLICKER SYNC */
+    .typewriter {
+        font-family: 'JetBrainsMono', monospace;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #f0f6fc;
+        overflow: hidden;
+        border-right: 0.15em solid #FF1B6B;
+        white-space: nowrap;
+        margin: 0; 
+        padding-right: 5px;
+        width: max-content; 
+        
+        /* Gabungin 3 animasi: ngetik, kursor ngedip, dan lampu rusak (flicker) */
+        animation: 
+            typing 3s steps(25, end) infinite alternate, 
+            blink-caret .75s step-end infinite,
+            flicker-force 5s linear infinite !important;
+    }
+
+    /* Keyframe Flicker yang lebih agresif biar kerasa rusaknya */
+    @keyframes flicker-force {
+        0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 10px #FF1B6B; }
+        20%, 24%, 55% { opacity: 0.2; text-shadow: none; }
+    }
+
+    /* 1. DATA PULSE BRUTE FORCE */
+    [data-testid="stMetricValue"], 
+    [data-testid="stMetricValue"] > div {
+        color: #FF1B6B !important;
+        text-shadow: 0 0 5px #FF1B6B, 0 0 10px #FF1B6B !important;
+        animation: pulse-metric-force 2s infinite alternate !important;
+        display: block !important;
+    }
+
+    @keyframes pulse-metric-force {
+        0% { opacity: 0.7; filter: drop-shadow(0 0 2px #FF1B6B); }
+        100% { opacity: 1; filter: drop-shadow(0 0 15px #FF1B6B); }
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
 if st.session_state.app_page == "Reconcile":
-    st.title("Compare Stock")
-    st.markdown("Inspired by Kopi Mang Toni")
+    st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -217,8 +480,9 @@ if st.session_state.app_page == "Reconcile":
 elif st.session_state.app_page == "Bot":
     hdr_col1, hdr_col2 = st.columns([5, 1])
     with hdr_col1:
-        st.title("Stock Adjustment")
-        st.markdown("Inspired by Kopi Mang Toni")
+        st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
+        st.markdown("<h1>Stock Adjustment</h1>", unsafe_allow_html=True)
+        st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
     with hdr_col2:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Compare Stock", use_container_width=True):
@@ -250,10 +514,25 @@ elif st.session_state.app_page == "Bot":
             options=[f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts],
             index=None, placeholder="-- Select Account --"
         )
+        
         selected_account = None
+        user_password = "" # Bikin variabel nampung password
+
         if selected_acc_str:
             selected_account = next(acc for acc in accounts if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str)
-            st.markdown(f"<div style='background-color: #143521; color: #4ade80; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Account Active: {selected_account['Distributor']}</div>", unsafe_allow_html=True)
+            
+            # --- TAMBAHAN BARU: INPUT PASSWORD MUNCUL SETELAH AKUN DIPILIH ---
+            user_password = st.text_input(
+                f"Enter Password for {selected_account['user_id']}:", 
+                type="password", 
+                placeholder="Password Accenture..."
+            )
+            
+            # Badge Account Active muncul kalau password udah diisi (minimal 3 karakter)
+            if len(user_password) > 3:
+                st.markdown(f"<div style='background-color: #143521; color: #4ade80; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Password Set : {selected_account['Distributor']} (Validation Password on Run)</div>", unsafe_allow_html=True)
+            else:
+                 st.markdown(f"<div style='background-color: #fbbf24; color: #713f12; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; margin-top: 4px;'>Waiting for Password to be entered...</div>", unsafe_allow_html=True)
 
     with cfg_col2:
         df_to_process = None
@@ -286,7 +565,8 @@ elif st.session_state.app_page == "Bot":
                     st.error(f"Gagal membaca file: {e}")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    is_ready = (selected_account is not None) and (df_to_process is not None)
+    # Tambahin syarat user_password nggak boleh kosong
+    is_ready = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
     run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
 
     # st.markdown("---")
@@ -342,7 +622,8 @@ elif st.session_state.app_page == "Bot":
 
         global_start_time = time.time()
         success_count, failed_count = 0, 0
-        user_id, password = selected_account["user_id"], selected_account["password"]
+        user_id = selected_account["user_id"]
+        password = user_password  # Tarik password dari input teks, bukan dari file CSV lagi!
 
         ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
         try:
@@ -375,8 +656,9 @@ elif st.session_state.app_page == "Bot":
                 except: 
                     ui_log("SYS", "No interceptor detected. Clean session acquired.")
                     
-                page.wait_for_url("**/Default.aspx", timeout=0, wait_until="domcontentloaded")
-                ui_log("SUCCESS", "Handshake verified. Access token granted.")
+                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+                ui_log("AUTH", "Credentials verified. Password match confirmed!")
+                ui_log("SUCCESS", "Handshake verified. Session established.")
 
                 # --- Navigasi ---
                 ui_log("NAV", "Dispatching click event to [Inventory -> Stock Adjustment] module...")
@@ -451,10 +733,24 @@ elif st.session_state.app_page == "Bot":
                 elapsed = int(time.time() - global_start_time)
                 ui_log("SUCCESS", f"EXECUTION TERMINATED NORMALLY. Total runtime: {elapsed//60}m {elapsed%60}s")
                 st.success(f"Success: {success_count} - Failed: {failed_count} - Elapsed Time: {elapsed//60}m {elapsed%60}s")
+                if success_count > 0:
+                    # Efek notif melayang (Toast)
+                    st.toast('Connection Terminated')
+                    time.sleep(0.5)
+                    st.toast('Data Injected Successfully')
+                    time.sleep(0.5)
+                    st.toast('System Override Complete!')
+                    st.session_state.reconcile_result = None
 
-                st.session_state.reconcile_result = None
-
+        except PlaywrightTimeoutError as e:
+            # Error khusus kalau nunggu loading kelamaan (biasanya karena password salah)
+            st.error("Login Gagal: Password salah atau server target sedang tidak merespon (Timeout 30s).")
+            ui_log("ERROR", "ACCESS DENIED: Handshake timeout. Invalid credentials or node unreachable.")
+            
         except Exception as e:
             error_detail = traceback.format_exc()
             st.error("System halted due to an unexpected error.")
-            ui_log("ERROR", f"FATAL SYSTEM CRASH: {str(e)}")
+            
+            # Bersihin pesan error bawaan Playwright biar nggak kepanjangan
+            clean_error = str(e).split('===')[0].strip()
+            ui_log("ERROR", f"SYSTEM FAILURE: {clean_error}")
