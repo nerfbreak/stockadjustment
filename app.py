@@ -165,7 +165,7 @@ st.markdown("""
     .box-dist { border-top: 3px solid #10b981; }
     .box-review { border-top: 3px solid #06b6d4; }
     .box-queue { border-top: 3px solid #8b5cf6; }
-    .box-results { border-top: 3px solid #f59e0b; }
+    .box-results { border-top: 3px solid #0b42f5; }
 
     /* Metric Cards */
     .metric-box-match, .metric-box-mismatch {
