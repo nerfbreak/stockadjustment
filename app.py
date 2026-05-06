@@ -8,8 +8,6 @@ import asyncio
 import traceback
 import sys
 import json
-import requests
-from streamlit_lottie import st_lottie
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from supabase import create_client, Client
 
@@ -47,11 +45,6 @@ WAREHOUSE             = "GOOD_WHS"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
 
-# --- LOTTIE FILES ---
-LOTTIE_LOADING_GEARS = "https://assets9.lottiefiles.com/packages/lf20_icthread.json"
-LOTTIE_ROBOT_WORK    = "https://lottie.host/b2345d9d-9fa8-471d-8231-415ad3ba9a41/dig4dDIjNd.json"
-LOTTIE_SUCCESS_CHECK = "https://assets10.lottiefiles.com/packages/lf20_vuliyhde.json"
-
 # --- 2.5 INIT SUPABASE ---
 @st.cache_resource
 def init_supabase() -> Client:
@@ -64,16 +57,6 @@ def init_supabase() -> Client:
 supabase = init_supabase()
 
 # --- 3. HELPER FUNCTIONS ---
-@st.cache_data
-def load_lottie(url: str):
-    try:
-        r = requests.get(url)
-        if r.status_code == 200:
-            return r.json()
-        return None
-    except Exception:
-        return None
-
 def load_data(file):
     if file is None:
         return None
@@ -282,10 +265,10 @@ with col1:
         # Tarik data dari vault Supabase
         list_dist = []
         if supabase:
-         try:
-             res = supabase.table("distributor_vault").select("nama_distributor").execute()
-             list_dist = [d['nama_distributor'] for d in res.data]
-         except: pass
+            try:
+                res = supabase.table("distributor_vault").select("nama_distributor").execute()
+                list_dist = [d['nama_distributor'] for d in res.data]
+            except: pass
         if not list_dist: list_dist = ["Belum ada data di Brankas"]
 
         with np_col1:
@@ -304,8 +287,26 @@ with col1:
 with col2:
     with st.container(border=True):
         st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
-        file2 = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'])
-        st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
+        
+        # Menggunakan st.fragment agar upload file tidak menghentikan proses Playwright yang sedang jalan
+        if hasattr(st, "fragment"):
+            @st.fragment
+            def render_upload_dist():
+                st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+                st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
+            render_upload_dist()
+        elif hasattr(st, "experimental_fragment"):
+            @st.experimental_fragment
+            def render_upload_dist():
+                st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+                st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
+            render_upload_dist()
+        else:
+            st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+            st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
+        
+        # Tarik nilai file dari session_state yang diisi oleh fragment di atas
+        file2 = st.session_state.get("file2_uploader")
 
 # ── Info Extracted Data ───────────────────────────────────────────────────
 if st.session_state.np_df is not None:
@@ -318,7 +319,6 @@ if st.session_state.np_df is not None:
         st.rerun()
 
 # ── Extraction Terminal ───────────────────────────────────────────────────
-ext_lottie_placeholder = st.empty()
 ext_label_placeholder = st.empty()
 ext_log_placeholder = st.empty()
 
@@ -337,11 +337,6 @@ if extract_btn:
     if not user_id_np or not pass_np:
         st.error("Gagal! Kredensial untuk distributor ini tidak ditemukan di Supabase.")
         st.stop()
-
-    anim_loading = load_lottie(LOTTIE_LOADING_GEARS)
-    if anim_loading:
-        with ext_lottie_placeholder:
-            st_lottie(anim_loading, height=100, key="extract_anim")
 
     ext_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True)
     ext_logs_history  = []
@@ -463,8 +458,6 @@ if extract_btn:
                             if temp_df is not None and temp_df.shape[1] > 1: df_ext = temp_df; break
                         except Exception: continue
                     if df_ext is not None and df_ext.shape[1] > 1: break
-            
-            ext_lottie_placeholder.empty() # Hilangkan Lottie Loading
 
             if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
                 df_ext.columns = [str(c).strip() for c in df_ext.columns]
@@ -473,10 +466,8 @@ if extract_btn:
                 st.rerun()
             else: ext_ui_log("ERROR", "DataFrame validation failed."); st.error("Gagal membaca file dari server.")
     except PlaywrightTimeoutError: 
-        ext_lottie_placeholder.empty()
         ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon."); st.error("Operation Timeout.")
     except Exception as e: 
-        ext_lottie_placeholder.empty()
         ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}"); st.error(f"System error: {e}")
 
 # ── Column mapping & compare ──────────────────────────────────────────────
@@ -522,8 +513,6 @@ if np_source_ready and file2:
             merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch'); mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
             
             if len(mismatches) == 0: 
-                anim_success = load_lottie(LOTTIE_SUCCESS_CHECK)
-                if anim_success: st_lottie(anim_success, height=150, key="compare_success")
                 st.success("Analysis complete: all items matched!")
                 st.session_state.reconcile_summary = None
             else:
@@ -546,7 +535,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     st.markdown("<div class='box-queue'>Adjustment SKU List</div>", unsafe_allow_html=True)
     table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
     
-    lottie_placeholder = st.empty()
     log_label_placeholder = st.empty()
     log_placeholder = st.empty()
     btn_placeholder = st.empty()
@@ -567,11 +555,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
         if not bot_user or not bot_pass: 
             st.error("Access Denied: Kredensial tidak ditemukan di brankas Supabase!")
         else:
-            lottie_anim = load_lottie(LOTTIE_ROBOT_WORK)
-            if lottie_anim:
-                with lottie_placeholder:
-                    st_lottie(lottie_anim, height=150, key="bot_processing")
-
             log_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True); ensure_playwright()
             bot_logs_history  = []; bot_last_log_time = [time.time()]
             
@@ -685,18 +668,11 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     ui_log("SUCCESS", f"Complete. Total runtime: {elapsed//60}m {elapsed%60}s")
                     
                     st.markdown(make_solid_box(f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s", "#166534", "#ffffff"), unsafe_allow_html=True)
-                    
-                    lottie_placeholder.empty()
 
                     if success_count > 0: 
-                        anim_success = load_lottie(LOTTIE_SUCCESS_CHECK)
-                        if anim_success: 
-                            with lottie_placeholder:
-                                st_lottie(anim_success, height=150, key="bot_success")
                         st.toast('System override complete!')
                         st.session_state.reconcile_result = None
 
             except Exception as e: 
-                lottie_placeholder.empty()
                 st.error("System halted.")
                 ui_log("ERROR", f"FAILURE: {e}")
