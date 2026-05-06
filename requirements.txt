@@ -5,3 +5,4 @@ openpyxl
 cryptography>=42.0.0
 streamlit-lottie
 requests
+supabase
