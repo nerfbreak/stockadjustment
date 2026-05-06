@@ -123,8 +123,6 @@ if 'reconcile_summary' not in st.session_state:
     st.session_state.reconcile_summary = None
 if 'np_df' not in st.session_state:
     st.session_state.np_df = None
-
-# Tambahan state untuk sinkronisasi tombol Compare Stock
 if 'is_bot_running' not in st.session_state:
     st.session_state.is_bot_running = False
 if 'prev_file2' not in st.session_state:
@@ -205,7 +203,7 @@ st.markdown("""
 hdr_col1, hdr_col2 = st.columns([5, 1])
 with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare & Stock Adjustment</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
 st.markdown("---")
 
@@ -245,12 +243,9 @@ with col2:
         def handle_fragment_upload():
             f = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
             st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
-            
-            # Pemicu Sinkronisasi Full-Page
             curr_f = getattr(f, "file_id", f.name if f else None) if f else None
             if curr_f != st.session_state.prev_file2:
                 st.session_state.prev_file2 = curr_f
-                # Jika bot TIDAK sedang mengeksekusi, refresh halaman penuh biar tombol muncul
                 if not st.session_state.is_bot_running:
                     st.rerun()
 
@@ -548,7 +543,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
             
             if supabase:
-                ui_log("SYS", "Supabase client active. Audit Trail recording is ON.")
+                ui_log("SYS", "Supabase client active.")
 
             try:
                 if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -573,7 +568,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
                     ui_log("SYS", "Ready. Opening data stream for payload injection...")
 
-                    # --- POINT 2: MESIN LOOPING BOT (EKSEKUSI STABIL) ---
+                    # --- POINT 2: Start Injecting SKU
                     progress_bar = st.progress(0)
                     total_rows = len(df_view)
                     
@@ -593,12 +588,12 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                             ui_log("INJECT", f"Locking target node for SKU [{sku}]...")
                             sku_input.fill(sku)
                             
-                            # 2. Trigger Tab & Jeda Stabil
+                            # 2. Trigger Tab & Jeda
                             ui_log("INJECT", "Triggering system lookup (Tab event)...")
                             sku_input.press("Tab")
                             time.sleep(1.5) 
                             
-                            # 3. Input Qty & Jeda Stabil
+                            # 3. Input Qty & Jeda
                             qty_input = page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value")
                             qty_input.wait_for(state="visible", timeout=TIMEOUT_MS)
                             
@@ -656,7 +651,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     except Exception: 
                         ui_log("SERVER", "Auto-save confirmed. Document written to database.")
                         
-                    # --- POINT 3: PERFECT LANDING (JEDA SEBELUM CLOSE BROWSER) ---
+                    # --- POINT 3: LANDING
                     ui_log("SYS", "Holding session for 5 seconds to ensure Newspage database write...")
                     time.sleep(5)
                     # -------------------------------------------------------------
