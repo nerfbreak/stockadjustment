@@ -338,9 +338,6 @@ if extract_btn:
         st.error("Gagal! Kredensial untuk distributor ini tidak ditemukan di Supabase.")
         st.stop()
 
-    # --- PENAMBAHAN STATUS ANIMASI ---
-    ext_status = st.status("Menghubungkan ke Newspage & Mengekstrak Data...", state="running")
-
     ext_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True)
     ext_logs_history  = []
     ext_last_log_time = [time.time()]
@@ -465,21 +462,13 @@ if extract_btn:
             if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
                 df_ext.columns = [str(c).strip() for c in df_ext.columns]
                 ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
-                ext_status.update(label="Extract Inventory Master Sukses!", state="complete") # --- UPDATE STATUS SUKSES ---
                 st.session_state.np_df = df_ext
                 st.rerun()
-            else: 
-                ext_ui_log("ERROR", "DataFrame validation failed.")
-                ext_status.update(label="Gagal membaca data dari server!", state="error") # --- UPDATE STATUS ERROR ---
-                st.error("Gagal membaca file dari server.")
+            else: ext_ui_log("ERROR", "DataFrame validation failed."); st.error("Gagal membaca file dari server.")
     except PlaywrightTimeoutError: 
-        ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon.")
-        ext_status.update(label="Timeout: Server lambat!", state="error") # --- UPDATE STATUS ERROR ---
-        st.error("Operation Timeout.")
+        ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon."); st.error("Operation Timeout.")
     except Exception as e: 
-        ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
-        ext_status.update(label="Sistem Error!", state="error") # --- UPDATE STATUS ERROR ---
-        st.error(f"System error: {e}")
+        ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}"); st.error(f"System error: {e}")
 
 # ── Column mapping & compare ──────────────────────────────────────────────
 np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
@@ -566,9 +555,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
         if not bot_user or not bot_pass: 
             st.error("Access Denied: Kredensial tidak ditemukan di brankas Supabase!")
         else:
-            # --- PENAMBAHAN STATUS ANIMASI ---
-            bot_status = st.status("Eksekusi Bot sedang berjalan...", state="running")
-
             log_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True); ensure_playwright()
             bot_logs_history  = []; bot_last_log_time = [time.time()]
             
@@ -682,9 +668,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     ui_log("SUCCESS", f"Complete. Total runtime: {elapsed//60}m {elapsed%60}s")
                     
                     st.markdown(make_solid_box(f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s", "#166534", "#ffffff"), unsafe_allow_html=True)
-                    
-                    # --- UPDATE STATUS SUKSES ---
-                    bot_status.update(label=f"Eksekusi Selesai! (Sukses: {success_count}, Gagal: {failed_count})", state="complete")
 
                     if success_count > 0: 
                         st.toast('System override complete!')
@@ -692,6 +675,4 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
 
             except Exception as e: 
                 st.error("System halted.")
-                # --- UPDATE STATUS ERROR ---
-                bot_status.update(label="Eksekusi Terhenti karena Error!", state="error")
                 ui_log("ERROR", f"FAILURE: {e}")
