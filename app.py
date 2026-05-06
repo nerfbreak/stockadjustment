@@ -453,31 +453,26 @@ if np_source_ready and file2:
             d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0); d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
             
             merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
+            # Kalau SKU nggak ada di NP, nilainya jadi 0. Selisih = Dist - 0 = Dist (Mengikuti data Distributor)
             merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
             merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
-            
-            # Perhitungan Selisih: Akan otomatis mengikuti Dist jika NP = 0 atau SKU tidak ada (karena NP diubah jadi 0)
             merged['Selisih'] = merged['Distributor'] - merged['Newspage']
             
-            # --- ATURAN POINT 1 ---
             merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
             
-            # Filter Pintar: Jika stok NP ada isinya, tapi stok Dist 0 -> Skip (Jangan Dikerjakan)
-            merged.loc[(merged['Newspage'] > 0) & (merged['Distributor'] == 0), 'Status'] = 'Skip (Dist 0)'
+            # --- ATURAN SKIP (DIST 0) DIHAPUS ---
             
-            # Ambil yang masuk antrean (Mismatch dan Skip)
-            mismatches = merged[merged['Status'].isin(['Mismatch', 'Skip (Dist 0)'])].sort_values('Selisih')
+            mismatches = merged[merged['Status'] == 'Mismatch'].sort_values('Selisih')
             
             if len(mismatches) == 0: 
                 st.success("Analysis complete: all items matched!")
                 st.session_state.reconcile_summary = None
             else:
-                # Filter 'ITEM NOT IN MASTER' Dihapus agar SKU yang tidak ada di NP tetap di-input oleh bot
+                # SKU yang 'ITEM NOT IN MASTER' (tidak ada di NP) sekarang dibiarkan tetap masuk ke antrean
                 valid_mismatches = mismatches.copy()
                 
-                st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches[mismatches['Status'] == 'Mismatch']), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
+                st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
                 
-                # Membawa kolom Status agar bisa dibaca oleh mesin bot nanti
                 transfer_df = (valid_mismatches[['SKU', 'Selisih', 'Status']].rename(columns={'SKU': 'sku', 'Selisih': 'qty', 'Status': 'Status'}))
                 st.session_state.reconcile_result = transfer_df
                 st.rerun()
@@ -494,10 +489,8 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     
     df_view = st.session_state.reconcile_result.copy()
     
-    # Format Tampilan Tabel Antrean
     df_view['Status'] = df_view['Status'].apply(lambda x: 'Pending' if x == 'Mismatch' else x)
     if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = 'Ready to Process'
-    df_view.loc[df_view['Status'] == 'Skip (Dist 0)', 'Keterangan'] = 'Excluded by Rule'
     
     st.markdown("<div class='box-queue'>Adjustment SKU List</div>", unsafe_allow_html=True)
     table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
@@ -558,10 +551,10 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
                     ui_log("SYS", "Ready. Opening data stream for payload injection...")
 
-                    # --- BAGIAN INPUT SKU DIHAPUS UNTUK DIBANGUN ULANG NANTI (POINT 2 & 3) ---
+                    # --- BAGIAN INPUT SKU DIHAPUS UNTUK DIBANGUN ULANG NANTI ---
                     ui_log("SYS", "Mode Eksekusi Otomatis (Input SKU) dinonaktifkan sementara. Bot stand-by.")
                     time.sleep(3)
-                    # -------------------------------------------------------------------------
+                    # -------------------------------------------------------------
                         
                     ui_log("SYS", "Closing browser and releasing memory...")
                     browser.close()
