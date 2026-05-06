@@ -499,7 +499,7 @@ if np_source_ready and file2:
             mismatches = merged[merged['Status'] == 'Mismatch'].sort_values('Selisih')
             
             if len(mismatches) == 0: 
-                st.success("Analysis complete: all items matched!")
+                st.success("Analysis complete: all sku matched!")
                 st.session_state.reconcile_summary = None
             else:
                 valid_mismatches = mismatches.copy()
