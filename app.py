@@ -209,7 +209,6 @@ with col1:
         st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
         
-        # Tarik data dari vault Supabase
         list_dist = []
         if supabase:
             try:
@@ -235,7 +234,6 @@ with col2:
     with st.container(border=True):
         st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         
-        # Menggunakan st.fragment agar upload file tidak menghentikan proses Playwright yang sedang jalan
         if hasattr(st, "fragment"):
             @st.fragment
             def render_upload_dist():
@@ -252,7 +250,6 @@ with col2:
             st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
             st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
         
-        # Tarik nilai file dari session_state yang diisi oleh fragment di atas
         file2 = st.session_state.get("file2_uploader")
 
 # ── Info Extracted Data ───────────────────────────────────────────────────
@@ -271,7 +268,6 @@ ext_log_placeholder = st.empty()
 
 # ── Extraction Logic ──────────────────────────────────────────────────────
 if extract_btn:
-    # Tarik ID dan Pass dari Supabase
     user_id_np, pass_np = "", ""
     if supabase:
         try:
@@ -455,23 +451,36 @@ if np_source_ready and file2:
             d2 = df2[[sku_col2, qty_col2]].copy(); d2 = d2.dropna(subset=[sku_col2]); d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
             d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
             d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0); d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
-            merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer'); merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
-            merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER'); merged['Selisih'] = merged['Distributor'] - merged['Newspage']
             
+            merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
+            merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
+            merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
+            
+            # Perhitungan Selisih: Akan otomatis mengikuti Dist jika NP = 0 atau SKU tidak ada (karena NP diubah jadi 0)
+            merged['Selisih'] = merged['Distributor'] - merged['Newspage']
+            
+            # --- ATURAN POINT 1 ---
             merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
             
-            # --- ATURAN BARU DARI VERSI MASTER: JIKA NP > 0 & DIST 0, MAKA SKIP ---
+            # Filter Pintar: Jika stok NP ada isinya, tapi stok Dist 0 -> Skip (Jangan Dikerjakan)
             merged.loc[(merged['Newspage'] > 0) & (merged['Distributor'] == 0), 'Status'] = 'Skip (Dist 0)'
             
-            mismatches = merged[merged['Status'] == 'Mismatch'].sort_values('Selisih')
+            # Ambil yang masuk antrean (Mismatch dan Skip)
+            mismatches = merged[merged['Status'].isin(['Mismatch', 'Skip (Dist 0)'])].sort_values('Selisih')
             
             if len(mismatches) == 0: 
                 st.success("Analysis complete: all items matched!")
                 st.session_state.reconcile_summary = None
             else:
-                valid_mismatches = mismatches[mismatches['Description'] != 'ITEM NOT IN MASTER'].copy()
-                st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
-                transfer_df = (valid_mismatches[['SKU', 'Selisih']].rename(columns={'SKU': 'sku', 'Selisih': 'qty'})); st.session_state.reconcile_result = transfer_df; st.rerun()
+                # Filter 'ITEM NOT IN MASTER' Dihapus agar SKU yang tidak ada di NP tetap di-input oleh bot
+                valid_mismatches = mismatches.copy()
+                
+                st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches[mismatches['Status'] == 'Mismatch']), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
+                
+                # Membawa kolom Status agar bisa dibaca oleh mesin bot nanti
+                transfer_df = (valid_mismatches[['SKU', 'Selisih', 'Status']].rename(columns={'SKU': 'sku', 'Selisih': 'qty', 'Status': 'Status'}))
+                st.session_state.reconcile_result = transfer_df
+                st.rerun()
 
 # ── Review Table & Engine Execution ───────────────────────────────────────────
 if st.session_state.reconcile_summary is not None and st.session_state.reconcile_result is not None:
@@ -482,9 +491,14 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     with m2: st.markdown(f'''<div class="metric-box-mismatch"><div class="metric-label">Stock difference</div><div class="metric-value">{mismatch_count}</div></div>''', unsafe_allow_html=True)
     st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True, column_config={"SKU": st.column_config.TextColumn("SKU", width="medium"), "Description": st.column_config.TextColumn("Description", width="large")})
     st.markdown("<br>", unsafe_allow_html=True)
+    
     df_view = st.session_state.reconcile_result.copy()
-    if 'Status' not in df_view.columns: df_view['Status'] = 'Pending'
+    
+    # Format Tampilan Tabel Antrean
+    df_view['Status'] = df_view['Status'].apply(lambda x: 'Pending' if x == 'Mismatch' else x)
     if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = 'Ready to Process'
+    df_view.loc[df_view['Status'] == 'Skip (Dist 0)', 'Keterangan'] = 'Excluded by Rule'
+    
     st.markdown("<div class='box-queue'>Adjustment SKU List</div>", unsafe_allow_html=True)
     table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
     
@@ -495,7 +509,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
         btn_placeholder.empty()
         
-        # Tarik Kredensial dari Supabase untuk bot Playwright
         bot_user, bot_pass = "", ""
         if supabase:
             try:
@@ -545,12 +558,10 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
                     ui_log("SYS", "Ready. Opening data stream for payload injection...")
 
-                    # --- BAGIAN INPUT SKU DIHAPUS UNTUK DIBANGUN ULANG NANTI ---
-                    ui_log("SYS", "Mode Eksekusi Otomatis (Input SKU) dinonaktifkan sementara.")
-                    
-                    # Kita kasih jeda bentar biar gak langsung ketutup
+                    # --- BAGIAN INPUT SKU DIHAPUS UNTUK DIBANGUN ULANG NANTI (POINT 2 & 3) ---
+                    ui_log("SYS", "Mode Eksekusi Otomatis (Input SKU) dinonaktifkan sementara. Bot stand-by.")
                     time.sleep(3)
-                    # -------------------------------------------------------------
+                    # -------------------------------------------------------------------------
                         
                     ui_log("SYS", "Closing browser and releasing memory...")
                     browser.close()
