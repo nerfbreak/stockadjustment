@@ -1,756 +1,388 @@
 import streamlit as st
 import pandas as pd
 import zipfile
-import csv
 import time
 import os
 import subprocess
 import asyncio
 import traceback
 import sys
+import json
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from supabase import create_client, Client
 
-# --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Stock Adjustment Newspage", page_icon="icon.png", layout="wide")
-# os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+# --- 1. PAGE CONFIG ---
+st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
 
-# ==========================================
-# --- 1.5. SISTEM KEMANAN LOGIN (GATEKEEPER) ---
-# ==========================================
+# --- 1.5. LOGIN GATEKEEPER ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    # Bikin tampilan form login agak ke tengah biar rapi
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        st.markdown("<h2 style='text-align: center; color: #FF1B6B;'>Login</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
-        
+        st.markdown("<h2 style='text-align:center;color:#3b82f6;'>Login</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center;color:#64748b;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
+
         with st.form("login_form"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
             submit = st.form_submit_button("Login", use_container_width=True)
-            
+
             if submit:
-                # Validasi ngecek ke Streamlit Secrets
                 if username == st.secrets["admin_user"] and password == st.secrets["admin_pass"]:
                     st.session_state.logged_in = True
-                    st.rerun()  # Refresh halaman biar masuk ke aplikasi
+                    st.rerun()
                 else:
                     st.error("Access Denied! Incorrect username or password.")
-                    
-    # HENTIKAN EKSEKUSI DI SINI JIKA BELUM LOGIN
-    st.stop() 
-# ==========================================
+
+    st.stop()
 
 # --- 2. CONSTANTS ---
-URL_LOGIN        = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
-CREDENTIALS_FILE = "users_2.csv"
-REASON_CODE      = "SA2"
-WAREHOUSE        = "GOOD_WHS"
-TIMEOUT_MS       = 30_000
+URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
+REASON_CODE           = "SA2"
+WAREHOUSE             = "GOOD_WHS"
+TIMEOUT_MS            = 30_000
+TABLE_UPDATE_INTERVAL = 5
+
+# --- 2.5 INIT SUPABASE ---
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets.get("SUPABASE_URL", "")
+    key = st.secrets.get("SUPABASE_KEY", "")
+    if url and key:
+        return create_client(url, key)
+    return None
+
+supabase = init_supabase()
 
 # --- 3. HELPER FUNCTIONS ---
 def load_data(file):
-    if file is None: return None
+    if file is None:
+        return None
     df = None
     filename = file.name.lower()
     try:
         if filename.endswith('.csv'):
-            df = pd.read_csv(file, sep='\t', dtype=str) 
-            if df.shape[1] <= 1: 
-                 file.seek(0); df = pd.read_csv(file, sep=',', dtype=str)
+            df = pd.read_csv(file, sep='\t', dtype=str)
+            if df.shape[1] <= 1:
+                file.seek(0)
+                df = pd.read_csv(file, sep=',', dtype=str)
         elif filename.endswith(('.xls', '.xlsx')):
             df = pd.read_excel(file, dtype=str)
         elif filename.endswith('.zip'):
             with zipfile.ZipFile(file) as z:
                 target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith(".csv")), None)
-                if not target: target = next((n for n in z.namelist() if n.lower().endswith(".csv")), None)
+                if not target:
+                    target = next((n for n in z.namelist() if n.lower().endswith(".csv")), None)
                 if target:
-                    with z.open(target) as f: df = pd.read_csv(f, sep='\t', dtype=str)
+                    with z.open(target) as f:
+                        df = pd.read_csv(f, sep='\t', dtype=str)
     except Exception as e:
-        st.error(f"Error reading file: {e}"); return None
+        st.error(f"Error reading file: {e}")
+        return None
     return df
 
-def load_accounts():
-    accounts = []
-    if not os.path.exists(CREDENTIALS_FILE): return accounts
-    for enc in ['utf-8-sig', 'cp1252', 'iso-8859-1']:
-        try:
-            with open(CREDENTIALS_FILE, mode="r", encoding=enc) as f:
-                reader = csv.DictReader(f)
-                reader.fieldnames = [name.strip() for name in reader.fieldnames if name]
-                for row in reader:
-                    cleaned_row = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
-                    
-                    # ---> YANG DIUBAH DI SINI: Nggak perlu ngecek kolom password lagi
-                    if "user_id" in cleaned_row and "Distributor" in cleaned_row:
-                        accounts.append(cleaned_row)
-                        
-                return accounts
-        except (UnicodeDecodeError, TypeError):
-            continue
-    return accounts
 
 @st.cache_resource
 def ensure_playwright():
-    try: 
-        # Panggil installer pakai sys.executable biar sistem nggak nyasar nyari path-nya
-        subprocess.run(
-            [sys.executable, "-m", "playwright", "install", "chromium"], 
-            check=True
-        )
-    except Exception as e: 
-        st.error(f"Gagal install engine browser: {e}")
+    try:
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+    except Exception as e:
+        st.error(f"Failed to install browser engine: {e}")
 
-# --- 4. STATE MANAGEMENT & CUSTOM CSS ANIMATION ---
-if 'app_page' not in st.session_state: st.session_state.app_page = "Reconcile"
-if 'reconcile_result' not in st.session_state: st.session_state.reconcile_result = None
-if 'reconcile_summary' not in st.session_state: st.session_state.reconcile_summary = None
 
-# CSS SUPER LOG: Update dengan warna teks #f0f6fc
+def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
+    return (
+        f"<div style='background-color:{bg_color};color:{text_color};"
+        f"padding:12px 16px;border-radius:8px;font-weight:600;"
+        f"font-size:0.92rem;margin:8px 0;text-align:center;"
+        f"box-shadow:0 2px 8px rgba(0,0,0,0.3);display:block;width:100%;'>{text}</div>"
+    )
+
+
+def render_terminal(placeholder, logs_history: list):
+    display_logs = "<br>".join(logs_history[-100:])
+    html_content = f"""
+    <div class="terminal-box" id="ext_term_box">
+        {display_logs}
+        <br><span class="blink_me">&#9608;</span>
+    </div>
+    <script>
+        var t = window.parent.document.getElementById('ext_term_box') || document.getElementById('ext_term_box');
+        if (t) t.scrollTop = t.scrollHeight;
+    </script>
+    """
+    placeholder.markdown(html_content, unsafe_allow_html=True)
+
+
+# --- 4. STATE MANAGEMENT ---
+if 'reconcile_result' not in st.session_state:
+    st.session_state.reconcile_result = None
+if 'reconcile_summary' not in st.session_state:
+    st.session_state.reconcile_summary = None
+if 'np_df' not in st.session_state:
+    st.session_state.np_df = None
+
+# --- 5. CUSTOM CSS ---
 st.markdown("""
     <style>
-    .terminal-box {
-        background-color: transparent; 
-        color: #f0f6fc; /* Teks default terminal (kalau ada yang bocor dari class) */
-        font-family: 'Consolas', 'Courier New', monospace;
-        font-size: 0.85rem;
-        padding: 5px 0px; 
-        border: none; 
-        box-shadow: none; 
-        height: 350px;
-        overflow-y: auto;
-        line-height: 1.7;
-        -ms-overflow-style: none;  
-        scrollbar-width: none;  
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    /* Terminal Box Corporate */
+    .terminal-box { background-color: #0b1120; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; padding: 16px 20px; border: 1px solid #1e293b; border-radius: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); height: 320px; overflow-y: auto; line-height: 1.8; -ms-overflow-style: none; scrollbar-width: none; margin-top: 8px; margin-bottom: 32px; }
     .terminal-box::-webkit-scrollbar { display: none; }
-    .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #10b981; }
+    .terminal-label { font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+    .blink_me { animation: blinker 1s linear infinite; font-weight: bold; color: #3b82f6; }
     @keyframes blinker { 50% { opacity: 0; } }
     
-    /* Log Styling Details (Aligned Columns) */
-    .log-time { display: inline-block; width: 85px; color: #64748b; }
-    .log-ms { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #fb923c; font-size: 0.75rem;}
-    .log-tag { display: inline-block; width: 95px; font-weight: bold; }
+    /* Log Formatting */
+    .log-time   { display: inline-block; width: 85px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+    .log-ms     { display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #94a3b8; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
+    .log-tag    { display: inline-block; width: 95px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .log-msg    { color: #f8fafc; font-weight: 400; font-family: 'JetBrains Mono', monospace; }
+    .tag-sys     { color: #8b5cf6; } .tag-auth    { color: #eab308; } .tag-nav     { color: #3b82f6; } .tag-inject  { color: #06b6d4; } .tag-success { color: #10b981; } .tag-error   { color: #ef4444; } .tag-server  { color: #f43f5e; }
     
-    .tag-sys { color: #a855f7; }
-    .tag-auth { color: #eab308; }
-    .tag-nav { color: #3b82f6; }
-    .tag-inject { color: #06b6d4; }
-    .tag-success { color: #22c55e; }
-    .tag-error { color: #ef4444; }
-    .tag-server { color: #f43f5e; }
-    
-    /* Request Warna Teks Custom #f0f6fc */
-    .log-msg { color: #f0f6fc; font-weight: 500; }
-    
-    /* TOMBOL BYPASS (Secondary Button) NEON PINK */
-    button[kind="secondary"] {
-        background-color: #FF1B6B !important;
-        color: #ffffff !important;
-        border: none !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
-    }
-    button[kind="secondary"]:hover {
-        background-color: #d41459 !important;
-        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important;
-    }
-
-    /* TOMBOL PROCEED (Primary Button) NEON PINK */
-    button[kind="primary"] {
-        background-color: #FF1B6B !important;
-        color: #ffffff !important;
-        border: none !important;
-        font-weight: 700 !important;
-        letter-spacing: 1px !important;
-        text-transform: uppercase !important;
-        transition: all 0.3s ease !important;
-    }
-
-    button[kind="primary"]:hover {
-        background-color: #d41459 !important;
-        box-shadow: 0 0 20px rgba(255, 27, 107, 0.8) !important;
-        transform: translateY(-2px) !important;
-    }
-
-    button[kind="primary"]:active {
-        transform: translateY(0px) !important;
-    }
-
-    /* TYPEWRITER KHUSUS SUBTITLE (DENGAN JEDA 5 DETIK) */
-    .typewriter-sub {
-        font-family: 'JetBrainsMono', monospace;
-        font-size: 1rem;       
-        color: #8b949e;        
-        overflow: hidden;
-        border-right: 0.15em solid #FF1B6B; /* Ini kursornya */
-        white-space: nowrap;
-        margin: 0;
-        /* Pemanggilan 2 animasi sekaligus: ngetik & ngedip */
-        animation: typing-sub 10s infinite, blink-caret .75s step-end infinite;
-    }
-
-    /* 1. ANIMASI TEKS MAJU MUNDUR & JEDA */
-    @keyframes typing-sub {
-        /* 0% ke 30% (3 detik): Proses ngetik 29 karakter */
-        0%   { width: 0; animation-timing-function: steps(29, end); }
-        
-        /* 30% ke 80% (5 detik): Teks diem full 29 karakter */
-        30%  { width: 29ch; animation-timing-function: step-end; }
-        80%  { width: 29ch; animation-timing-function: steps(29, end); }
-        
-        /* 80% ke 100% (2 detik): Proses hapus karakter ke 0 */
-        100% { width: 0; }
-    }
-
-    /* 2. ANIMASI KURSOR KEDAP-KEDIP (INI YANG BIKIN NGEDIP BRE!) */
-    @keyframes blink-caret {
-        from, to { border-color: transparent; }
-        50% { border-color: #FF1B6B; }
-    }
-
-    /* 1. EFEK MUNCUL MULUS PAS HALAMAN DIBUKA */
-    @keyframes fadeSlideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Nerapin efek ke semua blok utama di Streamlit */
-    [data-testid="stVerticalBlock"] > div {
-        animation: fadeSlideUp 0.6s ease-out backwards;
-    }
-    
-    /* Bikin efek berurutan (cascade) biar munculnya gantian */
-    [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.1s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.2s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
-    [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
-
-    /* 3. LIVE STATUS RADAR */
-    .live-indicator {
-        display: inline-flex;
-        align-items: center;
-        color: #4ade80; /* Hijau matrix */
-        font-family: 'JetBrainsMono', monospace;
-        font-weight: 700;
+    /* Corporate Clean Boxes */
+    .box-np, .box-dist, .box-review, .box-queue {
+        background: linear-gradient(145deg, #1e293b, #0f172a);
+        color: #f8fafc;
+        padding: 12px 16px;
+        border-radius: 8px;
         font-size: 0.9rem;
+        font-weight: 600;
+        border: 1px solid #334155;
+        margin-bottom: 16px;
+        letter-spacing: 0.02em;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
-    .live-indicator::before {
-        content: '';
-        display: inline-block;
-        width: 10px; height: 10px;
-        background-color: #4ade80;
-        border-radius: 50%;
-        margin-right: 8px;
-        box-shadow: 0 0 10px #4ade80;
-        animation: pulse-radar 1.2s infinite alternate;
-    }
-    @keyframes pulse-radar {
-        from { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 5px #4ade80; }
-        to { transform: scale(1.3); opacity: 1; box-shadow: 0 0 15px #4ade80; }
-    }
+    .box-np { border-top: 3px solid #3b82f6; }
+    .box-dist { border-top: 3px solid #10b981; }
+    .box-review { border-top: 3px solid #06b6d4; }
+    .box-queue { border-top: 3px solid #8b5cf6; }
 
-    /* 2. NEON BREATHING DIVIDER */
-    hr {
-        border: none !important;
-        height: 2px !important;
-        background: linear-gradient(90deg, transparent, #FF1B6B, transparent) !important;
-        animation: pulse-divider 2s infinite alternate !important;
-        margin-top: 2rem !important;
-        margin-bottom: 2rem !important;
+    /* Metric Cards */
+    .metric-box-match, .metric-box-mismatch {
+        background-color: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
     }
+    .metric-box-match { border-left: 4px solid #10b981; }
+    .metric-box-mismatch { border-left: 4px solid #ef4444; }
+    .metric-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+    .metric-box-match .metric-value { color: #10b981; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 4px; line-height: 1; }
+    .metric-box-mismatch .metric-value { color: #ef4444; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 4px; line-height: 1; }
 
-    @keyframes pulse-divider {
-        0% { opacity: 0.3; filter: drop-shadow(0 0 2px #FF1B6B); }
-        100% { opacity: 1; filter: drop-shadow(0 0 10px #FF1B6B); }
-    }
-
-    /* 2. EFEK MONITOR TABUNG JADUL (SCANLINES) */
-    [data-testid="stAppViewContainer"] {
-        background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.15) 50%) !important;
-        background-size: 100% 4px !important;
-    }
-
-    /* 1. HACKER TEXT SELECTION */
-    ::selection {
-        background: #FF1B6B !important;
-        color: #000000 !important;
-        text-shadow: none !important;
-    }
-    ::-moz-selection { /* Buat yang pake Firefox */
-        background: #FF1B6B !important;
-        color: #000000 !important;
-        text-shadow: none !important;
-    }
-
-    /* 2. CYBERPUNK SCROLLBAR (BRUTE FORCE OVERRIDE) */
+    /* Button Styling */
+    button[kind="primary"] { background-color: #2563eb !important; color: #ffffff !important; border: 1px solid #1d4ed8 !important; font-weight: 600 !important; letter-spacing: 0.05em !important; transition: all 0.2s ease !important; border-radius: 6px !important; font-family: 'Inter', sans-serif !important; }
+    button[kind="primary"]:hover { background-color: #1e40af !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important; border-color: #1e40af !important; }
     
-    /* Buat Chrome, Edge, Safari, Brave */
-    *::-webkit-scrollbar {
-        width: 8px !important;
-        height: 8px !important; /* Buat scroll bawah (horizontal) kalau ada */
-        background-color: #0d1117 !important;
-    }
-    *::-webkit-scrollbar-track {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 10px !important;
-    }
-    *::-webkit-scrollbar-thumb {
-        background-color: #FF1B6B !important;
-        border-radius: 10px !important;
-        border: 2px solid #0d1117 !important; /* Kasih ilusi jarak biar elegan */
-    }
-    *::-webkit-scrollbar-thumb:hover {
-        background-color: #d41459 !important;
-    }
-
-    /* Buat Firefox */
-    * {
-        scrollbar-width: thin !important;
-        scrollbar-color: #FF1B6B #0d1117 !important;
-    }
-
-    /* 3. CYBERPUNK RUNNING STATUS (Pojok Kanan Atas) */
-    [data-testid="stStatusWidget"] {
-        background-color: #0d1117 !important; /* Warna gelap terminal */
-        border: 1px solid #FF1B6B !important;
-        box-shadow: 0 0 15px rgba(255, 27, 107, 0.6) !important; /* Glow neon pink */
-        border-radius: 4px !important;
-        padding: 2px 10px !important;
-        animation: status-pulse 1s infinite alternate !important;
-    }
-
-    /* Ubah warna teks dan icon loadingnya jadi pink */
-    [data-testid="stStatusWidget"] * {
-        color: #FF1B6B !important;
-        font-family: 'JetBrainsMono', monospace !important;
-        font-weight: bold !important;
-        letter-spacing: 1px !important;
-    }
-
-    @keyframes status-pulse {
-        from { box-shadow: 0 0 5px rgba(255, 27, 107, 0.4); }
-        to { box-shadow: 0 0 20px rgba(255, 27, 107, 0.8); }
-    }
+    /* Live Indicator (Warna Hijau) */
+    .typewriter-sub { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: #64748b; margin: 0; }
+    .live-indicator { display: inline-flex; align-items: center; color: #10b981; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.1em; background: rgba(16, 185, 129, 0.1); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .live-indicator::before { content: ''; display: inline-block; width: 6px; height: 6px; background-color: #10b981; border-radius: 50%; margin-right: 6px; animation: pulse-radar 2s infinite; }
+    @keyframes pulse-radar { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
     
-    /* BONUS: Kasih garis laser statis di paling atas layar biar tetep sangar */
-    header[data-testid="stHeader"] {
-        border-top: 2px solid #FF1B6B !important;
-        box-shadow: 0 -5px 20px #FF1B6B !important;
-    }
-
-    /* 2. TYPEWRITER + FLICKER SYNC */
-    .typewriter {
-        font-family: 'JetBrainsMono', monospace;
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #f0f6fc;
-        overflow: hidden;
-        border-right: 0.15em solid #FF1B6B;
-        white-space: nowrap;
-        margin: 0; 
-        padding-right: 5px;
-        width: max-content; 
-        
-        /* Gabungin 3 animasi: ngetik, kursor ngedip, dan lampu rusak (flicker) */
-        animation: 
-            typing 3s steps(25, end) infinite alternate, 
-            blink-caret .75s step-end infinite,
-            flicker-force 5s linear infinite !important;
-    }
-
-    /* Keyframe Flicker yang lebih agresif biar kerasa rusaknya */
-    @keyframes flicker-force {
-        0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; text-shadow: 0 0 10px #FF1B6B; }
-        20%, 24%, 55% { opacity: 0.2; text-shadow: none; }
-    }
-
-    /* 1. DATA PULSE BRUTE FORCE */
-    [data-testid="stMetricValue"], 
-    [data-testid="stMetricValue"] > div {
-        color: #FF1B6B !important;
-        text-shadow: 0 0 5px #FF1B6B, 0 0 10px #FF1B6B !important;
-        animation: pulse-metric-force 2s infinite alternate !important;
-        display: block !important;
-    }
-
-    @keyframes pulse-metric-force {
-        0% { opacity: 0.7; filter: drop-shadow(0 0 2px #FF1B6B); }
-        100% { opacity: 1; filter: drop-shadow(0 0 15px #FF1B6B); }
-    }
+    /* Clean Divider */
+    hr { border: none !important; height: 1px !important; background-color: #334155 !important; margin-top: 1.5rem !important; margin-bottom: 1.5rem !important; }
+    div[data-testid="stContainer"] { border: 1px solid #334155; border-radius: 10px; padding: 20px; background-color: #0f172a; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
     </style>
 """, unsafe_allow_html=True)
 
-# ─── 5. HALAMAN STEP 1: RECONCILE ───────────────────────────────────────────
-if st.session_state.app_page == "Reconcile":
+# ─── 6. PAGE: MAIN RECONCILE & ENGINE ─────────────────────────────────────────
+
+hdr_col1, hdr_col2 = st.columns([5, 1])
+with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare Stock</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
-    st.markdown("---")
+st.markdown("---")
 
-    col1, col2 = st.columns(2)
-    with col1: file1 = st.file_uploader("Upload File Stock Newspage", type=['csv', 'xlsx', 'zip'])
-    with col2: file2 = st.file_uploader("Upload File Stock Distributor", type=['csv', 'xlsx'])
+col1, col2 = st.columns(2)
 
-    if file1 and file2:
-        st.divider()
-        df1 = load_data(file1)
-        df2 = load_data(file2)
+# ── Kiri: Newspage Stock Data ─────────────────────────────────────────────
+with col1:
+    with st.container(border=True):
+        st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
+        np_col1, np_col2 = st.columns(2)
+        
+        # Tarik data dari vault Supabase
+        list_dist = []
+        if supabase:
+            try:
+                res = supabase.table("distributor_vault").select("nama_distributor").execute()
+                list_dist = [d['nama_distributor'] for d in res.data]
+            except: pass
+        if not list_dist: list_dist = ["Belum ada data di Brankas"]
 
-        if df1 is not None and df2 is not None:
-            c1, c2 = st.columns(2)
-            with c1:
-                st.subheader("Newspage Setup")
-                idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
-                
-                if 'Product Description' in df1.columns: idx_desc1 = df1.columns.get_loc('Product Description')
-                elif 'Product Name' in df1.columns: idx_desc1 = df1.columns.get_loc('Product Name')
-                else: idx_desc1 = 1 if len(df1.columns) > 1 else 0
-                    
-                idx_qty1 = df1.columns.get_loc('Stock Available') if 'Stock Available' in df1.columns else (2 if len(df1.columns) > 2 else 0)
-                
-                sku_col1 = st.selectbox("Kolom SKU (NP)", df1.columns, index=idx_sku1)
-                desc_col1 = st.selectbox("Kolom Deskripsi (NP)", df1.columns, index=idx_desc1)
-                qty_col1 = st.selectbox("Kolom Qty (NP)", df1.columns, index=idx_qty1)
-            
-            with c2:
-                st.subheader("Distributor Setup")
-                idx_sku2 = 20 if len(df2.columns) > 20 else 0
-                qty2_col_match = next((col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"), None)
-                if qty2_col_match: idx_qty2 = df2.columns.get_loc(qty2_col_match)
-                else: idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
-                
-                sku_col2 = st.selectbox("Kolom SKU (Dist)", df2.columns, index=idx_sku2)
-                qty_col2 = st.selectbox("Kolom Qty (Dist)", df2.columns, index=idx_qty2)
+        with np_col1:
+            selected_distributor = st.selectbox("Nama Distributor", list_dist, key="distributor_select")
+        with np_col2:
+            st.text_input("NP Password", value="••••••••", type="password", disabled=True, help="Password ditarik otomatis dari brankas", key="np_pass_dummy")
+        
+        extract_btn = st.button(
+            "Extract Inventory Master",
+            type="primary",
+            use_container_width=True
+        )
+        file1 = None
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Compare Stock", type="primary", use_container_width=True):
-                d1 = df1[[sku_col1, desc_col1, qty_col1]].copy()
-                d1 = d1.dropna(subset=[sku_col1])
-                d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
-                d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
-                d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
-                
-                d1_agg = d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Deskripsi', qty_col1: 'Newspage'})
+# ── Kanan: Distributor Stock Data ─────────────────────────────────────────
+with col2:
+    with st.container(border=True):
+        st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
+        
+        # Menggunakan st.fragment agar upload file tidak menghentikan proses Playwright yang sedang jalan
+        if hasattr(st, "fragment"):
+            @st.fragment
+            def render_upload_dist():
+                st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+                st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
+            render_upload_dist()
+        elif hasattr(st, "experimental_fragment"):
+            @st.experimental_fragment
+            def render_upload_dist():
+                st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+                st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
+            render_upload_dist()
+        else:
+            st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+            st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
+        
+        # Tarik nilai file dari session_state yang diisi oleh fragment di atas
+        file2 = st.session_state.get("file2_uploader")
 
-                d2 = df2[[sku_col2, qty_col2]].copy()
-                d2 = d2.dropna(subset=[sku_col2])
-                d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
-                d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
-                d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
-                d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0)
-                
-                d2_agg = d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'})
-
-                merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
-                merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
-                merged['Deskripsi'] = merged['Deskripsi'].fillna('ITEM NOT IN MASTER')
-                merged['Selisih'] = merged['Distributor'] - merged['Newspage']
-                merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
-
-                mismatches = merged[merged['Selisih'] != 0].sort_values('Selisih')
-                
-                if len(mismatches) == 0:
-                    st.success("Analysis Complete: Semua data Match!")
-                else:
-                    valid_mismatches = mismatches[mismatches['Deskripsi'] != 'ITEM NOT IN MASTER'].copy()
-                    st.session_state.reconcile_summary = {
-                        'total_match': len(merged[merged['Selisih'] == 0]),
-                        'total_mismatch': len(mismatches),
-                        'df_view': mismatches[['SKU', 'Deskripsi', 'Newspage', 'Distributor', 'Selisih', 'Status']]
-                    }
-                    
-                    valid_mismatches['Selisih_Clean'] = valid_mismatches['Selisih'].astype(int)
-                    transfer_df = valid_mismatches[['SKU', 'Selisih_Clean']].rename(columns={'SKU': 'sku', 'Selisih_Clean': 'qty'})
-                    st.session_state.reconcile_result = transfer_df
-                    st.session_state.app_page = "Bot"
-                    st.rerun()
-
-    # st.markdown("---")
-    if st.button("Stock Adjustment"):
-        st.session_state.reconcile_result = None
-        st.session_state.reconcile_summary = None
-        st.session_state.app_page = "Bot"
+# ── Info Extracted Data ───────────────────────────────────────────────────
+if st.session_state.np_df is not None:
+    st.markdown(make_solid_box(
+        f"Extracted — {len(st.session_state.np_df)} items loaded from server",
+        "#082f49", "#38bdf8"
+    ), unsafe_allow_html=True)
+    if st.button("Clear extracted data", use_container_width=True):
+        st.session_state.np_df = None
         st.rerun()
 
-# ─── 6. HALAMAN STEP 2: STOCK ADJUSTMENT BOT ────────────────────────────────
-elif st.session_state.app_page == "Bot":
-    hdr_col1, hdr_col2 = st.columns([5, 1])
-    with hdr_col1:
-        st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-        st.markdown("<h1>Stock Adjustment</h1>", unsafe_allow_html=True)
-        st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
-    with hdr_col2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Compare Stock", use_container_width=True):
-            st.session_state.app_page = "Reconcile"
-            st.rerun()
-            
-    st.markdown("---")
+# ── Extraction Terminal ───────────────────────────────────────────────────
+ext_label_placeholder = st.empty()
+ext_log_placeholder = st.empty()
 
-    if st.session_state.reconcile_summary is not None:
-        st.subheader("Review Data Stock")
-        m1, m2 = st.columns(2)
-        m1.metric("Match", st.session_state.reconcile_summary['total_match'])
-        m2.metric("Stock Difference", st.session_state.reconcile_summary['total_mismatch'], delta_color="inverse")
-        st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True)
-        st.markdown("---")
-
-    st.subheader("Configuration")
-    accounts = load_accounts()
-    
-    if not accounts:
-        st.error(f"Data akun kosong. Pastikan file '{CREDENTIALS_FILE}' ada di sistem.")
-        st.stop()
-
-    cfg_col1, cfg_col2 = st.columns(2)
-
-    with cfg_col1:
-        selected_acc_str = st.selectbox(
-            "Select Distributor / User ID",
-            options=[f"{acc['Distributor']} ({acc['user_id']})" for acc in accounts],
-            index=None, placeholder="-- Select Account --"
-        )
-        
-        selected_account = None
-        user_password = "" # Bikin variabel nampung password
-
-        if selected_acc_str:
-            selected_account = next(acc for acc in accounts if f"{acc['Distributor']} ({acc['user_id']})" == selected_acc_str)
-            
-            # --- TAMBAHAN BARU: INPUT PASSWORD MUNCUL SETELAH AKUN DIPILIH ---
-            user_password = st.text_input(
-                f"Enter Password for {selected_account['user_id']}:", 
-                type="password", 
-                placeholder="Password Accenture..."
-            )
-            
-            # Badge Account Active muncul kalau password udah diisi (minimal 3 karakter)
-            if len(user_password) > 3:
-                st.markdown(f"<div style='background-color: #143521; color: #4ade80; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Password Set : {selected_account['Distributor']} (Validation Password on Run)</div>", unsafe_allow_html=True)
-            else:
-                 st.markdown(f"<div style='background-color: #fbbf24; color: #713f12; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; margin-top: 4px;'>Waiting for Password to be entered...</div>", unsafe_allow_html=True)
-
-    with cfg_col2:
-        df_to_process = None
-        if st.session_state.reconcile_result is not None:
-            st.text_input("Data Source", value="Data is automatically loaded from Compare Stock", disabled=True)
-            df_to_process = st.session_state.reconcile_result
-            st.markdown(f"<div style='background-color: #082f49; color: #38bdf8; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Total Item: {len(df_to_process)} Product is ready to be processed</div>", unsafe_allow_html=True)
-        else:
-            uploaded_file = st.file_uploader("Data Source (Upload CSV/Excel)", type=["csv", "xlsx", "xls"])
-            if uploaded_file is not None:
-                try: 
-                    # Baca format sesuai ekstensi file
-                    filename = uploaded_file.name.lower()
-                    if filename.endswith('.csv'):
-                        df_to_process = pd.read_csv(uploaded_file, dtype=str)
-                    else:
-                        df_to_process = pd.read_excel(uploaded_file, dtype=str)
-                    
-                    # Auto-fix: paksa semua nama kolom jadi huruf kecil & buang spasi
-                    df_to_process.columns = [str(c).strip().lower() for c in df_to_process.columns]
-                    
-                    # Validasi wajib ada kolom sku & qty
-                    if 'sku' in df_to_process.columns and 'qty' in df_to_process.columns:
-                        st.markdown(f"<div style='background-color: #082f49; color: #38bdf8; padding: 8px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; margin-top: 4px;'>Total Item: {len(df_to_process)} Product is ready to be processed</div>", unsafe_allow_html=True)
-                    else:
-                        st.error("Format salah! Header kolom harus bernama 'sku' dan 'qty'.")
-                        df_to_process = None
-                        
-                except Exception as e: 
-                    st.error(f"Gagal membaca file: {e}")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    # Tambahin syarat user_password nggak boleh kosong
-    is_ready = (selected_account is not None) and (len(user_password) > 3) and (df_to_process is not None)
-    run_button = st.button("PROCEED", use_container_width=True, type="primary", disabled=not is_ready)
-
-    # st.markdown("---")
-    st.subheader("Product Table")
-
-    if not is_ready:
-        st.warning("Select an account and make sure the data is available before running the bot.")
-        st.stop()
-
-    df_view = df_to_process.copy()
-    if 'Status' not in df_view.columns: df_view['Status'] = 'Pending'
-    if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = '-'
-
-    table_placeholder = st.dataframe(df_view, use_container_width=True)
-    
-    st.markdown("Log:")
-    log_placeholder = st.empty()
-
-    if run_button:
-        with st.spinner("Initializing Chromium engine..."): 
-            ensure_playwright()
-            
-        logs_history = []
-        last_log_time = [time.time()]
-        
-        def ui_log(module, msg):
-            now = time.time()
-            diff_ms = int((now - last_log_time[0]) * 1000)
-            last_log_time[0] = now
-            
-            timestamp = time.strftime('%H:%M:%S')
-            tag_class = f"tag-{module.lower()}"
-            
-            new_log = f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>"
-            
-            logs_history.append(new_log)
-            display_logs = "<br>".join(logs_history[-100:])
-            
-            html_content = f"""
-            <div class="terminal-box" id="term_box">
-                {display_logs}
-                <br><span class="blink_me">█</span>
-            </div>
-            <script>
-                var termBox = window.parent.document.getElementById('term_box');
-                if (!termBox) termBox = document.getElementById('term_box');
-                if (termBox) {{
-                    termBox.scrollTop = termBox.scrollHeight;
-                }}
-            </script>
-            """
-            log_placeholder.markdown(html_content, unsafe_allow_html=True)
-
-        global_start_time = time.time()
-        success_count, failed_count = 0, 0
-        user_id = selected_account["user_id"]
-        password = user_password  # Tarik password dari input teks, bukan dari file CSV lagi!
-
-        ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
+# ── Extraction Logic ──────────────────────────────────────────────────────
+if extract_btn:
+    # Tarik ID dan Pass dari Supabase
+    user_id_np, pass_np = "", ""
+    if supabase:
         try:
-            if sys.platform == "win32": 
-                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-            asyncio.set_event_loop(asyncio.new_event_loop())
+            res = supabase.table("distributor_vault").select("np_user_id, np_password").eq("nama_distributor", selected_distributor).execute()
+            if res.data:
+                user_id_np = res.data[0]['np_user_id']
+                pass_np = res.data[0]['np_password']
+        except: pass
 
-            with sync_playwright() as p:
-                ui_log("SYS", "Spawning browser context with isolated session...")
-                browser = p.chromium.launch(headless=True)
-                context = browser.new_context(no_viewport=True)
-                page = context.new_page()
-                
-                # --- Login ---
-                ui_log("AUTH", f"Resolving DNS and establishing connection to {URL_LOGIN}...")
-                page.goto(URL_LOGIN, wait_until="domcontentloaded")
-                
-                ui_log("AUTH", "DOM State: interactive. Parsing login nodes...")
-                page.locator("id=txtUserid").fill(user_id)
-                ui_log("AUTH", f"Injected credential payload for user ID: {user_id}")
-                page.locator("id=txtPasswd").fill(password)
-                page.locator("id=btnLogin").click(force=True)
-                
-                try:
-                    ui_log("SYS", "Awaiting potential active-session interceptor...")
-                    btn = page.locator("id=SYS_ASCX_btnContinue")
-                    btn.wait_for(state="visible", timeout=5_000)
-                    ui_log("AUTH", "Interceptor triggered. Bypassing active session warning...")
-                    btn.click(force=True)
-                except: 
-                    ui_log("SYS", "No interceptor detected. Clean session acquired.")
-                    
-                page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
-                ui_log("AUTH", "Credentials verified. Password match confirmed!")
-                ui_log("SUCCESS", "Handshake verified. Session established.")
+    if not user_id_np or not pass_np:
+        st.error("Gagal! Kredensial untuk distributor ini tidak ditemukan di Supabase.")
+        st.stop()
 
-                # --- Navigasi ---
-                ui_log("NAV", "Dispatching click event to [Inventory -> Stock Adjustment] module...")
-                page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
-                time.sleep(5)
-                
-                ui_log("NAV", "Requesting new document interface [Add Value]...")
-                add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
-                add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
-                add_btn.click(force=True)
-                time.sleep(2)
-                
-                ui_log("NAV", f"Targeting localized routing: {WAREHOUSE} node...")
-                page.get_by_role("link", name=WAREHOUSE, exact=True).wait_for(state="visible", timeout=TIMEOUT_MS)
-                page.get_by_role("link", name=WAREHOUSE, exact=True).click(force=True)
-                page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
-                
-                ui_log("SYS", f"Applying internal adjustment protocol: Code [{REASON_CODE}]")
-                dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
-                if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
-                ui_log("SYS", "DOM fully rendered. Opening data stream for payload injection...")
+    ext_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True)
+    ext_logs_history  = []
+    ext_last_log_time = [time.time()]
 
-                # --- Looping Input ---
-                progress_bar = st.progress(0)
-                total_rows = len(df_view)
-                
-                for i, (idx, row) in enumerate(df_view.iterrows()):
-                    sku = str(row['sku']).strip()
-                    try: qty = str(int(float(row['qty'])))
-                    except: qty = str(row['qty']).strip()
-                        
-                    ui_log("INJECT", f"Fetching payload chunk {i+1}/{total_rows} -> Targeting Node: SKU [{sku}]")
-                    try:
-                        page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").fill(sku)
-                        page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").press("Tab")
-                        time.sleep(1) 
-                        
-                        page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
-                        ui_log("INJECT", f"Node resolved. Assigning Value: {qty}")
-                        page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value").fill(qty)
-                        
-                        page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
-                        ui_log("SYS", "Flushing buffer and awaiting system reset...")
-                        page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
-                        
-                        df_view.at[idx, 'Status'] = 'Success'
-                        df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
-                        success_count += 1
-                        ui_log("SUCCESS", "Transaction committed successfully to local cache.")
-                    except Exception:
-                        df_view.at[idx, 'Status'] = 'Failed'
-                        df_view.at[idx, 'Keterangan'] = 'Node Timeout'
-                        failed_count += 1
-                        ui_log("ERROR", f"CRITICAL: Timeout querying node SKU [{sku}]. Segment bypassed.")
-                        
-                    progress_bar.progress((i + 1) / total_rows)
-                    table_placeholder.dataframe(df_view, use_container_width=True)
+    def ext_ui_log(module, msg):
+        now      = time.time()
+        diff_ms  = int((now - ext_last_log_time[0]) * 1000)
+        ext_last_log_time[0] = now
+        timestamp = time.strftime('%H:%M:%S')
+        tag_class = f"tag-{module.lower()}"
+        new_log = (f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>")
+        ext_logs_history.append(new_log)
+        render_terminal(ext_log_placeholder, ext_logs_history)
 
-                ui_log("SERVER", "Data stream closed. Requesting master server validation...")
-                page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
-                try:
-                    yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
-                    yes_btn.wait_for(state="visible", timeout=5_000)
-                    ui_log("SERVER", "Master server requested confirmation logic. Bypassing...")
-                    yes_btn.click()
-                    ui_log("SERVER", "Final validation passed. Document physically written to database.")
-                except: 
-                    ui_log("SERVER", "Automatic validation passed. Document physically written to database.")
-                
-                ui_log("SYS", "Shutting down Chromium instances and clearing memory allocation...")
-                browser.close()
-                elapsed = int(time.time() - global_start_time)
-                ui_log("SUCCESS", f"EXECUTION TERMINATED NORMALLY. Total runtime: {elapsed//60}m {elapsed%60}s")
-                st.success(f"Success: {success_count} - Failed: {failed_count} - Elapsed Time: {elapsed//60}m {elapsed%60}s")
-                if success_count > 0:
-                    # Efek notif melayang (Toast)
-                    st.toast('Connection Terminated')
-                    time.sleep(0.5)
-                    st.toast('Data Injected Successfully')
-                    time.sleep(0.5)
-                    st.toast('System Override Complete!')
-                    st.session_state.reconcile_result = None
-
-        except PlaywrightTimeoutError as e:
-            # Error khusus kalau nunggu loading kelamaan (biasanya karena password salah)
-            st.error("Login Gagal: Password salah atau server target sedang tidak merespon (Timeout 30s).")
-            ui_log("ERROR", "ACCESS DENIED: Handshake timeout. Invalid credentials or node unreachable.")
-            
-        except Exception as e:
-            error_detail = traceback.format_exc()
-            st.error("System halted due to an unexpected error.")
-            
-            # Bersihin pesan error bawaan Playwright biar nggak kepanjangan
-            clean_error = str(e).split('===')[0].strip()
-            ui_log("ERROR", f"SYSTEM FAILURE: {clean_error}")
+    ext_ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
+    ensure_playwright()
+    try:
+        if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        with sync_playwright() as p:
+            ext_ui_log("SYS", "Spawning browser context with isolated session...")
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(no_viewport=True)
+            page    = context.new_page()
+            ext_ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
+            page.goto(URL_LOGIN, wait_until="domcontentloaded")
+            ext_ui_log("AUTH", f"DOM ready. Injecting credentials for [{selected_distributor}]...")
+            page.locator("id=txtUserid").fill(user_id_np)
+            page.locator("id=txtPasswd").fill(pass_np)
+            page.locator("id=btnLogin").click(force=True)
+            try:
+                btn = page.locator("id=SYS_ASCX_btnContinue")
+                btn.wait_for(state="visible", timeout=5_000)
+                ext_ui_log("AUTH", "Active session interceptor detected. Bypassing...")
+                btn.click(force=True)
+            except Exception: ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
+            page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
+            ext_ui_log("AUTH", "Login successful. Session established.")
+            ext_ui_log("SUCCESS", "Handshake verified.")
+            ext_ui_log("NAV", "Navigating to System > Import/Export Job module...")
+            time.sleep(5) 
+            menu_job = page.locator("id=pag_Sys_Root_tab_Detail_itm_Job")
+            menu_job.wait_for(state="attached", timeout=TIMEOUT_MS)
+            menu_job.dispatch_event("click")
+            time.sleep(4)
+            ext_ui_log("NAV", "Opening new job [Add Value]...")
+            page.locator("id=pag_FW_SYS_INTF_JOB_btn_Add_Value").click(force=True)
+            time.sleep(3)
+            ext_ui_log("INJECT", "Setting job type: Export [E], desc: Text Inventory Master...")
+            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TYPE_Value").select_option("E")
+            time.sleep(2)
+            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_DESC_Value").fill("Text Inventory Master")
+            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_JOB_TIMEOUT_Value").fill("9999999")
+            page.locator("id=pag_FW_SYS_INTF_JOB_NewGeneral_EXE_TYPE_Value").select_option("M")
+            time.sleep(2)
+            ext_ui_log("NAV", "Proceeding to next step...")
+            page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Next_Value").click(force=True)
+            time.sleep(3)
+            ext_ui_log("SYS", "Bypassing disclaimer prompt...")
+            page.locator("id=pag_FW_DisclaimerMessage_btn_okay_Value").click(force=True)
+            time.sleep(2)
+            ext_ui_log("NAV", "Opening interface selection popup...")
+            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_INTF_ID_SelectButton").click(force=True)
+            time.sleep(3)
+            ext_ui_log("INJECT", "Searching target interface: E_20150315090000028...")
+            page.locator("id=pop_Dynamic_gft_List_2_FilterField_Value").fill("E_20150315090000028")
+            page.locator("id=pop_Dynamic_grd_Main_SearchForm_ButtonSearch_Value").click(force=True)
+            time.sleep(2)
+            ext_ui_log("INJECT", "Selecting target interface from results...")
+            page.get_by_text("E_20150315090000028", exact=True).click(force=True)
+            time.sleep(2)
+            ext_ui_log("INJECT", "Setting file type: Delimited [D], separator: standard...")
+            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
+            time.sleep(1)
+            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
+            time.sleep(3)
+            ext_ui_log("INJECT", f"Applying warehouse filter: [{WAREHOUSE}]...")
+            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl02_dyn_Field_txt_Value").fill("GOOD_WHS")
+            time.sleep(2)
+            ext_ui_log("SYS", "Committing parameters to job definition...")
+            page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_btn_Add_Value").click(force=True)
+            time.sleep(3)
+            ext_ui_log("SERVER", "Saving job and dispatching execution to server...")
+            page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
+            ext_ui_log("SERVER", "Awaiting server confirmation prompt...")
+            page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
+            page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
+            ext_ui_log("SERVER", "Job dispatched. Waiting for export to complete...")
+            ext_ui_log("SERVER", "Intercepting download link — this may take up to 4 minutes...")
+            with page.expect_download(timeout=240000) as download_info:
+                download_btn = page.locator("id=pag_FW_SYS_INTF_STATUS_JOB_btn_Download_Value")
+                download_btn.wait_for(state="visible", timeout=240000)
+                download_btn.click(force=True)
+            download      = download_info.value
+            real_filename = download.suggested_filename
+            file_path     = f"temp_ext_{real_filename}"
+            ext_ui_log("SUCCESS", f"Download captured: {real_filename}. Saving to environment...")
+            download.save_as(file_path)
+            browser.close()
+            ext_ui_log("SYS", "Browser closed. Releasing session memory...")
+            ext_ui_log("SYS", f"Parsing payload file: 
