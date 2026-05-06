@@ -205,7 +205,7 @@ with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
     st.markdown("<h1>Compare & Stock Adjustment</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
-st.markdown("---")
+# st.markdown("---")
 
 col1, col2 = st.columns(2)
 
@@ -494,7 +494,7 @@ if np_source_ready and file2:
 
 # ── Review Table & Engine Execution ───────────────────────────────────────────
 if st.session_state.reconcile_summary is not None and st.session_state.reconcile_result is not None:
-    st.markdown("---")
+    # st.markdown("---")
     st.markdown("<div class='box-review'>Stock Review</div>", unsafe_allow_html=True)
     m1, m2 = st.columns(2); match_count = st.session_state.reconcile_summary['total_match']; mismatch_count = st.session_state.reconcile_summary['total_mismatch']
     with m1: st.markdown(f'''<div class="metric-box-match"><div class="metric-label">Match</div><div class="metric-value">{match_count}</div></div>''', unsafe_allow_html=True)
