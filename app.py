@@ -285,7 +285,8 @@ with col1:
             try:
                 res = supabase.table("distributor_vault").select("nama_distributor").execute()
                 list_dist = [d['nama_distributor'] for d in res.data]
-            except: pass
+            except Exception as e:
+                st.error(f"Error Database: {e}") # INI BIAR ERRORNYA MUNCUL DI LAYAR
         if not list_dist: list_dist = ["Belum ada data di Brankas"]
 
         with np_col1:
