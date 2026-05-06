@@ -255,7 +255,7 @@ st.markdown("""
 hdr_col1, hdr_col2 = st.columns([5, 1])
 with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare Stock & Adjust</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
 st.markdown("---")
 
@@ -513,8 +513,8 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     st.markdown("<br>", unsafe_allow_html=True)
     df_view = st.session_state.reconcile_result.copy()
     if 'Status' not in df_view.columns: df_view['Status'] = 'Pending'
-    if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = 'Menunggu antrean...'
-    st.markdown("<div class='box-queue'>Adjustment Queue</div>", unsafe_allow_html=True)
+    if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = 'Ready to Process'
+    st.markdown("<div class='box-queue'>Adjustment SKU List</div>", unsafe_allow_html=True)
     table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
     
     # Tempat buat lottie, label log, terminal log, dan button
@@ -523,7 +523,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     log_placeholder = st.empty()
     btn_placeholder = st.empty()
     
-    if btn_placeholder.button("PROCEED TO STOCK ADJUSTMENT ENGINE", type="primary", use_container_width=True):
+    if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
         btn_placeholder.empty(); bot_user = st.session_state.np_user_input.strip(); bot_pass = st.session_state.np_pass_input.strip()
         if not bot_user or not bot_pass: st.error("Access Denied: NP User ID & Password required!")
         else:
