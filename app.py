@@ -123,6 +123,8 @@ if 'reconcile_summary' not in st.session_state:
     st.session_state.reconcile_summary = None
 if 'np_df' not in st.session_state:
     st.session_state.np_df = None
+
+# Tambahan state untuk sinkronisasi tombol Compare Stock
 if 'is_bot_running' not in st.session_state:
     st.session_state.is_bot_running = False
 if 'prev_file2' not in st.session_state:
@@ -203,7 +205,7 @@ st.markdown("""
 hdr_col1, hdr_col2 = st.columns([5, 1])
 with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare & Stock Adjustment</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>Inspired by Kopi Mang Toni...</div>", unsafe_allow_html=True)
 st.markdown("---")
 
@@ -243,9 +245,12 @@ with col2:
         def handle_fragment_upload():
             f = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
             st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
+            
+            # Pemicu Sinkronisasi Full-Page
             curr_f = getattr(f, "file_id", f.name if f else None) if f else None
             if curr_f != st.session_state.prev_file2:
                 st.session_state.prev_file2 = curr_f
+                # Jika bot TIDAK sedang mengeksekusi, refresh halaman penuh biar tombol muncul
                 if not st.session_state.is_bot_running:
                     st.rerun()
 
@@ -466,11 +471,22 @@ if np_source_ready and file2:
 
         # st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Compare Stock", type="primary", use_container_width=True):
+            # Target SKUs that require a '0' prefix
+            TARGET_SKUS = ['373103', '373104', '373105', '373106', '373108', '373110', '373112', '135428', '137118', '137120', '167209', '172130', '172131', '205901', '22583', '22595', '260656', '260659', '304095', '304100', '304102', '304157', '304161', '304164', '323044', '372264', '373100']
+
             d1 = df1[[sku_col1, desc_col1, qty_col1]].copy(); d1 = d1.dropna(subset=[sku_col1]); d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
-            d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
-            d1_agg = (d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'}))
+            d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; 
+            
+            # --- PENAMBAHAN '0' KHUSUS UNTUK DAFTAR SKU TARGET DI NEWSPAGE ---
+            d1[sku_col1] = d1[sku_col1].apply(lambda x: '0' + str(x) if str(x) in TARGET_SKUS else x)
+            
+            d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0); d1_agg = (d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'}))
             d2 = df2[[sku_col2, qty_col2]].copy(); d2 = d2.dropna(subset=[sku_col2]); d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
-            d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
+            d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; 
+            
+            # --- PENAMBAHAN '0' KHUSUS UNTUK DAFTAR SKU TARGET DI DISTRIBUTOR ---
+            d2[sku_col2] = d2[sku_col2].apply(lambda x: '0' + str(x) if str(x) in TARGET_SKUS else x)
+            
             d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0); d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
             
             merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
