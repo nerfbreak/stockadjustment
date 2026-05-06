@@ -2,6 +2,15 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di dalam file ini.
 
+## [v1.3.0] - 2026-05-06
+
+### ✨ Added
+- **Custom Multiplication Logic**: Menambahkan *logic* khusus untuk akun Borwita Purwokerto (`NPSYS3000019163`) dan Borwita Tegal (`NPSYS3000018661`). Jika menemukan SKU `8021803` dan `8021804` pada data Distributor, *Quantity* akan otomatis dikalikan 24 sebelum masuk ke tabel komparasi.
+- **Pre-Filter Distributor Data**: Menambahkan *auto-filter* saat membaca file Excel distributor. Sistem sekarang hanya akan memproses baris yang memiliki nilai `Export = 1` dan `Nama Gudang = GUDANG UTAMA`.
+- **Auto-Logout Sequence**: Bot kini akan otomatis menekan tombol Logout (`id=btnLogout`) di akhir eksekusi dan secara otomatis menyetujui (Accept/Enter) *pop-up confirm logout* bawaan Javascript dari Newspage.
+- **Active Account Indicator**: Menambahkan informasi nama distributor dan *User ID* yang sedang dieksekusi pada *header* terminal log (`Log - Active Account: ...`) agar lebih mudah dipantau tanpa harus *scroll* ke atas.
+- **Screen Wake Lock API**: Menyelipkan *script Javascript Anti-Sleep* untuk menahan layar agar tetap menyala (*wake lock*). Ini mencegah OS *smartphone* (Android/iOS) mematikan layar atau men-*suspend* tab browser yang dapat memutus koneksi proses *adjustment*.
+
 ## [v1.2.0] - 2026-05-06
 
 ### ✨ Added
