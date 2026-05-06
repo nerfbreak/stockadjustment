@@ -223,12 +223,12 @@ with col1:
                 res = supabase.table("distributor_vault").select("nama_distributor").execute()
                 list_dist = [d['nama_distributor'] for d in res.data]
             except: pass
-        if not list_dist: list_dist = ["Belum ada data di Brankas"]
+        if not list_dist: list_dist = ["Belum ada data di Database"]
 
         with np_col1:
             selected_distributor = st.selectbox("Nama Distributor", list_dist, key="distributor_select")
         with np_col2:
-            st.text_input("NP Password", value="••••••••", type="password", disabled=True, help="Password ditarik otomatis dari brankas", key="np_pass_dummy")
+            st.text_input("NP Password", value="••••••••", type="password", disabled=True, help="Password ditarik otomatis dari Database", key="np_pass_dummy")
         
         extract_btn = st.button(
             "Extract Inventory Master",
@@ -504,7 +504,7 @@ if np_source_ready and file2:
             else:
                 valid_mismatches = mismatches.copy()
                 st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
-                transfer_df = (valid_mismatches[['SKU', 'Selisih', 'Status']].rename(columns={'SKU': 'sku', 'Selisih': 'qty', 'Status': 'Status'}))
+                transfer_df = (valid_mismatches[['SKU', 'Selisih', 'Status']].rename(columns={'SKU': 'SKU', 'Selisih': 'Qty', 'Status': 'Status'}))
                 st.session_state.reconcile_result = transfer_df
                 st.rerun()
 
@@ -545,7 +545,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
 
         if not bot_user or not bot_pass: 
             st.session_state.is_bot_running = False
-            st.error("Access Denied: Kredensial tidak ditemukan di brankas Supabase!")
+            st.error("Access Denied: Kredensial tidak ditemukan di Database!")
         else:
             log_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True); ensure_playwright()
             bot_logs_history  = []; bot_last_log_time = [time.time()]
