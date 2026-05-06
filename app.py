@@ -385,4 +385,184 @@ if extract_btn:
             download.save_as(file_path)
             browser.close()
             ext_ui_log("SYS", "Browser closed. Releasing session memory...")
-            ext_ui_log("SYS", f"Parsing payload file: 
+            ext_ui_log("SYS", f"Parsing payload file: {real_filename}...")
+            df_ext = None
+            if real_filename.lower().endswith('.zip'):
+                with zipfile.ZipFile(file_path) as z:
+                    target = next((n for n in z.namelist() if "INVT_MASTER" in n and n.lower().endswith((".csv", ".txt"))), None)
+                    if not target: target = next((n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))), None)
+                    if target:
+                        ext_ui_log("SYS", f"ZIP target identified: {target}")
+                        with z.open(target) as f:
+                            df_ext = pd.read_csv(f, sep='\t', dtype=str, on_bad_lines='skip')
+                            if df_ext.shape[1] <= 1: f.seek(0); df_ext = pd.read_csv(f, sep=',', dtype=str, on_bad_lines='skip')
+            elif real_filename.lower().endswith(('.xls', '.xlsx')): df_ext = pd.read_excel(file_path, dtype=str)
+            else:
+                for enc in ['utf-8', 'iso-8859-1', 'cp1252']:
+                    for separator in ['\t', ',', ';', '|']:
+                        try:
+                            temp_df = pd.read_csv(file_path, sep=separator, dtype=str, encoding=enc, on_bad_lines='skip')
+                            if temp_df is not None and temp_df.shape[1] > 1: df_ext = temp_df; break
+                        except Exception: continue
+                    if df_ext is not None and df_ext.shape[1] > 1: break
+
+            if df_ext is not None and not df_ext.empty and df_ext.shape[1] > 1:
+                df_ext.columns = [str(c).strip() for c in df_ext.columns]
+                ext_ui_log("SUCCESS", f"Payload Secured! {len(df_ext)} items loaded. Flushing to session...")
+                st.session_state.np_df = df_ext
+                st.rerun()
+            else: ext_ui_log("ERROR", "DataFrame validation failed."); st.error("Gagal membaca file dari server.")
+    except PlaywrightTimeoutError: 
+        ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon."); st.error("Operation Timeout.")
+    except Exception as e: 
+        ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}"); st.error(f"System error: {e}")
+
+# ── Column mapping & compare ──────────────────────────────────────────────
+np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
+if np_source_ready and file2:
+    st.divider()
+    df1 = st.session_state.np_df if st.session_state.np_df is not None else load_data(file1)
+    df2 = load_data(file2)
+    if df1 is not None and df2 is not None:
+        c1, c2 = st.columns(2)
+        with c1:
+            with st.container(border=True):
+                st.markdown("<div class='box-np'>Newspage Setup</div>", unsafe_allow_html=True)
+                idx_sku1 = df1.columns.get_loc('Product Code') if 'Product Code' in df1.columns else 0
+                if 'Product Description' in df1.columns: idx_desc1 = df1.columns.get_loc('Product Description')
+                elif 'Product Name' in df1.columns: idx_desc1 = df1.columns.get_loc('Product Name')
+                else: idx_desc1 = 1 if len(df1.columns) > 1 else 0
+                idx_qty1 = (df1.columns.get_loc('Stock Available') if 'Stock Available' in df1.columns else (2 if len(df1.columns) > 2 else 0))
+                sku_col1  = st.selectbox("SKU column (NP)", df1.columns, index=idx_sku1)
+                desc_col1 = st.selectbox("Description column (NP)", df1.columns, index=idx_desc1)
+                qty_col1  = st.selectbox("Qty column (NP)", df1.columns, index=idx_qty1)
+        with c2:
+            with st.container(border=True):
+                st.markdown("<div class='box-dist'>Distributor Setup</div>", unsafe_allow_html=True)
+                idx_sku2 = 20 if len(df2.columns) > 20 else 0
+                qty2_col_match = next((col for col in df2.columns if str(col).strip().lower().replace(" ", "") == "stokakhir"), None)
+                if qty2_col_match: idx_qty2 = df2.columns.get_loc(qty2_col_match)
+                else: idx_qty2 = 71 if len(df2.columns) > 71 else (1 if len(df2.columns) > 1 else 0)
+                sku_col2 = st.selectbox("SKU column (Dist)", df2.columns, index=idx_sku2)
+                qty_col2 = st.selectbox("Qty column (Dist)", df2.columns, index=idx_qty2)
+                st.markdown("<div style='margin-bottom: 84px;'></div>", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Compare Stock", type="primary", use_container_width=True):
+            d1 = df1[[sku_col1, desc_col1, qty_col1]].copy(); d1 = d1.dropna(subset=[sku_col1]); d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
+            d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
+            d1_agg = (d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'}))
+            d2 = df2[[sku_col2, qty_col2]].copy(); d2 = d2.dropna(subset=[sku_col2]); d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
+            d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]; d2[sku_col2] = d2[sku_col2].replace({'373103': '0373103', '373100': '0373100'})
+            d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0); d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
+            merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer'); merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
+            merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER'); merged['Selisih'] = merged['Distributor'] - merged['Newspage']
+            
+            merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
+            
+            # --- ATURAN BARU DARI VERSI MASTER: JIKA NP > 0 & DIST 0, MAKA SKIP ---
+            merged.loc[(merged['Newspage'] > 0) & (merged['Distributor'] == 0), 'Status'] = 'Skip (Dist 0)'
+            
+            mismatches = merged[merged['Status'] == 'Mismatch'].sort_values('Selisih')
+            
+            if len(mismatches) == 0: 
+                st.success("Analysis complete: all items matched!")
+                st.session_state.reconcile_summary = None
+            else:
+                valid_mismatches = mismatches[mismatches['Description'] != 'ITEM NOT IN MASTER'].copy()
+                st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
+                transfer_df = (valid_mismatches[['SKU', 'Selisih']].rename(columns={'SKU': 'sku', 'Selisih': 'qty'})); st.session_state.reconcile_result = transfer_df; st.rerun()
+
+# ── Review Table & Engine Execution ───────────────────────────────────────────
+if st.session_state.reconcile_summary is not None and st.session_state.reconcile_result is not None:
+    st.markdown("---")
+    st.markdown("<div class='box-review'>Stock Review</div>", unsafe_allow_html=True)
+    m1, m2 = st.columns(2); match_count = st.session_state.reconcile_summary['total_match']; mismatch_count = st.session_state.reconcile_summary['total_mismatch']
+    with m1: st.markdown(f'''<div class="metric-box-match"><div class="metric-label">Match</div><div class="metric-value">{match_count}</div></div>''', unsafe_allow_html=True)
+    with m2: st.markdown(f'''<div class="metric-box-mismatch"><div class="metric-label">Stock difference</div><div class="metric-value">{mismatch_count}</div></div>''', unsafe_allow_html=True)
+    st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True, column_config={"SKU": st.column_config.TextColumn("SKU", width="medium"), "Description": st.column_config.TextColumn("Description", width="large")})
+    st.markdown("<br>", unsafe_allow_html=True)
+    df_view = st.session_state.reconcile_result.copy()
+    if 'Status' not in df_view.columns: df_view['Status'] = 'Pending'
+    if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = 'Ready to Process'
+    st.markdown("<div class='box-queue'>Adjustment SKU List</div>", unsafe_allow_html=True)
+    table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
+    
+    log_label_placeholder = st.empty()
+    log_placeholder = st.empty()
+    btn_placeholder = st.empty()
+    
+    if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
+        btn_placeholder.empty()
+        
+        # Tarik Kredensial dari Supabase untuk bot Playwright
+        bot_user, bot_pass = "", ""
+        if supabase:
+            try:
+                res = supabase.table("distributor_vault").select("np_user_id, np_password").eq("nama_distributor", selected_distributor).execute()
+                if res.data:
+                    bot_user = res.data[0]['np_user_id']
+                    bot_pass = res.data[0]['np_password']
+            except: pass
+
+        if not bot_user or not bot_pass: 
+            st.error("Access Denied: Kredensial tidak ditemukan di brankas Supabase!")
+        else:
+            log_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True); ensure_playwright()
+            bot_logs_history  = []; bot_last_log_time = [time.time()]
+            
+            def ui_log(module, msg):
+                now = time.time(); diff_ms = int((now - bot_last_log_time[0]) * 1000); bot_last_log_time[0] = now; timestamp = time.strftime('%H:%M:%S'); tag_class = f"tag-{module.lower()}"
+                bot_logs_history.append(f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>")
+                render_terminal(log_placeholder, bot_logs_history)
+                
+            global_start_time = time.time(); success_count, failed_count = 0, 0
+            ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
+            
+            if supabase:
+                ui_log("SYS", "Supabase client active. Audit Trail recording is ON.")
+
+            try:
+                if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                asyncio.set_event_loop(asyncio.new_event_loop())
+                with sync_playwright() as p:
+                    ui_log("SYS", "Spawning browser context..."); browser = p.chromium.launch(headless=True); context = browser.new_context(no_viewport=True); page = context.new_page()
+                    ui_log("AUTH", f"Connecting to Newspage..."); page.goto(URL_LOGIN, wait_until="domcontentloaded")
+                    
+                    ui_log("AUTH", f"Injecting hidden credentials for [{selected_distributor}]...")
+                    page.locator("id=txtUserid").fill(bot_user); page.locator("id=txtPasswd").fill(bot_pass); page.locator("id=btnLogin").click(force=True)
+                    try:
+                        btn = page.locator("id=SYS_ASCX_btnContinue"); btn.wait_for(state="visible", timeout=5_000); btn.click(force=True)
+                    except Exception: pass
+                    
+                    page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS); ui_log("AUTH", "Login successful.")
+                    time.sleep(5); page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
+                    add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value"); add_btn.wait_for(state="attached", timeout=TIMEOUT_MS); add_btn.click(force=True)
+                    warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True); warehouse_link.wait_for(state="visible"); warehouse_link.click(force=True)
+                    page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible")
+                    
+                    dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
+                    if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
+                    ui_log("SYS", "Ready. Opening data stream for payload injection...")
+
+                    # --- BAGIAN INPUT SKU DIHAPUS UNTUK DIBANGUN ULANG NANTI ---
+                    ui_log("SYS", "Mode Eksekusi Otomatis (Input SKU) dinonaktifkan sementara.")
+                    
+                    # Kita kasih jeda bentar biar gak langsung ketutup
+                    time.sleep(3)
+                    # -------------------------------------------------------------
+                        
+                    ui_log("SYS", "Closing browser and releasing memory...")
+                    browser.close()
+                    elapsed = int(time.time() - global_start_time)
+                    ui_log("SUCCESS", f"Complete. Total runtime: {elapsed//60}m {elapsed%60}s")
+                    
+                    st.markdown(make_solid_box(f"Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s", "#166534", "#ffffff"), unsafe_allow_html=True)
+
+                    if success_count > 0: 
+                        st.toast('System override complete!')
+                        st.session_state.reconcile_result = None
+
+            except Exception as e: 
+                st.error("System halted.")
+                ui_log("ERROR", f"FAILURE: {e}")
