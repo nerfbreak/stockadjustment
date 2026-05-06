@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import zipfile
 import time
@@ -104,16 +105,29 @@ def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
 def render_terminal(placeholder, logs_history: list):
     display_logs = "<br>".join(logs_history[-100:])
     html_content = f"""
-    <div class="terminal-box" id="ext_term_box">
+    <style>
+    body {{ margin: 0; padding: 0; background: transparent; }}
+    .terminal-box {{ background-color: #0b1120; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; padding: 16px 20px; border: 1px solid #1e293b; border-radius: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); height: 300px; overflow-y: auto; line-height: 1.8; -ms-overflow-style: none; scrollbar-width: none; }}
+    .terminal-box::-webkit-scrollbar {{ display: none; }}
+    .blink_me {{ animation: blinker 1s linear infinite; font-weight: bold; color: #3b82f6; }}
+    @keyframes blinker {{ 50% {{ opacity: 0; }} }}
+    .log-time   {{ display: inline-block; width: 85px; color: #64748b; font-family: 'JetBrains Mono', monospace; }}
+    .log-ms     {{ display: inline-block; width: 75px; text-align: right; margin-right: 15px; color: #94a3b8; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }}
+    .log-tag    {{ display: inline-block; width: 95px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }}
+    .log-msg    {{ color: #f8fafc; font-weight: 400; font-family: 'JetBrains Mono', monospace; }}
+    .tag-sys     {{ color: #8b5cf6; }} .tag-auth    {{ color: #eab308; }} .tag-nav     {{ color: #3b82f6; }} .tag-inject  {{ color: #06b6d4; }} .tag-success {{ color: #10b981; }} .tag-error   {{ color: #ef4444; }} .tag-server  {{ color: #f43f5e; }}
+    </style>
+    <div class="terminal-box" id="term_box">
         {display_logs}
         <br><span class="blink_me">&#9608;</span>
     </div>
     <script>
-        var t = window.parent.document.getElementById('ext_term_box') || document.getElementById('ext_term_box');
+        var t = document.getElementById('term_box');
         if (t) t.scrollTop = t.scrollHeight;
     </script>
     """
-    placeholder.markdown(html_content, unsafe_allow_html=True)
+    with placeholder:
+        components.html(html_content, height=340, scrolling=False)
 
 
 # --- 4. STATE MANAGEMENT ---
