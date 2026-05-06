@@ -180,7 +180,7 @@ st.markdown("""
     button[kind="primary"] { background-color: #2563eb !important; color: #ffffff !important; border: 1px solid #1d4ed8 !important; font-weight: 600 !important; letter-spacing: 0.05em !important; transition: all 0.2s ease !important; border-radius: 6px !important; font-family: 'Inter', sans-serif !important; }
     button[kind="primary"]:hover { background-color: #1e40af !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important; border-color: #1e40af !important; }
     
-    /* Live Indicator & Subtitle (DIUBAH KE HIJAU) */
+    /* Live Indicator (Warna Hijau) */
     .typewriter-sub { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: #64748b; margin: 0; }
     .live-indicator { display: inline-flex; align-items: center; color: #10b981; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.1em; background: rgba(16, 185, 129, 0.1); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2); }
     .live-indicator::before { content: ''; display: inline-block; width: 6px; height: 6px; background-color: #10b981; border-radius: 50%; margin-right: 6px; animation: pulse-radar 2s infinite; }
@@ -608,6 +608,10 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                         ui_log("SERVER", "Document physically written to database.")
                     except Exception: 
                         ui_log("SERVER", "Auto-save confirmed. Document written to database.")
+                    
+                    # --- INI OBATNYA (MEMBERI WAKTU NEWSPAGE UNTUK MENYIMPAN DATA) ---    
+                    ui_log("SYS", "Holding session for 5 seconds to ensure Newspage database write...")
+                    time.sleep(5)
                         
                     ui_log("SYS", "Closing browser and releasing memory...")
                     browser.close()
