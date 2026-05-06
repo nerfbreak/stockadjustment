@@ -444,6 +444,7 @@ if np_source_ready and file2:
     df1 = st.session_state.np_df if st.session_state.np_df is not None else load_data(file1)
     df2 = load_data(file2)
     if df1 is not None and df2 is not None:
+        st.markdown("<h3>Results</h3>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             with st.container(border=True):
