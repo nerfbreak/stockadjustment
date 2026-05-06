@@ -1,32 +1,29 @@
-# 📦 Automated Stock Adjustment
+# 📦 Newspage Stock Compare & Adjustment Engine
 
-Aplikasi web berbasis Python dan Streamlit yang dirancang untuk mengotomatisasi proses rekonsiliasi stok antara sistem **Newspage** dan **Distributor**, sekaligus mengeksekusi penyesuaian stok (*Stock Adjustment*) secara otomatis menggunakan Robotic Process Automation (RPA).
+Sebuah *automation tools* berbasis web untuk membandingkan dan menyesuaikan data stok antara sistem Newspage dan Distributor secara otomatis. Dibangun menggunakan **Streamlit** untuk antarmuka pengguna dan **Playwright** untuk *headless browser automation*.
 
-Terinspirasi dari alur kerja efisien ("Inspired by Kopi Mang Toni"), *tool* ini menghilangkan kebutuhan input data manual yang memakan waktu dan rentan *human error*.
+**Author**: Muhammad Rizki Firdaus  
+**Role**: Newspage L1 Support Lead
 
-## ✨ Key Features
+---
 
-- 📊 **Smart Reconciliation Engine:** Membandingkan data stok dari file CSV, Excel, atau ZIP secara otomatis, mencari selisih (mismatch), dan memfilter item yang tidak ada di master data.
-- 🤖 **Headless RPA Bot:** Terintegrasi dengan **Playwright** untuk melakukan navigasi, login, dan injeksi data otomatis ke dalam sistem web secara *headless* (tanpa membuka jendela browser UI).
-- ⚡ **Real-time Monitoring & Cyberpunk Log:** Dilengkapi dengan UI log terminal berdesain *dark mode/cyberpunk* yang melacak eksekusi bot hingga hitungan milidetik (*micro-timing*).
-- 🛡️ **Auto-correction & Validation:** Mendukung *auto-formatting* nama kolom dan penanganan tipe data dinamis agar angka SKU yang diawali nol tidak hilang.
-- ☁️ **Cloud-Ready:** Mendukung *deployment* penuh ke Streamlit Community Cloud.
+## 🚀 Fitur Utama
+1. **Auto-Extraction**: Ekstraksi *Inventory Master* langsung dari server Newspage tanpa campur tangan manual.
+2. **Smart Compare**: Rekonsiliasi instan antara stok Newspage dan stok fisik/sistem Distributor.
+3. **Target SKU Auto-Formatting**: Otomatis mendeteksi dan menambahkan *prefix* `0` pada 27 SKU khusus agar sinkron saat komparasi.
+4. **Auto-Adjustment Bot**: Menjalankan koreksi selisih stok (Mismatch) ke dalam modul *Stock Adjustment* Newspage secara otomatis menggunakan *headless Chromium*.
+5. **Audit Trail**: Pencatatan riwayat eksekusi dan *credential vault* menggunakan **Supabase**.
 
 ## 🛠️ Tech Stack
+- **Frontend**: Streamlit, Pandas
+- **Automation**: Playwright (Sync API)
+- **Database/Vault**: Supabase
+- **Language**: Python 3.x
 
-- **[Python 3.9+](https://www.python.org/):** Core engine.
-- **[Streamlit](https://streamlit.io/):** Frontend UI & State Management.
-- **[Pandas](https://pandas.pydata.org/):** Data manipulation & aggregation.
-- **[Playwright](https://playwright.dev/python/):** Web browser automation.
-
-## 📂 Project Structure
-
-```text
-├── .streamlit/
-│   └── config.toml          # Konfigurasi tema UI (Dark Mode + Custom Fonts)
-├── static/                  # Folder aset statis
-│   └── *.ttf                # Custom Fonts (Inter & JetBrains Mono)
-├── app.py                   # Main script aplikasi
-├── requirements.txt         # Library Python
-├── packages.txt             # Dependensi OS Linux (libnss3, libasound2, dll)
-└── users_2.csv              # Template kredensial akun
+## ⚙️ Persiapan (Setup)
+Pastikan Anda memiliki *secrets* Streamlit yang dikonfigurasi pada `.streamlit/secrets.toml`:
+```toml
+admin_user = "admin"
+admin_pass = "password_anda"
+SUPABASE_URL = "[https://url-supabase-anda.supabase.co](https://url-supabase-anda.supabase.co)"
+SUPABASE_KEY = "kunci-anon-supabase-anda"
