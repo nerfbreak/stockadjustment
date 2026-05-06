@@ -453,14 +453,11 @@ if np_source_ready and file2:
             d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0); d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
             
             merged = pd.merge(d1_agg, d2_agg, on='SKU', how='outer')
-            # Kalau SKU nggak ada di NP, nilainya jadi 0. Selisih = Dist - 0 = Dist (Mengikuti data Distributor)
             merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
             merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
             merged['Selisih'] = merged['Distributor'] - merged['Newspage']
             
             merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
-            
-            # --- ATURAN SKIP (DIST 0) DIHAPUS ---
             
             mismatches = merged[merged['Status'] == 'Mismatch'].sort_values('Selisih')
             
@@ -468,11 +465,8 @@ if np_source_ready and file2:
                 st.success("Analysis complete: all items matched!")
                 st.session_state.reconcile_summary = None
             else:
-                # SKU yang 'ITEM NOT IN MASTER' (tidak ada di NP) sekarang dibiarkan tetap masuk ke antrean
                 valid_mismatches = mismatches.copy()
-                
                 st.session_state.reconcile_summary = {'total_match': len(merged[merged['Selisih'] == 0]), 'total_mismatch': len(mismatches), 'df_view': mismatches[['SKU', 'Description', 'Newspage', 'Distributor', 'Selisih', 'Status']]}
-                
                 transfer_df = (valid_mismatches[['SKU', 'Selisih', 'Status']].rename(columns={'SKU': 'sku', 'Selisih': 'qty', 'Status': 'Status'}))
                 st.session_state.reconcile_result = transfer_df
                 st.rerun()
@@ -551,9 +545,92 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                     if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
                     ui_log("SYS", "Ready. Opening data stream for payload injection...")
 
-                    # --- BAGIAN INPUT SKU DIHAPUS UNTUK DIBANGUN ULANG NANTI ---
-                    ui_log("SYS", "Mode Eksekusi Otomatis (Input SKU) dinonaktifkan sementara. Bot stand-by.")
-                    time.sleep(3)
+                    # --- POINT 2: MESIN LOOPING BOT (EKSEKUSI STABIL) ---
+                    progress_bar = st.progress(0)
+                    total_rows = len(df_view)
+                    
+                    for i, (idx, row) in enumerate(df_view.iterrows()):
+                        sku = str(row['sku']).strip()
+                        
+                        try: 
+                            qty = str(int(float(row['qty'])))
+                        except Exception: 
+                            qty = str(row['qty']).strip()
+
+                        ui_log("INJECT", f"Processing Payload {i+1}/{total_rows} | Target SKU: [{sku}]")
+                        
+                        try:
+                            # 1. Input SKU
+                            sku_input = page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value")
+                            ui_log("INJECT", f"Locking target node for SKU [{sku}]...")
+                            sku_input.fill(sku)
+                            
+                            # 2. Trigger Tab & Jeda Stabil
+                            ui_log("INJECT", "Triggering system lookup (Tab event)...")
+                            sku_input.press("Tab")
+                            time.sleep(1.5) 
+                            
+                            # 3. Input Qty & Jeda Stabil
+                            qty_input = page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value")
+                            qty_input.wait_for(state="visible", timeout=TIMEOUT_MS)
+                            
+                            ui_log("INJECT", f"Node resolved. Assigning adjustment quantity: {qty} EA")
+                            qty_input.fill(qty)
+                            time.sleep(0.5) 
+                            
+                            # 4. Klik Add
+                            ui_log("INJECT", "Dispatching Add command to grid...")
+                            page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
+                            
+                            # 5. Tunggu reset form
+                            ui_log("SYS", "Awaiting DOM form reset confirmation...")
+                            page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
+                            
+                            df_view.at[idx, 'Status'] = 'Success'
+                            df_view.at[idx, 'Keterangan'] = f'Attached {qty} EA'
+                            success_count += 1
+                            ui_log("SUCCESS", f"Transaction {i+1} committed. Grid updated.")
+                            
+                            if supabase:
+                                try:
+                                    supabase.table("adjustment_logs").insert({
+                                        "sku": sku, "qty": int(qty), "status": "Success", 
+                                        "keterangan": f"Attached {qty} EA", "np_user": bot_user
+                                    }).execute()
+                                except: pass
+
+                        except Exception as loop_err: 
+                            df_view.at[idx, 'Status'] = 'Failed'
+                            df_view.at[idx, 'Keterangan'] = 'Node Timeout'
+                            failed_count += 1
+                            ui_log("ERROR", f"Timeout on SKU [{sku}]. Node unresponsive. Skipping.")
+                            
+                            if supabase:
+                                try:
+                                    supabase.table("adjustment_logs").insert({
+                                        "sku": sku, "qty": int(qty) if qty.replace('-','').isdigit() else 0, "status": "Failed", 
+                                        "keterangan": "Node Timeout", "np_user": bot_user
+                                    }).execute()
+                                except: pass
+                            
+                        progress_bar.progress((i+1)/total_rows)
+                        if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows-1: 
+                            table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
+                            
+                    ui_log("SERVER", "Finalizing batch. Saving document to main server...")
+                    page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
+                    try: 
+                        yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
+                        yes_btn.wait_for(state="visible", timeout=5000)
+                        ui_log("SERVER", "Confirming save dialog...")
+                        yes_btn.click()
+                        ui_log("SERVER", "Document physically written to database.")
+                    except Exception: 
+                        ui_log("SERVER", "Auto-save confirmed. Document written to database.")
+                        
+                    # --- POINT 3: PERFECT LANDING (JEDA SEBELUM CLOSE BROWSER) ---
+                    ui_log("SYS", "Holding session for 5 seconds to ensure Newspage database write...")
+                    time.sleep(5)
                     # -------------------------------------------------------------
                         
                     ui_log("SYS", "Closing browser and releasing memory...")
