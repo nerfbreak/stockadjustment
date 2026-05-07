@@ -290,5 +290,5 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
 
             playwright_engine.run_execution(
                 df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, 
-                REASON_CODE, TABLE_UPDATE_INTERVAL, bot_ui_log, send_telegram_alert, table_placeholder, supabase
+                REASON_CODE, TABLE_UPDATE_INTERVAL, bot_ui_log, send_telegram_alert, table_placeholder, log_label_placeholder, supabase
             )
