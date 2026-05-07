@@ -196,13 +196,13 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
             # --- FUNGSI UPDATE LABEL REALTIME ---
             def update_progress_label(current, total):
                 html = f"""
-                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;'>
-                    <div style='background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #10b981; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);'>
-                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>Active Account</span>
+                <div style='display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 12px;'>
+                    <div style='background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #10b981; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); width: fit-content; max-width: 100%;'>
+                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Account</span>
                         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
                     </div>
-                    <div style='background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #10b981; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);'>
-                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>Processed</span>
+                    <div style='background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #10b981; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); width: fit-content; max-width: 100%;'>
+                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Processed</span>
                         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{current}/{total}</span>
                     </div>
                 </div>
