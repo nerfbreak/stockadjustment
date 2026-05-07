@@ -204,6 +204,15 @@ st.markdown("""
     </script>
 """, unsafe_allow_html=True)
 
+# --- FOOTER COPYRIGHT ---
+    st.markdown("""
+    <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
+            &copy; 2026 IT Support Newspage. by kopi mang toni.
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
 # --- 4. MAIN UI LAYOUT ---
 st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
 st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
@@ -364,15 +373,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     log_label_placeholder = st.empty()
     log_placeholder = st.empty()
     btn_placeholder = st.empty()
-    
-    # --- FOOTER COPYRIGHT ---
-    st.markdown("""
-    <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
-        <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
-            &copy; 2026 IT Support Newspage. by kopi mang toni.
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
             
     if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
         if not bot_user or not bot_pass: 
