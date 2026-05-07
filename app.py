@@ -318,13 +318,13 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     btn_placeholder = st.empty()
     
     # --- FOOTER COPYRIGHT ---
-st.markdown("""
+    st.markdown("""
     <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
         <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
             &copy; 2026 IT Support Newspage. by kopi mang toni.
         </span>
     </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
             
     if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
         if not bot_user or not bot_pass: 
