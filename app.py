@@ -348,7 +348,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
 st.markdown("""
     <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
         <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
-            &copy; 2026 IT Support Newspage
+            &copy; 2026 IT Support Newspage. by kopi mang toni.
         </span>
     </div>
 """, unsafe_allow_html=True)
