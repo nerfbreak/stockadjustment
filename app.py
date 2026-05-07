@@ -107,13 +107,14 @@ st.markdown("""
     </script>
 """, unsafe_allow_html=True)
 
-
 # --- 4. MAIN UI LAYOUT ---
 hdr_col1, hdr_col2 = st.columns([5, 1])
 with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
     st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
-    st.markdown(f"<div class='typewriter-sub'>Active Session: {st.session_state.current_user}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='typewriter-sub'>by Kopi Mang Toni</div>", unsafe_allow_html=True)
+with hdr_col2:
+    st.markdown(f"<div class='typewriter-sub' style='text-align: right; margin-top: 25px;'>Active Session:<br><span style='color: #38bdf8; font-weight: 600;'>{st.session_state.current_user}</span></div>", unsafe_allow_html=True)
 st.markdown("---")
 
 col1, col2 = st.columns(2)
