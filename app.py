@@ -54,6 +54,51 @@ st.markdown("""
         letter-spacing: 0.05em !important;
         text-transform: uppercase !important;
     }
+
+    /* 1. Modifikasi Box Utama Upload (Dropzone) */
+    [data-testid="stFileUploadDropzone"] {
+        background-color: #1e293b !important; /* Warna dasar box */
+        border: 2px dashed #334155 !important; /* Garis putus-putus */
+        border-radius: 12px !important;
+        padding: 24px !important;
+        transition: all 0.3s ease;
+    }
+
+    /* 2. Efek nyala (Glow) pas kursor masuk / file di-drag */
+    [data-testid="stFileUploadDropzone"]:hover {
+        border-color: #3b82f6 !important; /* Biru nyala */
+        background-color: rgba(59, 130, 246, 0.05) !important;
+    }
+
+    /* 3. Warna teks instruksi ("Drag and drop file here") */
+    [data-testid="stFileUploadDropzone"] div,
+    [data-testid="stFileUploadDropzone"] span {
+        color: #e2e8f0 !important;
+        font-family: "Inter", sans-serif !important;
+    }
+
+    /* 4. Warna teks limit ukuran file (200MB...) */
+    [data-testid="stFileUploadDropzone"] small {
+        color: #64748b !important;
+        font-family: "Inter", sans-serif !important;
+    }
+
+    /* 5. Modif Tombol "Browse files" bawaannya */
+    [data-testid="stFileUploadDropzone"] button {
+        background-color: #0f172a !important;
+        border: 1px solid #334155 !important;
+        color: #38bdf8 !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease;
+    }
+    
+    /* Efek hover buat tombol Browse files */
+    [data-testid="stFileUploadDropzone"] button:hover {
+        border-color: #3b82f6 !important;
+        color: #ffffff !important;
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+    }
     </style>
 """, unsafe_allow_html=True)
 URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
