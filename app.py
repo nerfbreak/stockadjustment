@@ -108,27 +108,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 4. MAIN UI LAYOUT ---
-hdr_col1, hdr_col2 = st.columns([5, 2])
-
-with hdr_col1:
-    st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
-    st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
-    st.markdown("""
-        <div style='display: inline-block; margin-top: -4px;'>
-            <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>By</span>
-            <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>Kopi Mang Toni</span>
-        </div>
-    """, unsafe_allow_html=True)
-
-with hdr_col2:
-    st.markdown(f"""
-        <div style='text-align: right; margin-top: 18px;'>
-            <div style='display: inline-block; text-align: left;'>
-                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Session</span>
-                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{st.session_state.current_user}</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
+st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
+st.markdown(f"""
+    <div style='display: inline-block; margin-top: -4px;'>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Session</span>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{st.session_state.current_user}</span>
+    </div>
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
