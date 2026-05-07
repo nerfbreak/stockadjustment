@@ -154,55 +154,47 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = "unknown"
 
 if not st.session_state.logged_in:
-    # CSS SAKTI: NO SCROLL, FULL CENTER, LEFT-ALIGNED INPUT
+    # CSS TOTAL RESET: KUNCI LAYAR & PAKSA TENGAH
     st.markdown("""
         <style>
-        /* 1. Paksa Body dan Container Utama tidak boleh ada scroll */
-        html, body, [data-testid="stAppViewContainer"] {
+        /* 1. Matikan scroll di semua level */
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stMainViewContainer"] {
             overflow: hidden !important;
             height: 100vh !important;
+            width: 100vw !important;
             margin: 0 !important;
             padding: 0 !important;
         }
 
-        /* 2. Tengahin semua konten di dalam Viewport */
-        [data-testid="stMainViewContainer"] {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            height: 100vh !important;
-        }
-
-        /* 3. Buang semua padding bawaan block-container Streamlit */
-        .main .block-container {
-            padding: 0 !important;
-            max-width: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: center !important;
-            align-items: center !important;
-            height: 100vh !important;
-        }
-
-        /* 4. Sembunyikan Header & Toolbar atas */
-        [data-testid="stHeader"], [data-testid="stToolbar"] {
+        /* 2. Sembunyikan elemen sampah Streamlit */
+        [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
             display: none !important;
         }
 
-        /* 5. Hilangkan instruksi 'Press Enter' */
-        div[data-testid="InputInstructions"] { display: none !important; }
+        /* 3. Paksa kontainer utama jadi full screen dan centering */
+        .main .block-container {
+            height: 100vh !important;
+            max-width: 100vw !important;
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important; /* Paksa ke tengah horizontal */
+            justify-content: center !important; /* Paksa ke tengah vertikal */
+        }
 
-        /* 6. Card Styling */
+        /* 4. Styling Kotak Login (Card) */
         div[data-testid="stForm"] {
             border: 1px solid #334155 !important;
             border-radius: 16px !important;
             background-color: #0f172a !important;
             padding: 40px !important;
             width: 380px !important;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+            margin-left: auto !important; /* Fix lari ke kiri */
+            margin-right: auto !important; /* Fix lari ke kiri */
         }
 
-        /* 7. Label Tetap Center */
+        /* 5. Label Tetap Center */
         div[data-testid="stTextInput"] label p {
             font-family: "Inter", sans-serif !important;
             font-size: 0.7rem !important;
@@ -214,23 +206,22 @@ if not st.session_state.logged_in:
             width: 100% !important;
         }
 
-        /* 8. Input Field Styling - RATA KIRI (Left-Aligned) */
+        /* 6. Input Field - RATA KIRI */
         div[data-testid="stTextInput"] input {
             background-color: #1e293b !important;
             border: 1px solid #334155 !important;
             border-radius: 8px !important;
             color: #f8fafc !important;
-            text-align: left !important; /* Kita balikin ke kiri */
-            padding-left: 15px !important; /* Kasih jarak dikit dari dinding kiri */
+            text-align: left !important;
+            padding-left: 15px !important;
         }
-
-        div[data-testid="stTextInput"] input:focus {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 1px #3b82f6 !important;
-        }
+        
+        /* 7. Hilangkan instruksi Enter */
+        div[data-testid="InputInstructions"] { display: none !important; }
         </style>
     """, unsafe_allow_html=True)
 
+    # Tanpa kolom-kolom, langsung hajar form di tengah
     with st.form("login_form"):
         username = st.text_input("Username", placeholder="")
         password = st.text_input("Password", type="password", placeholder="")
@@ -246,6 +237,7 @@ if not st.session_state.logged_in:
             else:
                 st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center; margin-top: 10px;'>Invalid credentials.</p>", unsafe_allow_html=True)
 
+    # Footer nempel persis di bawah
     render_footer()
     st.stop()
 
