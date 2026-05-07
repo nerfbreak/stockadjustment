@@ -347,7 +347,7 @@ with col2:
         st.markdown("<div class='box-dist'>Distributor Stock Data</div>", unsafe_allow_html=True)
         
         def handle_fragment_upload():
-            f = st.file_uploader("Upload Distributor stock file", type=['csv', 'xlsx'], key="file2_uploader")
+            f = st.file_uploader("Upload Data Manual (Excel)", type=["xlsx", "xls"], key="file2_uploader")
             st.markdown("<div style='margin-bottom: 28px;'></div>", unsafe_allow_html=True)
             
             # Pemicu Sinkronisasi Full-Page
