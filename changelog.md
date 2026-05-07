@@ -2,7 +2,7 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di dalam file ini.
 
-### Changelog (Latest Update)
+## (Latest Update)
 
 * [UI/UX] Custom File Uploader Styling
   - Mengubah layout bawaan file uploader Streamlit menjadi sejajar (horizontal).
