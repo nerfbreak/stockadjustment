@@ -189,7 +189,7 @@ if extract_btn:
     ext_label_placeholder.markdown("""
         <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);'>
             <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>System Activity</span>
-            <span style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #3b82f6; font-weight: 700;'>EXTRACT_LOG</span>
+            <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>EXTRACT_LOG</span>
         </div>
     """, unsafe_allow_html=True)
     ext_logs_history  = []
@@ -287,7 +287,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             log_label_placeholder.markdown(f"""
                 <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);'>
                     <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>Active Account</span>
-                    <span style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #10b981; font-weight: 700;'>{selected_distributor} ({bot_user})</span>
+                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
                 </div>
             """, unsafe_allow_html=True)
             bot_logs_history  = []; bot_last_log_time = [time.time()]
