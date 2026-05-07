@@ -294,3 +294,13 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                 df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, 
                 REASON_CODE, TABLE_UPDATE_INTERVAL, bot_ui_log, send_telegram_alert, table_placeholder, log_label_placeholder, supabase
             )
+
+# --- FOOTER COPYRIGHT ---
+st.markdown("""
+    <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
+            &copy; 2026 IT Support Newspage. All rights reserved.
+        </span>
+    </div>
+""", unsafe_allow_html=True)
+            
