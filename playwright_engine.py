@@ -197,11 +197,13 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
             def update_progress_label(current, total):
                 html = f"""
                 <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;'>
-                    <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 6px; font-family: "JetBrains Mono", monospace; font-size: 0.85rem;'>
-                        <span style='color: #94a3b8; text-transform: uppercase; margin-right: 8px;'>Active Account:</span><span style='color: #10b981; font-weight: 700;'>{selected_distributor} ({bot_user})</span>
+                    <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);'>
+                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>Active Account</span>
+                        <span style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #10b981; font-weight: 700;'>{selected_distributor} ({bot_user})</span>
                     </div>
-                    <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 6px; font-family: "JetBrains Mono", monospace; font-size: 0.85rem;'>
-                        <span style='color: #94a3b8; text-transform: uppercase; margin-right: 8px;'>Processed:</span><span style='color: #38bdf8; font-weight: 700;'>{current}/{total}</span>
+                    <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);'>
+                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>Processed</span>
+                        <span style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #38bdf8; font-weight: 700;'>{current}/{total}</span>
                     </div>
                 </div>
                 """
