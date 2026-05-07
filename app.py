@@ -187,8 +187,9 @@ if extract_btn:
 
     st.session_state.is_bot_running = True
     ext_label_placeholder.markdown("""
-        <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 6px; display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 0.85rem;'>
-            <span style='color: #94a3b8; text-transform: uppercase; margin-right: 8px;'>System Activity:</span><span style='color: #3b82f6; font-weight: 700;'>EXTRACT_LOG</span>
+        <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);'>
+            <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>System Activity</span>
+            <span style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #3b82f6; font-weight: 700;'>EXTRACT_LOG</span>
         </div>
     """, unsafe_allow_html=True)
     ext_logs_history  = []
@@ -284,8 +285,9 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             btn_placeholder.empty()
             
             log_label_placeholder.markdown(f"""
-                <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 6px; display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 0.85rem;'>
-                    <span style='color: #94a3b8; text-transform: uppercase; margin-right: 8px;'>Active Account:</span><span style='color: #10b981; font-weight: 700;'>{selected_distributor} ({bot_user})</span>
+                <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);'>
+                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>Active Account</span>
+                    <span style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #10b981; font-weight: 700;'>{selected_distributor} ({bot_user})</span>
                 </div>
             """, unsafe_allow_html=True)
             bot_logs_history  = []; bot_last_log_time = [time.time()]
