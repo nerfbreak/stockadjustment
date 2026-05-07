@@ -201,6 +201,79 @@ st.markdown("""
     /* Clean Divider */
     hr { border: none !important; height: 1px !important; background-color: #334155 !important; margin-top: 1.5rem !important; margin-bottom: 1.5rem !important; }
     div[data-testid="stContainer"] { border: 1px solid #334155; border-radius: 10px; padding: 20px; background-color: #0f172a; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+
+    /* --- CUSTOM FILE UPLOADER STYLE --- */
+    [data-testid="stFileUploader"] {
+        width: 100%;
+    }
+    [data-testid="stFileUploaderDropzone"] {
+        background-color: #171e2e !important; /* Warna background gelap */
+        border: 1px solid #334155 !important;
+        border-radius: 8px !important;
+        padding: 12px 20px !important;
+    }
+    /* Mengubah layout vertikal menjadi horizontal (sejajar) */
+    [data-testid="stFileUploaderDropzone"] > div {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        width: 100% !important;
+        gap: 16px !important;
+    }
+    
+    /* Styling Icon Cloud */
+    [data-testid="stFileUploaderDropzoneIcon"] {
+        color: #94a3b8 !important; 
+        margin: 0 !important;
+        height: 36px !important;
+        width: 36px !important;
+    }
+    
+    /* Styling text "Drag and drop file here" */
+    [data-testid="stFileUploaderDropzoneInstructions"] {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        margin: 0 !important;
+        flex-grow: 1 !important; /* Mendorong tombol Browse ke paling kanan */
+    }
+    [data-testid="stFileUploaderDropzoneInstructions"] > div:first-child {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.95rem !important;
+        color: #f8fafc !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stFileUploaderDropzoneInstructions"] > div:nth-child(2) {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.75rem !important;
+        color: #64748b !important;
+        margin-top: 2px !important;
+    }
+    
+    /* Styling tombol "Browse files" */
+    [data-testid="stFileUploaderDropzone"] button {
+        background-color: transparent !important;
+        border: 1px solid #334155 !important;
+        color: #e2e8f0 !important;
+        border-radius: 6px !important;
+        padding: 6px 16px !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+        margin: 0 !important;
+        transition: all 0.2s ease !important;
+    }
+    [data-testid="stFileUploaderDropzone"] button:hover {
+        border-color: #64748b !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: #ffffff !important;
+    }
+    
+    /* Menyembunyikan teks small bawaan streamlit di bawah uploader */
+    small[data-testid="stFileUploaderDetails"] {
+        display: none !important;
+    }
     </style>
     
     <script>
