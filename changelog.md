@@ -2,6 +2,19 @@
 
 Semua perubahan yang signifikan pada proyek ini akan didokumentasikan di dalam file ini.
 
+### Changelog (Latest Update)
+
+* [UI/UX] Custom File Uploader Styling
+  - Mengubah layout bawaan file uploader Streamlit menjadi sejajar (horizontal).
+  - Menyesuaikan palet warna dropzone menjadi dark theme (#171e2e) dengan border minimalis agar selaras dengan dashboard utama.
+  - Menyembunyikan teks detail batasan file (<small>) bawaan Streamlit agar tampilan lebih bersih.
+
+* [BUGFIX & DATA LOGIC] Distributor Stock Filter
+  - Menghapus parameter validasi `Export == 1` pada proses filter data DataFrame distributor.
+  - Menambahkan parameter validasi baru: `Aktif == 1`.
+  - Mempertahankan filter `Nama Gudang = GUDANG UTAMA`.
+  - FIX: Memastikan SKU kategori khusus (seperti Strepsils 8021804 & 8021803) tidak lagi tereliminasi dan stoknya (misal: 6000 pcs) terbaca akurat saat proses komparasi dengan Newspage.
+
 ## [v1.3.0] - 2026-05-06
 
 ### ✨ Added
