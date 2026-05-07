@@ -154,10 +154,10 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = "unknown"
 
 if not st.session_state.logged_in:
-    # CSS KHUSUS LOGIN (FIT TO SCREEN & NO SCROLL)
+    # CSS KHUSUS LOGIN (MINIMALIST & FIT TO SCREEN)
     st.markdown("""
         <style>
-        /* 1. Hilangkan padding bawaan Streamlit & Matikan Scroll */
+        /* 1. Hilangkan padding bawaan & Matikan Scroll */
         [data-testid="stAppViewContainer"] {
             overflow: hidden !important;
         }
@@ -170,8 +170,8 @@ if not st.session_state.logged_in:
             overflow: hidden !important;
         }
 
-        /* Hilangkan padding atas yang bikin bisa discroll */
         [data-testid="stHeader"] { display: none; }
+        
         .main .block-container {
             padding: 0 !important;
             max-width: 100% !important;
@@ -184,14 +184,14 @@ if not st.session_state.logged_in:
         /* 2. Hilangkan instruksi 'Press Enter' */
         div[data-testid="InputInstructions"] { display: none !important; }
 
-        /* 3. Login Card Styling */
+        /* 3. Login Card Styling (Ultra Minimalist) */
         div[data-testid="stForm"] {
             border: 1px solid #334155 !important;
             border-radius: 16px !important;
             background-color: #0f172a !important;
             padding: 40px !important;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important;
-            margin-bottom: 20px; /* Jarak ke footer */
+            margin-bottom: 20px;
         }
 
         /* 4. Center Label & Input */
@@ -201,6 +201,7 @@ if not st.session_state.logged_in:
             font-weight: 700 !important;
             color: #94a3b8 !important;
             text-transform: uppercase !important;
+            letter-spacing: 0.1em !important;
             text-align: center !important;
             width: 100% !important;
         }
@@ -212,26 +213,24 @@ if not st.session_state.logged_in:
             color: #f8fafc !important;
             text-align: center !important;
         }
+
+        div[data-testid="stTextInput"] input:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 1px #3b82f6 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
-    # Layouting ke Tengah (Tanpa margin-top manual yang bikin scroll)
+    # Layouting ke Tengah
     _, col_mid, _ = st.columns([1, 1.2, 1])
     
     with col_mid:
         with st.form("login_form"):
-            # Header di dalam card biar compact
-            st.markdown("""
-                <div style='text-align: center; margin-bottom: 20px;'>
-                    <h2 style='color: #f8fafc; font-family: "Inter", sans-serif; margin: 0; font-size: 1.5rem;'>Secure Access</h2>
-                    <p style='color: #64748b; font-family: "Inter", sans-serif; font-size: 0.75rem;'>Engine Gateway v2.0</p>
-                </div>
-            """, unsafe_allow_html=True)
-
+            # Header dihapus, langsung masuk ke input
             username = st.text_input("Username", placeholder="")
             password = st.text_input("Password", type="password", placeholder="")
             
-            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
             submit = st.form_submit_button("LOGIN", use_container_width=True)
             
             if submit:
@@ -240,9 +239,9 @@ if not st.session_state.logged_in:
                     st.session_state.current_user = username
                     st.rerun()
                 else:
-                    st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center;'>Invalid credentials.</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center; margin-top: 10px;'>Invalid credentials.</p>", unsafe_allow_html=True)
 
-        # Footer nempel di bawah card
+        # Footer tetap di bawah card
         render_footer()
     st.stop()
 
