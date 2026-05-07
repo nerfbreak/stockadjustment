@@ -31,16 +31,16 @@ st.markdown("""
     }
 
     /* 3. Area Dropzone Uploader (Teks Drag & Drop, 200MB limit, dan tombol) */
-    [data-testid="stFileUploadDropzone"] * {
+    div[data-testid="stFileUploader"] * {
         font-family: "Inter", sans-serif !important;
     }
     
-    /* Paksa teks kecil (200MB CSV XLSX) biar nggak terlalu mencolok */
-    [data-testid="stFileUploadDropzone"] small {
+    /* Paksa spesifik ke teks kecil limit ukuran file */
+    div[data-testid="stFileUploader"] small,
+    div[data-testid="stFileUploadDropzone"] span {
+        font-family: "Inter", sans-serif !important;
         font-size: 0.7rem !important;
         color: #64748b !important;
-        text-transform: none !important;
-        letter-spacing: normal !important;
     }
 
     /* 4. Semua Tombol Utama (Extract, Clear, Execute, Browse Files) dan teks di dalamnya */
@@ -316,7 +316,16 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     log_label_placeholder = st.empty()
     log_placeholder = st.empty()
     btn_placeholder = st.empty()
-        
+    
+    # --- FOOTER COPYRIGHT ---
+st.markdown("""
+    <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
+            &copy; 2026 IT Support Newspage. by kopi mang toni.
+        </span>
+    </div>
+""", unsafe_allow_html=True)
+            
     if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
         if not bot_user or not bot_pass: 
             st.error("Access Denied: Kredensial tidak ditemukan di Database!")
@@ -343,13 +352,3 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                 df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, 
                 REASON_CODE, TABLE_UPDATE_INTERVAL, bot_ui_log, send_telegram_alert, table_placeholder, log_label_placeholder, supabase
             )
-
-# --- FOOTER COPYRIGHT ---
-st.markdown("""
-    <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
-        <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
-            &copy; 2026 IT Support Newspage. by kopi mang toni.
-        </span>
-    </div>
-""", unsafe_allow_html=True)
-            
