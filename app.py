@@ -10,51 +10,6 @@ st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
 # --- INJEKSI CSS CUSTOM BIAR KOMPONEN STREAMLIT MATCH ---
 st.markdown("""
     <style>
-    /* Import font Inter */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-
-    /* 1. Label Judul (Nama Distributor, Upload, NP Password) */
-    div[data-testid="stSelectbox"] label p, 
-    div[data-testid="stFileUploader"] label p,
-    div[data-testid="stTextInput"] label p {
-        font-family: "Inter", sans-serif !important;
-        font-size: 0.75rem !important;
-        font-weight: 700 !important;
-        color: #94a3b8 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.1em !important;
-    }
-
-    /* 2. Isi Dropdown List */
-    div[data-baseweb="select"] * {
-        font-family: "Inter", sans-serif !important;
-    }
-
-    /* 3. Area Dropzone Uploader (Teks Drag & Drop, 200MB limit, dan tombol) */
-    [data-testid="stFileUploadDropzone"] * {
-        font-family: "Inter", sans-serif !important;
-    }
-    
-    /* Paksa teks kecil (200MB CSV XLSX) biar nggak terlalu mencolok */
-    [data-testid="stFileUploadDropzone"] small {
-        font-size: 0.7rem !important;
-        color: #64748b !important;
-        text-transform: none !important;
-        letter-spacing: normal !important;
-    }
-
-    /* 4. Semua Tombol Utama (Extract, Clear, Execute, Browse Files) dan teks di dalamnya */
-    div[data-testid="stButton"] button, 
-    div[data-testid="stButton"] button p,
-    div[data-testid="stFileUploader"] button,
-    div[data-testid="stFileUploader"] button p {
-        font-family: "Inter", sans-serif !important;
-        font-size: 0.85rem !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.05em !important;
-        text-transform: uppercase !important;
-    }
-
     /* 1. Modifikasi Box Utama Upload (Dropzone) */
     [data-testid="stFileUploadDropzone"] {
         background-color: #1e293b !important; /* Warna dasar box */
@@ -98,6 +53,54 @@ st.markdown("""
         border-color: #3b82f6 !important;
         color: #ffffff !important;
         box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+    }
+    </style>
+""", unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    /* Import font Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    /* 1. Label Judul (Nama Distributor, Upload, NP Password) */
+    div[data-testid="stSelectbox"] label p, 
+    div[data-testid="stFileUploader"] label p,
+    div[data-testid="stTextInput"] label p {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+    }
+
+    /* 2. Isi Dropdown List */
+    div[data-baseweb="select"] * {
+        font-family: "Inter", sans-serif !important;
+    }
+
+    /* 3. Area Dropzone Uploader (Teks Drag & Drop, 200MB limit, dan tombol) */
+    [data-testid="stFileUploadDropzone"] * {
+        font-family: "Inter", sans-serif !important;
+    }
+    
+    /* Paksa teks kecil (200MB CSV XLSX) biar nggak terlalu mencolok */
+    [data-testid="stFileUploadDropzone"] small {
+        font-size: 0.7rem !important;
+        color: #64748b !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+    }
+
+    /* 4. Semua Tombol Utama (Extract, Clear, Execute, Browse Files) dan teks di dalamnya */
+    div[data-testid="stButton"] button, 
+    div[data-testid="stButton"] button p,
+    div[data-testid="stFileUploader"] button,
+    div[data-testid="stFileUploader"] button p {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
     }
     </style>
 """, unsafe_allow_html=True)
