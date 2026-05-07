@@ -116,16 +116,13 @@ with hdr_col1:
 
 with hdr_col2:
     st.markdown(f"""
-        <div style='text-align: right; margin-top: 12px;'>
-            <div style='display: inline-block; background: #1e293b; border: 1px solid #334155; padding: 10px 16px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); text-align: left;'>
-                <div style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;'>Active Session</div>
-                <div style='font-family: "Inter", sans-serif; font-size: 0.65rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; display: flex; align-items: center;'>
-                <span style='color: #10b981; margin-right: 6px;'>●</span>{st.session_state.current_user}
-                </div>
+        <div style='text-align: right; margin-top: 18px;'>
+            <div style='background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #3b82f6; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); display: inline-block; text-align: left;'>
+                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>Active Session</span>
+                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{st.session_state.current_user}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
-st.markdown("---")
 
 col1, col2 = st.columns(2)
 
@@ -187,7 +184,7 @@ if extract_btn:
 
     st.session_state.is_bot_running = True
     ext_label_placeholder.markdown("""
-        <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);'>
+        <div style='background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #3b82f6; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); display: inline-block;'>
             <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>System Activity</span>
             <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>EXTRACT_LOG</span>
         </div>
@@ -285,7 +282,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             btn_placeholder.empty()
             
             log_label_placeholder.markdown(f"""
-                <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);'>
+                <div style='background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #10b981; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); display: inline-block;'>
                     <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px;'>Active Account</span>
                     <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
                 </div>
