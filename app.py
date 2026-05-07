@@ -7,10 +7,20 @@ import playwright_engine
 
 # --- 1. CONFIG & UI HELPERS ---
 st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
-# --- INJEKSI CSS CUSTOM BIAR KOMPONEN STREAMLIT MATCH ---
 st.markdown("""
     <style>
-    /* 1. Label Judul Uploader (Teks di atas kotak) */
+    /* 1. Kontainer Label Judul dibikin full width biar bisa ditengahin */
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stTextInput"] label,
+    div[data-testid="stFileUploader"] label {
+        width: 100% !important;
+        justify-content: center !important;
+        display: flex !important;
+    }
+
+    /* 2. Style Teks Label (Nama Distributor, NP Password, Upload) dibikin Center */
+    div[data-testid="stSelectbox"] label p, 
+    div[data-testid="stTextInput"] label p,
     div[data-testid="stFileUploader"] label p {
         font-family: "Inter", sans-serif !important;
         font-size: 0.75rem !important;
@@ -18,14 +28,17 @@ st.markdown("""
         color: #94a3b8 !important;
         text-transform: uppercase !important;
         letter-spacing: 0.1em !important;
+        text-align: center !important;
+        width: 100% !important;
+        margin-bottom: 8px !important; /* Kasih jarak dikit ke inputnya */
     }
 
-    /* 2. Samakan semua font di dalam area kotak dropzone */
+    /* 3. Samakan semua font di dalam area kotak dropzone */
     div[data-testid="stFileUploadDropzone"] * {
         font-family: "Inter", sans-serif !important;
     }
 
-    /* 3. Rapihkan tombol "Browse files" biar masuk tema corporate */
+    /* 4. Rapihkan tombol "Browse files" biar masuk tema corporate */
     div[data-testid="stFileUploader"] button {
         background-color: #1e293b !important;
         color: #3b82f6 !important;
