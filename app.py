@@ -54,6 +54,11 @@ st.markdown("""
         background-color: rgba(59, 130, 246, 0.1) !important;
         color: #38bdf8 !important;
     }
+
+    /* 5. Hilangkan teks "Press Enter to submit" yang nabrak icon mata */
+    div[data-testid="InputInstructions"] {
+        display: none !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 st.markdown("""
