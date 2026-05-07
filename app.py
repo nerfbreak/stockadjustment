@@ -43,19 +43,18 @@ st.markdown("""
         color: #64748b !important;
     }
 
-    /* 4. Semua Tombol Utama (Extract, Clear, Execute, Browse Files) dan teks di dalamnya */
-    div[data-testid="stButton"] button, 
-    div[data-testid="stButton"] button p,
-    div[data-testid="stFileUploader"] button,
-    div[data-testid="stFileUploader"] button p {
+    /* 3. Area Dropzone Uploader (Teks Drag & Drop, 200MB limit, dan tombol) */
+    [data-testid="stFileUploadDropzone"] * {
         font-family: "Inter", sans-serif !important;
-        font-size: 0.85rem !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.05em !important;
-        text-transform: uppercase !important;
     }
-    </style>
-""", unsafe_allow_html=True)
+    
+    /* Paksa teks kecil (200MB CSV XLSX) biar nggak terlalu mencolok */
+    [data-testid="stFileUploadDropzone"] small {
+        font-size: 0.7rem !important;
+        color: #64748b !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+    }
 URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
