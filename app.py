@@ -187,9 +187,8 @@ if extract_btn:
 
     st.session_state.is_bot_running = True
     ext_label_placeholder.markdown("""
-        <div style='display: inline-block; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #3b82f6; border-top: 1px solid #334155; border-right: 1px solid #334155; border-bottom: 1px solid #334155; padding: 8px 16px; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);'>
-            <div style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 2px;'>System Activity</div>
-            <div style='font-family: "JetBrains Mono", monospace; font-size: 0.85rem; color: #3b82f6; font-weight: 700;'>EXTRACT_LOG</div>
+        <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 6px; display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 0.85rem;'>
+            <span style='color: #94a3b8; text-transform: uppercase; margin-right: 8px;'>System Activity:</span><span style='color: #3b82f6; font-weight: 700;'>EXTRACT_LOG</span>
         </div>
     """, unsafe_allow_html=True)
     ext_logs_history  = []
@@ -284,7 +283,11 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             st.session_state.execute_done = False
             btn_placeholder.empty()
             
-            log_label_placeholder.markdown(f"<div class='terminal-label' style='background: #1e293b; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px; display: inline-block;'>Log - Active Account: <span style='color: #38bdf8;'>{selected_distributor} ({bot_user})</span></div>", unsafe_allow_html=True)
+            log_label_placeholder.markdown(f"""
+                <div style='background: #1e293b; border: 1px solid #334155; padding: 8px 16px; border-radius: 6px; display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 0.85rem;'>
+                    <span style='color: #94a3b8; text-transform: uppercase; margin-right: 8px;'>Active Account:</span><span style='color: #10b981; font-weight: 700;'>{selected_distributor} ({bot_user})</span>
+                </div>
+            """, unsafe_allow_html=True)
             bot_logs_history  = []; bot_last_log_time = [time.time()]
             
             def bot_ui_log(module, msg):
