@@ -196,9 +196,9 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
             # --- FUNGSI UPDATE LABEL REALTIME ---
             def update_progress_label(current, total):
                 html = f"""
-                <div style='display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;'>
-                    <div class='terminal-label' style='margin-bottom: 0;'>Log - Active Account: <span style='color: #38bdf8;'>{selected_distributor} ({bot_user})</span></div>
-                    <div style='font-family: "JetBrains Mono", monospace; font-size: 0.75rem; color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.1); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.2);'>{current}/{total} SKU has been processed</div>
+                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;'>
+                    <div class='terminal-label' style='margin-bottom: 0; background: #1e293b; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px;'>Log - Active Account: <span style='color: #38bdf8;'>{selected_distributor} ({bot_user})</span></div>
+                    <div style='font-family: "JetBrains Mono", monospace; font-size: 0.75rem; color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.1); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.2);'>⏳ {current}/{total} Produk Diproses</div>
                 </div>
                 """
                 log_label_placeholder.markdown(html, unsafe_allow_html=True)
