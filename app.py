@@ -117,8 +117,8 @@ with hdr_col1:
 with hdr_col2:
     st.markdown(f"""
         <div style='text-align: right; margin-top: 18px;'>
-            <div style='background-color: #1e293b; border: 1px solid #334155; border-left: 4px solid #3b82f6; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); display: inline-block; text-align: left; width: fit-content; max-width: 100%;'>
-                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Session</span>
+            <div style='background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 6px; padding: 6px 12px; display: inline-block; text-align: left; width: fit-content; max-width: 100%;'>
+                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: rgba(59, 130, 246, 0.7); text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Session</span>
                 <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{st.session_state.current_user}</span>
             </div>
         </div>
