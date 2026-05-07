@@ -119,7 +119,7 @@ with hdr_col2:
         <div style='text-align: right; margin-top: 12px;'>
             <div style='display: inline-block; background: #1e293b; border: 1px solid #334155; padding: 10px 16px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); text-align: left;'>
                 <div style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;'>Active Session</div>
-                <div style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #38bdf8; font-weight: 700; display: flex; align-items: center;'>
+                <div style='font-family: "Inter", sans-serif; font-size: 0.9rem; color: #38bdf8; font-weight: 700; display: flex; align-items: center;'>
                     <span style='color: #10b981; margin-right: 6px;'>●</span>{st.session_state.current_user}
                 </div>
             </div>
