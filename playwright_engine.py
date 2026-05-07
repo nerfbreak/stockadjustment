@@ -196,9 +196,16 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
             # --- FUNGSI UPDATE LABEL REALTIME ---
             def update_progress_label(current, total):
                 html = f"""
-                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;'>
-                    <div class='terminal-label' style='margin-bottom: 0; background: #1e293b; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px;'>Log - Active Account: <span style='color: #38bdf8;'>{selected_distributor} ({bot_user})</span></div>
-                    <div style='font-family: "JetBrains Mono", monospace; font-size: 0.75rem; color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.1); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.2);'>⏳ {current}/{total} Produk Diproses</div>
+                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;'>
+                    <div style='background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #10b981; border-top: 1px solid #334155; border-right: 1px solid #334155; border-bottom: 1px solid #334155; padding: 8px 16px; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);'>
+                        <div style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 2px;'>Active Account</div>
+                        <div style='font-family: "JetBrains Mono", monospace; font-size: 0.85rem; color: #10b981; font-weight: 700;'>{selected_distributor} ({bot_user})</div>
+                    </div>
+                    <div style='background: #1e293b; border: 1px solid #334155; padding: 10px 18px; border-radius: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);'>
+                        <div style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #38bdf8; font-weight: 700;'>
+                            <span style='color: #10b981; animation: blinker 1.5s linear infinite;'>⏳</span> {current}/{total} <span style='font-size: 0.7rem; color: #94a3b8;'>ITEMS PROCESSED</span>
+                        </div>
+                    </div>
                 </div>
                 """
                 log_label_placeholder.markdown(html, unsafe_allow_html=True)
