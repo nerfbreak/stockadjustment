@@ -154,25 +154,56 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = "unknown"
 
 if not st.session_state.logged_in:
-    col1, col2, col3 = st.columns([1, 1, 1])
+    # CSS Khusus Halaman Login buat nengahin label & hapus instruksi enter
+    st.markdown("""
+        <style>
+        /* Sembunyikan instruksi 'Press Enter' agar tidak nabrak icon mata */
+        div[data-testid="InputInstructions"] {
+            display: none !important;
+        }
+        
+        /* Bikin label Username & Password rata tengah */
+        div[data-testid="stTextInput"] label {
+            width: 100% !important;
+            justify-content: center !important;
+            display: flex !important;
+        }
+        
+        div[data-testid="stTextInput"] label p {
+            text-align: center !important;
+            font-family: "Inter", sans-serif !important;
+            font-size: 0.75rem !important;
+            font-weight: 700 !important;
+            color: #94a3b8 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.1em !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 1.2, 1]) # Col2 agak digedein dikit biar pas
     with col2:
-        st.markdown("<h2 style='text-align:center;color:#3b82f6;'>System Secure Login</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align:center;color:#64748b;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
-        with st.form("login_form"):
+        st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center; color:#3b82f6; font-family:\"Inter\", sans-serif;'>System Secure Login</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#64748b; font-family:\"Inter\", sans-serif; font-size:0.85rem; margin-top:-15px;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
+        
+        with st.form("login_form", clear_on_submit=False):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
+            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             submit = st.form_submit_button("Login", use_container_width=True)
+            
             if submit:
                 if database.authenticate_user(supabase, username, password):
                     st.session_state.logged_in = True
                     st.session_state.current_user = username
                     st.rerun()
                 else:
-                    st.error("Access Denied! Kredensial tidak ditemukan di database.")
+                    st.error("Access Denied! Kredensial salah.")
+    
     # Panggil footer di halaman login
     render_footer()
     st.stop()
-
 
 # --- 3. STATE MANAGEMENT & STYLING ---
 if 'reconcile_result' not in st.session_state: st.session_state.reconcile_result = None
