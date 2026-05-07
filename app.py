@@ -203,14 +203,6 @@ if not st.session_state.logged_in:
     with col_mid:
         st.markdown("<div style='margin-top: 80px;'></div>", unsafe_allow_html=True)
         
-        # Header di atas Card
-        st.markdown("""
-            <div style='text-align: center; margin-bottom: 30px;'>
-                <h2 style='color: #f8fafc; font-family: "Inter", sans-serif; margin-bottom: 0;'>Log in to BOT</h2>
-                <p style='color: #64748b; font-family: "Inter", sans-serif; font-size: 0.85rem;'>Bot Engine V.20</p>
-            </div>
-        """, unsafe_allow_html=True)
-
         with st.form("login_form"):
             username = st.text_input("Username", placeholder="")
             password = st.text_input("Password", type="password", placeholder="")
