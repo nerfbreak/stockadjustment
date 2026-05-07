@@ -186,7 +186,12 @@ if extract_btn:
         st.stop()
 
     st.session_state.is_bot_running = True
-    ext_label_placeholder.markdown("<div class='terminal-label' style='background: #1e293b; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px; display: inline-block;'>Log</div>", unsafe_allow_html=True)
+    ext_label_placeholder.markdown("""
+        <div style='display: inline-block; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #3b82f6; border-top: 1px solid #334155; border-right: 1px solid #334155; border-bottom: 1px solid #334155; padding: 8px 16px; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);'>
+            <div style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 2px;'>System Activity</div>
+            <div style='font-family: "JetBrains Mono", monospace; font-size: 0.85rem; color: #3b82f6; font-weight: 700;'>EXTRACT_LOG</div>
+        </div>
+    """, unsafe_allow_html=True)
     ext_logs_history  = []
     ext_last_log_time = [time.time()]
 
