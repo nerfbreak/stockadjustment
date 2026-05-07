@@ -154,34 +154,57 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = "unknown"
 
 if not st.session_state.logged_in:
-    # CSS KHUSUS LOGIN CARD (MODERN LOOK)
+    # CSS KHUSUS LOGIN (FIT TO SCREEN & NO SCROLL)
     st.markdown("""
         <style>
-        /* Hilangkan instruksi 'Press Enter' */
+        /* 1. Hilangkan padding bawaan Streamlit & Matikan Scroll */
+        [data-testid="stAppViewContainer"] {
+            overflow: hidden !important;
+        }
+        
+        [data-testid="stMainViewContainer"] {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh !important;
+            overflow: hidden !important;
+        }
+
+        /* Hilangkan padding atas yang bikin bisa discroll */
+        [data-testid="stHeader"] { display: none; }
+        .main .block-container {
+            padding: 0 !important;
+            max-width: 100% !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        /* 2. Hilangkan instruksi 'Press Enter' */
         div[data-testid="InputInstructions"] { display: none !important; }
 
-        /* Bikin Kotak Login (Card) */
+        /* 3. Login Card Styling */
         div[data-testid="stForm"] {
             border: 1px solid #334155 !important;
             border-radius: 16px !important;
             background-color: #0f172a !important;
             padding: 40px !important;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important;
+            margin-bottom: 20px; /* Jarak ke footer */
         }
 
-        /* Rapihkan Label */
+        /* 4. Center Label & Input */
         div[data-testid="stTextInput"] label p {
             font-family: "Inter", sans-serif !important;
             font-size: 0.7rem !important;
             font-weight: 700 !important;
             color: #94a3b8 !important;
             text-transform: uppercase !important;
-            letter-spacing: 0.1em !important;
             text-align: center !important;
             width: 100% !important;
         }
 
-        /* Input Field Styling */
         div[data-testid="stTextInput"] input {
             background-color: #1e293b !important;
             border: 1px solid #334155 !important;
@@ -189,26 +212,26 @@ if not st.session_state.logged_in:
             color: #f8fafc !important;
             text-align: center !important;
         }
-
-        div[data-testid="stTextInput"] input:focus {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 1px #3b82f6 !important;
-        }
         </style>
     """, unsafe_allow_html=True)
 
-    # Layouting ke Tengah
+    # Layouting ke Tengah (Tanpa margin-top manual yang bikin scroll)
     _, col_mid, _ = st.columns([1, 1.2, 1])
     
     with col_mid:
-        st.markdown("<div style='margin-top: 80px;'></div>", unsafe_allow_html=True)
-        
         with st.form("login_form"):
+            # Header di dalam card biar compact
+            st.markdown("""
+                <div style='text-align: center; margin-bottom: 20px;'>
+                    <h2 style='color: #f8fafc; font-family: "Inter", sans-serif; margin: 0; font-size: 1.5rem;'>Secure Access</h2>
+                    <p style='color: #64748b; font-family: "Inter", sans-serif; font-size: 0.75rem;'>Engine Gateway v2.0</p>
+                </div>
+            """, unsafe_allow_html=True)
+
             username = st.text_input("Username", placeholder="")
             password = st.text_input("Password", type="password", placeholder="")
             
-            st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-            
+            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             submit = st.form_submit_button("LOGIN", use_container_width=True)
             
             if submit:
@@ -217,9 +240,10 @@ if not st.session_state.logged_in:
                     st.session_state.current_user = username
                     st.rerun()
                 else:
-                    st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center;'>Invalid credentials. Access denied.</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center;'>Invalid credentials.</p>", unsafe_allow_html=True)
 
-    render_footer()
+        # Footer nempel di bawah card
+        render_footer()
     st.stop()
 
 # --- 3. STATE MANAGEMENT & STYLING ---
