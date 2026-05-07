@@ -270,11 +270,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     log_label_placeholder = st.empty()
     log_placeholder = st.empty()
     btn_placeholder = st.empty()
-    
-    # State info execution
-    if st.session_state.execute_done:
-        stats = st.session_state.execute_stats
-        st.markdown(make_solid_box(f"Done — Success: {stats['success']} | Failed: {stats['failed']} | Time: {stats['time']}", "#166534", "#ffffff"), unsafe_allow_html=True)
         
     if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
         if not bot_user or not bot_pass: 
