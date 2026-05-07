@@ -262,10 +262,8 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
             browser.close()
             elapsed = int(time.time() - global_start_time)
             ui_log("SUCCESS", f"Complete. Total runtime: {elapsed//60}m {elapsed%60}s")
-            
-            st.session_state.execute_done = True
-            st.session_state.execute_stats = {"success": success_count, "failed": failed_count, "time": f"{elapsed//60}m {elapsed%60}s"}
-            
+            box_html = f"<div style='background-color:#166534;color:#ffffff;padding:12px 16px;border-radius:8px;font-weight:600;font-size:0.92rem;margin:8px 0;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:block;width:100%;'>Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s</div>"
+            st.markdown(box_html, unsafe_allow_html=True)
             alert_callback(f"✅ <b>BOT FINISHED</b>\nDist: {selected_distributor}\nSuccess: {success_count} | Failed: {failed_count}\nRuntime: {elapsed//60}m {elapsed%60}s")
 
             if success_count > 0: 
@@ -274,7 +272,7 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
                 
             st.session_state.is_bot_running = False
 
-    except Exception as e: 
+    except Exception as e:
         st.session_state.is_bot_running = False
         st.error("System halted.")
         ui_log("ERROR", f"FAILURE: {e}")
