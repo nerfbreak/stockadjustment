@@ -154,47 +154,55 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = "unknown"
 
 if not st.session_state.logged_in:
-    # CSS KHUSUS LOGIN (MINIMALIST & FIT TO SCREEN)
+    # CSS SAKTI: NO SCROLL, FULL CENTER, LEFT-ALIGNED INPUT
     st.markdown("""
         <style>
-        /* 1. Hilangkan padding bawaan & Matikan Scroll */
-        [data-testid="stAppViewContainer"] {
+        /* 1. Paksa Body dan Container Utama tidak boleh ada scroll */
+        html, body, [data-testid="stAppViewContainer"] {
             overflow: hidden !important;
-        }
-        
-        [data-testid="stMainViewContainer"] {
-            display: flex;
-            align-items: center;
-            justify-content: center;
             height: 100vh !important;
-            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
-        [data-testid="stHeader"] { display: none; }
-        
+        /* 2. Tengahin semua konten di dalam Viewport */
+        [data-testid="stMainViewContainer"] {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 100vh !important;
+        }
+
+        /* 3. Buang semua padding bawaan block-container Streamlit */
         .main .block-container {
             padding: 0 !important;
             max-width: 100% !important;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            height: 100vh;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+            height: 100vh !important;
         }
 
-        /* 2. Hilangkan instruksi 'Press Enter' */
+        /* 4. Sembunyikan Header & Toolbar atas */
+        [data-testid="stHeader"], [data-testid="stToolbar"] {
+            display: none !important;
+        }
+
+        /* 5. Hilangkan instruksi 'Press Enter' */
         div[data-testid="InputInstructions"] { display: none !important; }
 
-        /* 3. Login Card Styling (Ultra Minimalist) */
+        /* 6. Card Styling */
         div[data-testid="stForm"] {
             border: 1px solid #334155 !important;
             border-radius: 16px !important;
             background-color: #0f172a !important;
             padding: 40px !important;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important;
-            margin-bottom: 20px;
+            width: 380px !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
         }
 
-        /* 4. Center Label & Input */
+        /* 7. Label Tetap Center */
         div[data-testid="stTextInput"] label p {
             font-family: "Inter", sans-serif !important;
             font-size: 0.7rem !important;
@@ -206,12 +214,14 @@ if not st.session_state.logged_in:
             width: 100% !important;
         }
 
+        /* 8. Input Field Styling - RATA KIRI (Left-Aligned) */
         div[data-testid="stTextInput"] input {
             background-color: #1e293b !important;
             border: 1px solid #334155 !important;
             border-radius: 8px !important;
             color: #f8fafc !important;
-            text-align: center !important;
+            text-align: left !important; /* Kita balikin ke kiri */
+            padding-left: 15px !important; /* Kasih jarak dikit dari dinding kiri */
         }
 
         div[data-testid="stTextInput"] input:focus {
@@ -221,28 +231,22 @@ if not st.session_state.logged_in:
         </style>
     """, unsafe_allow_html=True)
 
-    # Layouting ke Tengah
-    _, col_mid, _ = st.columns([1, 1.2, 1])
-    
-    with col_mid:
-        with st.form("login_form"):
-            # Header dihapus, langsung masuk ke input
-            username = st.text_input("Username", placeholder="")
-            password = st.text_input("Password", type="password", placeholder="")
-            
-            st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-            submit = st.form_submit_button("LOGIN", use_container_width=True)
-            
-            if submit:
-                if database.authenticate_user(supabase, username, password):
-                    st.session_state.logged_in = True
-                    st.session_state.current_user = username
-                    st.rerun()
-                else:
-                    st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center; margin-top: 10px;'>Invalid credentials.</p>", unsafe_allow_html=True)
+    with st.form("login_form"):
+        username = st.text_input("Username", placeholder="")
+        password = st.text_input("Password", type="password", placeholder="")
+        
+        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+        submit = st.form_submit_button("LOGIN", use_container_width=True)
+        
+        if submit:
+            if database.authenticate_user(supabase, username, password):
+                st.session_state.logged_in = True
+                st.session_state.current_user = username
+                st.rerun()
+            else:
+                st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center; margin-top: 10px;'>Invalid credentials.</p>", unsafe_allow_html=True)
 
-        # Footer tetap di bawah card
-        render_footer()
+    render_footer()
     st.stop()
 
 # --- 3. STATE MANAGEMENT & STYLING ---
