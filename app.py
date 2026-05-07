@@ -279,7 +279,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             st.session_state.execute_done = False
             btn_placeholder.empty()
             
-            log_label_placeholder.markdown(f"<div class='terminal-label'>Log - Active Account: <span style='color: #38bdf8;'>{selected_distributor} ({bot_user})</span></div>", unsafe_allow_html=True)
+            log_label_placeholder.markdown(f"<div class='terminal-label' style='background: #1e293b; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px; display: inline-block;'>Log - Active Account: <span style='color: #38bdf8;'>{selected_distributor} ({bot_user})</span></div>", unsafe_allow_html=True)
             bot_logs_history  = []; bot_last_log_time = [time.time()]
             
             def bot_ui_log(module, msg):
