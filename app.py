@@ -7,6 +7,50 @@ import playwright_engine
 
 # --- 1. CONFIG & UI HELPERS ---
 st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
+# --- INJEKSI CSS CUSTOM BIAAR KOMPONEN STREAMLIT MATCH ---
+st.markdown("""
+    <style>
+    /* Import font Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    /* 1. Label Judul (Nama Distributor, Upload Distributor stock file) */
+    div[data-testid="stSelectbox"] label p, 
+    div[data-testid="stFileUploader"] label p {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+    }
+
+    /* 2. Isi Dropdown List & Teks terpilih */
+    div[data-baseweb="select"] {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+    }
+    ul[data-baseweb="menu"] li {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* 3. Sub-text File Uploader (200MB per file • CSV, XLSX) */
+    [data-testid="stFileUploadDropzone"] small,
+    [data-testid="stFileUploadDropzone"] div {
+        font-family: "Inter", sans-serif !important;
+    }
+
+    /* 4. Semua Tombol (Extract, Clear, Execute) */
+    div[data-testid="stButton"] button {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
