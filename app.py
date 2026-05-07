@@ -206,19 +206,18 @@ if not st.session_state.logged_in:
         # Header di atas Card
         st.markdown("""
             <div style='text-align: center; margin-bottom: 30px;'>
-                <div style='color: #3b82f6; font-size: 2.5rem; margin-bottom: 10px;'>🔒</div>
-                <h2 style='color: #f8fafc; font-family: "Inter", sans-serif; margin-bottom: 0;'>Secure Access</h2>
-                <p style='color: #64748b; font-family: "Inter", sans-serif; font-size: 0.85rem;'>Engine Gateway v2.0</p>
+                <h2 style='color: #f8fafc; font-family: "Inter", sans-serif; margin-bottom: 0;'></h2>
+                <p style='color: #64748b; font-family: "Inter", sans-serif; font-size: 0.85rem;'>Bot Engine V.20</p>
             </div>
         """, unsafe_allow_html=True)
 
         with st.form("login_form"):
-            username = st.text_input("Username", placeholder="Enter your ID")
-            password = st.text_input("Password", type="password", placeholder="••••••••")
+            username = st.text_input("Username", placeholder="")
+            password = st.text_input("Password", type="password", placeholder="")
             
             st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
             
-            submit = st.form_submit_button("SIGN IN TO ENGINE", use_container_width=True)
+            submit = st.form_submit_button("LOGIN", use_container_width=True)
             
             if submit:
                 if database.authenticate_user(supabase, username, password):
