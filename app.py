@@ -514,8 +514,8 @@ if np_source_ready and file2:
             d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0); d1_agg = (d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'}))
             
             # --- FILTER DISTRIBUTOR STOCK DATA TERLEBIH DAHULU ---
-            if 'Export' in df2.columns:
-                df2 = df2[pd.to_numeric(df2['Export'], errors='coerce') == 1]
+            if 'Aktif' in df2.columns:
+                df2 = df2[pd.to_numeric(df2['Aktif'], errors='coerce') == 1]
             if 'Nama Gudang' in df2.columns:
                 df2 = df2[df2['Nama Gudang'].astype(str).str.strip().str.upper() == 'GUDANG UTAMA']
                 
