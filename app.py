@@ -10,35 +10,36 @@ st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
 # --- INJEKSI CSS CUSTOM BIAR KOMPONEN STREAMLIT MATCH ---
 st.markdown("""
     <style>
-    /* 1. Target langsung tag <section> tempat kotak uploader berada */
-    div[data-testid="stFileUploader"] section {
-        background-color: #1e293b !important; 
-        border: 2px dashed #475569 !important; 
-        border-radius: 10px !important;
-        padding: 20px !important;
-    }
-
-    /* 2. Efek pas kursor nyentuh kotak uploader */
-    div[data-testid="stFileUploader"] section:hover {
-        border-color: #38bdf8 !important; 
-        background-color: #0f172a !important;
-    }
-
-    /* 3. Paksa ubah tombol "Browse files" di dalamnya */
-    div[data-testid="stFileUploader"] button {
-        background-color: #334155 !important;
-        color: #38bdf8 !important;
-        border: 1px solid #475569 !important;
-        border-radius: 6px !important;
+    /* 1. Label Judul Uploader (Teks di atas kotak) */
+    div[data-testid="stFileUploader"] label p {
         font-family: "Inter", sans-serif !important;
+        font-size: 0.75rem !important;
         font-weight: 700 !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
     }
 
-    /* Hover tombol Browse files */
+    /* 2. Samakan semua font di dalam area kotak dropzone */
+    div[data-testid="stFileUploadDropzone"] * {
+        font-family: "Inter", sans-serif !important;
+    }
+
+    /* 3. Rapihkan tombol "Browse files" biar masuk tema corporate */
+    div[data-testid="stFileUploader"] button {
+        background-color: #1e293b !important;
+        color: #3b82f6 !important;
+        border: 1px solid #334155 !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        padding: 4px 16px !important;
+    }
+
+    /* Efek hover pas tombolnya disentuh */
     div[data-testid="stFileUploader"] button:hover {
-        background-color: #3b82f6 !important;
-        color: #ffffff !important;
         border-color: #3b82f6 !important;
+        background-color: rgba(59, 130, 246, 0.1) !important;
+        color: #38bdf8 !important;
     }
     </style>
 """, unsafe_allow_html=True)
