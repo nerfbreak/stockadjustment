@@ -186,7 +186,7 @@ if extract_btn:
         st.stop()
 
     st.session_state.is_bot_running = True
-    ext_label_placeholder.markdown("<div class='terminal-label'>Log</div>", unsafe_allow_html=True)
+    ext_label_placeholder.markdown("<div class='terminal-label' style='background: #1e293b; border: 1px solid #334155; padding: 6px 12px; border-radius: 6px; display: inline-block;'>Log</div>", unsafe_allow_html=True)
     ext_logs_history  = []
     ext_last_log_time = [time.time()]
 
