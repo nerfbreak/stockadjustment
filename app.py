@@ -134,6 +134,15 @@ def render_terminal(placeholder, logs_history: list):
     """
     placeholder.markdown(html_content, unsafe_allow_html=True)
 
+# --- FUNGSI FOOTER COPYRIGHT ---
+def render_footer():
+    st.markdown("""
+    <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
+            &copy; 2026 IT Support Newspage. by kopi mang toni.
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- 2. AUTHENTICATION GATEKEEPER ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
@@ -155,6 +164,8 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("Access Denied! Kredensial tidak ditemukan di database.")
+    # Panggil footer di halaman login
+    render_footer()
     st.stop()
 
 
@@ -203,15 +214,6 @@ st.markdown("""
     document.addEventListener('visibilitychange', async () => { if (wakeLock !== null && document.visibilityState === 'visible') { requestWakeLock(); } });
     </script>
 """, unsafe_allow_html=True)
-
-# --- FOOTER COPYRIGHT ---
-    st.markdown("""
-    <div style='text-align: center; margin-top: 80px; margin-bottom: 20px;'>
-        <span style='font-family: "Inter", sans-serif; font-size: 0.6rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;'>
-            &copy; 2026 IT Support Newspage. by kopi mang toni.
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
 
 # --- 4. MAIN UI LAYOUT ---
 st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
@@ -400,3 +402,6 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                 df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, 
                 REASON_CODE, TABLE_UPDATE_INTERVAL, bot_ui_log, send_telegram_alert, table_placeholder, log_label_placeholder, supabase
             )
+
+# --- Panggil footer di paling bawah halaman aplikasi utama ---
+render_footer()
