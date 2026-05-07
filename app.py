@@ -154,44 +154,71 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = "unknown"
 
 if not st.session_state.logged_in:
-    # CSS Khusus Halaman Login buat nengahin label & hapus instruksi enter
+    # CSS KHUSUS LOGIN CARD (MODERN LOOK)
     st.markdown("""
         <style>
-        /* Sembunyikan instruksi 'Press Enter' agar tidak nabrak icon mata */
-        div[data-testid="InputInstructions"] {
-            display: none !important;
+        /* Hilangkan instruksi 'Press Enter' */
+        div[data-testid="InputInstructions"] { display: none !important; }
+
+        /* Bikin Kotak Login (Card) */
+        div[data-testid="stForm"] {
+            border: 1px solid #334155 !important;
+            border-radius: 16px !important;
+            background-color: #0f172a !important;
+            padding: 40px !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
         }
-        
-        /* Bikin label Username & Password rata tengah */
-        div[data-testid="stTextInput"] label {
-            width: 100% !important;
-            justify-content: center !important;
-            display: flex !important;
-        }
-        
+
+        /* Rapihkan Label */
         div[data-testid="stTextInput"] label p {
-            text-align: center !important;
             font-family: "Inter", sans-serif !important;
-            font-size: 0.75rem !important;
+            font-size: 0.7rem !important;
             font-weight: 700 !important;
             color: #94a3b8 !important;
             text-transform: uppercase !important;
             letter-spacing: 0.1em !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
+
+        /* Input Field Styling */
+        div[data-testid="stTextInput"] input {
+            background-color: #1e293b !important;
+            border: 1px solid #334155 !important;
+            border-radius: 8px !important;
+            color: #f8fafc !important;
+            text-align: center !important;
+        }
+
+        div[data-testid="stTextInput"] input:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 1px #3b82f6 !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 1.2, 1]) # Col2 agak digedein dikit biar pas
-    with col2:
-        st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align:center; color:#3b82f6; font-family:\"Inter\", sans-serif;'>System Secure Login</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align:center; color:#64748b; font-family:\"Inter\", sans-serif; font-size:0.85rem; margin-top:-15px;'>Enter credentials to access the engine</p>", unsafe_allow_html=True)
+    # Layouting ke Tengah
+    _, col_mid, _ = st.columns([1, 1.2, 1])
+    
+    with col_mid:
+        st.markdown("<div style='margin-top: 80px;'></div>", unsafe_allow_html=True)
         
-        with st.form("login_form", clear_on_submit=False):
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
-            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-            submit = st.form_submit_button("Login", use_container_width=True)
+        # Header di atas Card
+        st.markdown("""
+            <div style='text-align: center; margin-bottom: 30px;'>
+                <div style='color: #3b82f6; font-size: 2.5rem; margin-bottom: 10px;'>🔒</div>
+                <h2 style='color: #f8fafc; font-family: "Inter", sans-serif; margin-bottom: 0;'>Secure Access</h2>
+                <p style='color: #64748b; font-family: "Inter", sans-serif; font-size: 0.85rem;'>Engine Gateway v2.0</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="Enter your ID")
+            password = st.text_input("Password", type="password", placeholder="••••••••")
+            
+            st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+            
+            submit = st.form_submit_button("SIGN IN TO ENGINE", use_container_width=True)
             
             if submit:
                 if database.authenticate_user(supabase, username, password):
@@ -199,9 +226,8 @@ if not st.session_state.logged_in:
                     st.session_state.current_user = username
                     st.rerun()
                 else:
-                    st.error("Access Denied! Kredensial salah.")
-    
-    # Panggil footer di halaman login
+                    st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center;'>Invalid credentials. Access denied.</p>", unsafe_allow_html=True)
+
     render_footer()
     st.stop()
 
