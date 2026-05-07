@@ -7,15 +7,16 @@ import playwright_engine
 
 # --- 1. CONFIG & UI HELPERS ---
 st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
-# --- INJEKSI CSS CUSTOM BIAAR KOMPONEN STREAMLIT MATCH ---
+# --- INJEKSI CSS CUSTOM BIAR KOMPONEN STREAMLIT MATCH ---
 st.markdown("""
     <style>
     /* Import font Inter */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-    /* 1. Label Judul (Nama Distributor, Upload Distributor stock file) */
+    /* 1. Label Judul (Nama Distributor, Upload, NP Password) */
     div[data-testid="stSelectbox"] label p, 
-    div[data-testid="stFileUploader"] label p {
+    div[data-testid="stFileUploader"] label p,
+    div[data-testid="stTextInput"] label p {
         font-family: "Inter", sans-serif !important;
         font-size: 0.75rem !important;
         font-weight: 700 !important;
@@ -24,25 +25,29 @@ st.markdown("""
         letter-spacing: 0.1em !important;
     }
 
-    /* 2. Isi Dropdown List & Teks terpilih */
-    div[data-baseweb="select"] {
-        font-family: "Inter", sans-serif !important;
-        font-size: 0.9rem !important;
-        font-weight: 600 !important;
-    }
-    ul[data-baseweb="menu"] li {
-        font-family: "Inter", sans-serif !important;
-        font-size: 0.85rem !important;
-    }
-
-    /* 3. Sub-text File Uploader (200MB per file • CSV, XLSX) */
-    [data-testid="stFileUploadDropzone"] small,
-    [data-testid="stFileUploadDropzone"] div {
+    /* 2. Isi Dropdown List */
+    div[data-baseweb="select"] * {
         font-family: "Inter", sans-serif !important;
     }
 
-    /* 4. Semua Tombol (Extract, Clear, Execute) */
-    div[data-testid="stButton"] button {
+    /* 3. Area Dropzone Uploader (Teks Drag & Drop, 200MB limit, dan tombol) */
+    [data-testid="stFileUploadDropzone"] * {
+        font-family: "Inter", sans-serif !important;
+    }
+    
+    /* Paksa teks kecil (200MB CSV XLSX) biar nggak terlalu mencolok */
+    [data-testid="stFileUploadDropzone"] small {
+        font-size: 0.7rem !important;
+        color: #64748b !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+    }
+
+    /* 4. Semua Tombol Utama (Extract, Clear, Execute, Browse Files) dan teks di dalamnya */
+    div[data-testid="stButton"] button, 
+    div[data-testid="stButton"] button p,
+    div[data-testid="stFileUploader"] button,
+    div[data-testid="stFileUploader"] button p {
         font-family: "Inter", sans-serif !important;
         font-size: 0.85rem !important;
         font-weight: 700 !important;
