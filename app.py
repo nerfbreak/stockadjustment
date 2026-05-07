@@ -108,13 +108,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 4. MAIN UI LAYOUT ---
-hdr_col1, hdr_col2 = st.columns([5, 1])
+hdr_col1, hdr_col2 = st.columns([5, 2]) # Gw lebarkan sedikit col2-nya biar box-nya lega
 with hdr_col1:
     st.markdown("<div class='live-indicator'>LIVE</div>", unsafe_allow_html=True)
     st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
     st.markdown("<div class='typewriter-sub'>by Kopi Mang Toni</div>", unsafe_allow_html=True)
+
 with hdr_col2:
-    st.markdown(f"<div class='typewriter-sub' style='text-align: right; margin-top: 25px;'>Active Session:<br><span style='color: #38bdf8; font-weight: 600;'>{st.session_state.current_user}</span></div>", unsafe_allow_html=True)
+    st.markdown(f"""
+        <div style='text-align: right; margin-top: 12px;'>
+            <div style='display: inline-block; background: #1e293b; border: 1px solid #334155; padding: 10px 16px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); text-align: left;'>
+                <div style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;'>Active Session</div>
+                <div style='font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: #38bdf8; font-weight: 700; display: flex; align-items: center;'>
+                    <span style='color: #10b981; margin-right: 6px;'>●</span>{st.session_state.current_user}
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 st.markdown("---")
 
 col1, col2 = st.columns(2)
