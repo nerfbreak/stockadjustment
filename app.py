@@ -1,3 +1,4 @@
+import html
 import streamlit as st
 import time
 import requests
@@ -459,7 +460,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             log_label_placeholder.markdown(f"""
                 <div style='display: inline-block; margin-bottom: 4px;'>
                     <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Account</span>
-                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
+                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(selected_distributor)} ({html.escape(bot_user)})</span>
                 </div>
             """, unsafe_allow_html=True)
             bot_logs_history  = []; bot_last_log_time = [time.time()]
