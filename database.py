@@ -36,6 +36,7 @@ def authenticate_user(supabase, username, password):
     return False
 
 @st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=3600)
 def get_distributor_list(_supabase):
     list_dist = []
     if _supabase:
