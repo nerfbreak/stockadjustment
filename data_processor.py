@@ -32,9 +32,7 @@ def process_compare(df1, df2, sku_col1, desc_col1, qty_col1, sku_col2, qty_col2,
     d1[sku_col1] = d1[sku_col1].astype(str).str.split('.').str[0].str.strip()
     d1 = d1[~d1[sku_col1].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
     
-    target_skus_set = set(TARGET_SKUS)
-    mask1 = d1[sku_col1].astype(str).isin(target_skus_set)
-    d1.loc[mask1, sku_col1] = '0' + d1.loc[mask1, sku_col1].astype(str)
+    d1[sku_col1] = d1[sku_col1].apply(lambda x: '0' + str(x) if str(x) in TARGET_SKUS else x)
     d1[qty_col1] = pd.to_numeric(d1[qty_col1], errors='coerce').fillna(0)
     d1_agg = (d1.groupby(sku_col1).agg({desc_col1: 'first', qty_col1: 'sum'}).reset_index().rename(columns={sku_col1: 'SKU', desc_col1: 'Description', qty_col1: 'Newspage'}))
     
@@ -48,13 +46,11 @@ def process_compare(df1, df2, sku_col1, desc_col1, qty_col1, sku_col2, qty_col2,
     d2[sku_col2] = d2[sku_col2].astype(str).str.split('.').str[0].str.strip()
     d2 = d2[~d2[sku_col2].str.lower().isin(['nan', 'none', '', 'total', 'grand total'])]
     
-    mask2 = d2[sku_col2].astype(str).isin(target_skus_set)
-    d2.loc[mask2, sku_col2] = '0' + d2.loc[mask2, sku_col2].astype(str)
+    d2[sku_col2] = d2[sku_col2].apply(lambda x: '0' + str(x) if str(x) in TARGET_SKUS else x)
     d2[qty_col2] = pd.to_numeric(d2[qty_col2], errors='coerce').fillna(0)
     
-    if multipliers:
-        mult_map = {rule['sku_target']: rule['multiplier_value'] for rule in multipliers}
-        d2[qty_col2] *= d2[sku_col2].map(mult_map).fillna(1.0)
+    for rule in multipliers:
+        d2.loc[d2[sku_col2] == rule['sku_target'], qty_col2] *= rule['multiplier_value']
 
     d2_agg = (d2.groupby(sku_col2)[qty_col2].sum().reset_index().rename(columns={sku_col2: 'SKU', qty_col2: 'Distributor'}))
     
@@ -62,8 +58,7 @@ def process_compare(df1, df2, sku_col1, desc_col1, qty_col1, sku_col2, qty_col2,
     merged[['Newspage', 'Distributor']] = merged[['Newspage', 'Distributor']].fillna(0)
     merged['Description'] = merged['Description'].fillna('ITEM NOT IN MASTER')
     merged['Selisih'] = merged['Distributor'] - merged['Newspage']
-    merged['Status'] = 'Mismatch'
-    merged.loc[merged['Selisih'] == 0, 'Status'] = 'Match'
+    merged['Status'] = merged['Selisih'].apply(lambda x: 'Match' if x == 0 else 'Mismatch')
     
     mismatches = merged[merged['Status'] == 'Mismatch'].sort_values('Selisih')
     return merged, mismatches
