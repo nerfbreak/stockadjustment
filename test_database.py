@@ -25,6 +25,10 @@ class MockSupabase:
             return MockSupabaseTable(self.data)
         return MockSupabaseTable([])
 
+@pytest.fixture(autouse=True)
+def clear_caches():
+    database.get_distributor_list.clear()
+
 def test_get_distributor_list():
     mock_db = MockSupabase("distributor_vault", [{"nama_distributor": "Distributor A"}, {"nama_distributor": "Distributor B"}])
 
