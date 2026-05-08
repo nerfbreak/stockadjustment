@@ -211,6 +211,8 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
 
             update_progress_label(0, total_rows)
             
+            adjustments_log_buffer = []
+
             for i, (idx, row) in enumerate(df_view.iterrows()):
                 update_progress_label(i + 1, total_rows)
                 sku = str(row['SKU']).strip()
@@ -241,18 +243,28 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
                     df_view.at[idx, 'Keterangan'] = f'Input {qty} EA'
                     success_count += 1
                     ui_log("SUCCESS", f"Transaction {i+1} committed. Grid updated.")
-                    database.log_adjustment(supabase, sku, qty, "Success", f"Attached {qty} EA", bot_user)
+                    adjustments_log_buffer.append({
+                        "sku": sku, "qty": qty, "status": "Success",
+                        "keterangan": f"Attached {qty} EA", "np_user": bot_user
+                    })
                 except Exception as loop_err: 
                     df_view.at[idx, 'Status'] = 'Failed'
                     df_view.at[idx, 'Keterangan'] = 'Node Timeout'
                     failed_count += 1
                     ui_log("ERROR", f"Timeout on SKU [{sku}]. Node unresponsive. Skipping.")
-                    database.log_adjustment(supabase, sku, qty, "Failed", "Node Timeout", bot_user)
+                    adjustments_log_buffer.append({
+                        "sku": sku, "qty": qty, "status": "Failed",
+                        "keterangan": "Node Timeout", "np_user": bot_user
+                    })
                     
                 progress_bar.progress((i+1)/total_rows)
                 if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows-1: 
                     table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
                     
+            # Flush the bulk inserts buffer
+            ui_log("SYS", f"Batching {len(adjustments_log_buffer)} adjustment logs to database...")
+            database.log_adjustments_bulk(supabase, adjustments_log_buffer)
+
             ui_log("SERVER", "Finalizing batch. Saving document to main server...")
             page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
             try: 
