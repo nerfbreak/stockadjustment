@@ -97,4 +97,35 @@ def log_adjustment(supabase, sku, qty, status, keterangan, bot_user):
                 "sku": sku, "qty": safe_qty, "status": status, 
                 "keterangan": keterangan, "np_user": bot_user
             }).execute()
+        except: pass
+
+def log_adjustments_bulk(supabase, adjustments_list):
+    """
+    Perform a bulk insert of multiple adjustment logs.
+    adjustments_list should be a list of dicts:
+    [{'sku': ..., 'qty': ..., 'status': ..., 'keterangan': ..., 'np_user': ...}, ...]
+    """
+    if supabase and adjustments_list:
+        try:
+            data_to_insert = []
+            for item in adjustments_list:
+                qty = item.get('qty', 0)
+                safe_qty = int(qty) if str(qty).replace('-','').isdigit() else 0
+                data_to_insert.append({
+                    "sku": item.get('sku'),
+                    "qty": safe_qty,
+                    "status": item.get('status'),
+                    "keterangan": item.get('keterangan'),
+                    "np_user": item.get('np_user')
+                })
+
+            # Chunk the inserts to avoid payload size limits if list is very large
+            # Streamlit/Supabase postgrest limit is generous but good practice
+            chunk_size = 1000
+            for i in range(0, len(data_to_insert), chunk_size):
+                chunk = data_to_insert[i:i + chunk_size]
+                supabase.table("adjustment_logs").insert(chunk).execute()
+        except Exception as e:
+            # Silently fail as the original function does
+            pass
         except Exception: pass
