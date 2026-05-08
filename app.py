@@ -1,9 +1,13 @@
+import html
 import streamlit as st
 import time
+import html
 import requests
+import html
 import database
 import data_processor
 import playwright_engine
+import html
 
 # --- 1. CONFIG & UI HELPERS ---
 st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
@@ -123,7 +127,7 @@ def send_telegram_alert(message: str):
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
         try: requests.post(url, json=payload, timeout=5)
-        except: pass
+        except Exception: pass
 
 def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
     return (f"<div style='background-color:{bg_color};color:{text_color};padding:12px 16px;border-radius:8px;font-weight:600;font-size:0.92rem;margin:8px 0;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:block;width:100%;'>{text}</div>")
@@ -293,7 +297,8 @@ st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
 st.markdown(f"""
     <div style='display: inline-block; margin-top: -4px;'>
         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Session</span>
-        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{st.session_state.current_user}</span>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(st.session_state.current_user)}</span>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(str(st.session_state.current_user))}</span>
     </div>
 """, unsafe_allow_html=True)
 
@@ -369,8 +374,8 @@ if extract_btn:
 
     def ext_ui_log(module, msg):
         now = time.time(); diff_ms = int((now - ext_last_log_time[0]) * 1000); ext_last_log_time[0] = now
-        timestamp = time.strftime('%H:%M:%S'); tag_class = f"tag-{module.lower()}"
-        ext_logs_history.append(f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>")
+        timestamp = time.strftime('%H:%M:%S'); tag_class = f"tag-{html.escape(str(module).lower())}"
+        ext_logs_history.append(f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{html.escape(str(module))}]</span><span class='log-msg'>{html.escape(str(msg))}</span>")
         render_terminal(ext_log_placeholder, ext_logs_history)
 
     playwright_engine.run_extract(
@@ -459,15 +464,17 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
             log_label_placeholder.markdown(f"""
                 <div style='display: inline-block; margin-bottom: 4px;'>
                     <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Account</span>
-                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
+                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(selected_distributor)} ({html.escape(bot_user)})</span>
+                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(str(selected_distributor))} ({html.escape(str(bot_user))})</span>
+                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(str(selected_distributor))} ({html.escape(str(bot_user))})</span>
                 </div>
             """, unsafe_allow_html=True)
             bot_logs_history  = []; bot_last_log_time = [time.time()]
             
             def bot_ui_log(module, msg):
                 now = time.time(); diff_ms = int((now - bot_last_log_time[0]) * 1000); bot_last_log_time[0] = now
-                timestamp = time.strftime('%H:%M:%S'); tag_class = f"tag-{module.lower()}"
-                bot_logs_history.append(f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{module}]</span><span class='log-msg'>{msg}</span>")
+                timestamp = time.strftime('%H:%M:%S'); tag_class = f"tag-{html.escape(str(module).lower())}"
+                bot_logs_history.append(f"<span class='log-time'>[{timestamp}]</span><span class='log-ms'>[+{diff_ms}ms]</span><span class='log-tag {tag_class}'>[{html.escape(str(module))}]</span><span class='log-msg'>{html.escape(str(msg))}</span>")
                 render_terminal(log_placeholder, bot_logs_history)
 
             playwright_engine.run_execution(
