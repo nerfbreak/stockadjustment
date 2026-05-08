@@ -1,3 +1,4 @@
+## 2026-05-08 - [Streamlit XSS Fix]\n**Vulnerability:** Cross-Site Scripting (XSS) via Unsafe HTML in Streamlit due to interpolating unescaped session variables into markdown with `unsafe_allow_html=True`.\n**Learning:** When using Streamlit's `st.markdown(..., unsafe_allow_html=True)`, any dynamic variables must be escaped using `html.escape()`.\n**Prevention:** Always escape user-controlled or session-stored strings before embedding them in HTML payloads.
 
 ## 2026-05-08 - [🔒 Fix plaintext password storage]
 **Vulnerability**: The authentication logic in `database.py` retrieved users by comparing plaintext passwords directly in the database query. This exposes credentials if the database is compromised.

@@ -1,6 +1,7 @@
 import html
 import streamlit as st
 import time
+import html
 import requests
 import html
 import database
@@ -296,6 +297,7 @@ st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
 st.markdown(f"""
     <div style='display: inline-block; margin-top: -4px;'>
         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Session</span>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(st.session_state.current_user)}</span>
         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(str(st.session_state.current_user))}</span>
     </div>
 """, unsafe_allow_html=True)
