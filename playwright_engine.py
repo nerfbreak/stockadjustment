@@ -148,6 +148,144 @@ def run_extract(user_id_np, pass_np, selected_distributor, URL_LOGIN, TIMEOUT_MS
         alert_callback(f"🚨 <b>SYSTEM ERROR (EXTRACT)</b>\nDist: {html.escape(str(selected_distributor))}\nError: <code>{html.escape(str(e)[:100])}</code>")
 
 
+def _login(page, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, ui_log):
+    ui_log("AUTH", f"Connecting to Newspage...")
+    page.goto(URL_LOGIN, wait_until="domcontentloaded")
+    ui_log("AUTH", f"Injecting hidden credentials for [{selected_distributor}]...")
+    page.locator("id=txtUserid").fill(bot_user)
+    page.locator("id=txtPasswd").fill(bot_pass)
+    page.locator("id=btnLogin").click(force=True)
+    try:
+        btn = page.locator("id=SYS_ASCX_btnContinue")
+        btn.wait_for(state="visible", timeout=5_000)
+        btn.click(force=True)
+    except Exception: pass
+
+    page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS)
+    ui_log("AUTH", "Login successful.")
+
+def _navigate_to_adjustment(page, WAREHOUSE, REASON_CODE, TIMEOUT_MS, ui_log):
+    time.sleep(5)
+    page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
+    add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
+    add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
+    add_btn.click(force=True)
+    warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True)
+    warehouse_link.wait_for(state="visible")
+    warehouse_link.click(force=True)
+    page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible")
+
+    dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
+    if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
+    ui_log("SYS", "Ready. Opening data stream for payload injection...")
+
+def _process_adjustments(page, df_view, bot_user, selected_distributor, TIMEOUT_MS, TABLE_UPDATE_INTERVAL, ui_log, log_label_placeholder, table_placeholder, supabase):
+    success_count, failed_count = 0, 0
+    progress_bar = st.progress(0)
+    total_rows = len(df_view)
+
+    # --- FUNGSI UPDATE LABEL REALTIME ---
+    def update_progress_label(current, total):
+        html = f"""
+        <div style='display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; margin-bottom: 8px;'>
+            <div>
+                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Account</span>
+                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
+            </div>
+            <div>
+                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Processed</span>
+                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{current}/{total}</span>
+            </div>
+        </div>
+        """
+        log_label_placeholder.markdown(html, unsafe_allow_html=True)
+
+    update_progress_label(0, total_rows)
+
+    for i, (idx, row) in enumerate(df_view.iterrows()):
+        update_progress_label(i + 1, total_rows)
+        sku = str(row['SKU']).strip()
+        try: qty = str(int(float(row['Qty'])))
+        except Exception: qty = str(row['Qty']).strip()
+
+        ui_log("INJECT", f"Processing Payload {i+1}/{total_rows} | Target SKU: [{sku}]")
+        try:
+            sku_input = page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value")
+            ui_log("INJECT", f"Locking target node for SKU [{sku}]...")
+            sku_input.fill(sku)
+            ui_log("INJECT", "Triggering system lookup (Tab event)...")
+            sku_input.press("Tab")
+            time.sleep(1.5)
+
+            qty_input = page.locator("id=pag_I_StkAdj_NewGeneral_txt_QTY1_Value")
+            qty_input.wait_for(state="visible", timeout=TIMEOUT_MS)
+            ui_log("INJECT", f"Node resolved. Assigning adjustment quantity: {qty} EA")
+            qty_input.fill(qty)
+            time.sleep(0.5)
+
+            ui_log("INJECT", "Dispatching Add command to grid...")
+            page.locator("id=pag_I_StkAdj_NewGeneral_btn_Add_Value").click(force=True)
+            ui_log("SYS", "Awaiting DOM form reset confirmation...")
+            page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
+
+            df_view.at[idx, 'Status'] = 'Success'
+            df_view.at[idx, 'Keterangan'] = f'Input {qty} EA'
+            success_count += 1
+            ui_log("SUCCESS", f"Transaction {i+1} committed. Grid updated.")
+            database.log_adjustment(supabase, sku, qty, "Success", f"Attached {qty} EA", bot_user)
+        except Exception as loop_err:
+            df_view.at[idx, 'Status'] = 'Failed'
+            df_view.at[idx, 'Keterangan'] = 'Node Timeout'
+            failed_count += 1
+            ui_log("ERROR", f"Timeout on SKU [{sku}]. Node unresponsive. Skipping.")
+            database.log_adjustment(supabase, sku, qty, "Failed", "Node Timeout", bot_user)
+
+        progress_bar.progress((i+1)/total_rows)
+        if i % TABLE_UPDATE_INTERVAL == 0 or i == total_rows-1:
+            table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
+
+    return success_count, failed_count
+
+def _save_and_logout(page, browser, global_start_time, success_count, failed_count, selected_distributor, ui_log, alert_callback):
+    ui_log("SERVER", "Finalizing batch. Saving document to main server...")
+    page.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
+    try:
+        yes_btn = page.locator("id=pag_PopUp_YesNo_btn_Yes_Value")
+        yes_btn.wait_for(state="visible", timeout=5000)
+        ui_log("SERVER", "Confirming save dialog...")
+        yes_btn.click()
+        ui_log("SERVER", "Document physically written to database.")
+    except Exception:
+        ui_log("SERVER", "Auto-save confirmed. Document written to database.")
+
+    ui_log("SYS", "Holding session for 5 seconds to ensure Newspage database write...")
+    time.sleep(5)
+
+    ui_log("AUTH", "Initiating system logout sequence...")
+    try:
+        page.once("dialog", lambda dialog: dialog.accept())
+        page.locator("id=btnLogout").click(timeout=10000)
+        ui_log("AUTH", "Pop up confirm logout...")
+        time.sleep(2)
+        ui_log("SUCCESS", "Logged out successfully.")
+    except Exception as e:
+        ui_log("ERROR", "Logout button not found or timeout.")
+
+    ui_log("SYS", "Closing browser and releasing memory...")
+    browser.close()
+    elapsed = int(time.time() - global_start_time)
+    ui_log("SUCCESS", f"Complete. Total runtime: {elapsed//60}m {elapsed%60}s")
+    box_html = f"<div style='background-color:#166534;color:#ffffff;padding:12px 16px;border-radius:8px;font-weight:600;font-size:0.92rem;margin:8px 0;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:block;width:100%;'>Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s</div>"
+    st.markdown(box_html, unsafe_allow_html=True)
+    alert_callback(f"✅ <b>BOT FINISHED</b>\nDist: {selected_distributor}\nSuccess: {success_count} | Failed: {failed_count}\nRuntime: {elapsed//60}m {elapsed%60}s")
+
+    if success_count > 0:
+        st.toast('System override complete!')
+        st.session_state.reconcile_result = None
+
+    st.session_state.is_bot_running = False
+
+
 def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, REASON_CODE, TABLE_UPDATE_INTERVAL, ui_log, alert_callback, table_placeholder, log_label_placeholder, supabase):
     ensure_playwright()
     global_start_time = time.time(); success_count, failed_count = 0, 0
@@ -176,25 +314,19 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
                 btn.click(force=True)
             except PlaywrightTimeoutError: pass
             
-            page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS)
-            ui_log("AUTH", "Login successful.")
-            time.sleep(5)
-            page.locator("id=pag_InventoryRoot_tab_Main_itm_StkAdj").dispatch_event("click")
-            add_btn = page.locator("id=pag_I_StkAdj_btn_Add_Value")
-            add_btn.wait_for(state="attached", timeout=TIMEOUT_MS)
-            add_btn.click(force=True)
-            warehouse_link = page.get_by_role("link", name=WAREHOUSE, exact=True)
-            warehouse_link.wait_for(state="visible")
-            warehouse_link.click(force=True)
-            page.locator("id=pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value").wait_for(state="visible")
+            _login(page, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, ui_log)
+            _navigate_to_adjustment(page, WAREHOUSE, REASON_CODE, TIMEOUT_MS, ui_log)
             
-            dropdown = page.locator("id=pag_I_StkAdj_NewGeneral_drp_n_REASON_HDR_Value")
-            if dropdown.is_enabled(): dropdown.select_option(REASON_CODE)
-            ui_log("SYS", "Ready. Opening data stream for payload injection...")
-
-            progress_bar = st.progress(0)
-            total_rows = len(df_view)
+            success_count, failed_count = _process_adjustments(
+                page, df_view, bot_user, selected_distributor, TIMEOUT_MS,
+                TABLE_UPDATE_INTERVAL, ui_log, log_label_placeholder,
+                table_placeholder, supabase
+            )
             
+            _save_and_logout(
+                page, browser, global_start_time, success_count, failed_count,
+                selected_distributor, ui_log, alert_callback
+            )
             # --- FUNGSI UPDATE LABEL REALTIME ---
             def update_progress_label(current, total):
                 html = f"""
