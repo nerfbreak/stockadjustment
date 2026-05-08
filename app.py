@@ -110,7 +110,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
-TIMEOUT_MS            = 30_000
+TIMEOUT_MS            = 60_000
 TABLE_UPDATE_INTERVAL = 5
 
 supabase = database.init_supabase()
