@@ -36,7 +36,7 @@ def run_extract(user_id_np, pass_np, selected_distributor, URL_LOGIN, TIMEOUT_MS
                 btn.wait_for(state="visible", timeout=5_000)
                 ext_ui_log("AUTH", "Active session interceptor detected. Bypassing...")
                 btn.click(force=True)
-            except Exception: ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
+            except PlaywrightTimeoutError: ext_ui_log("SYS", "No interceptor detected. Clean session acquired.")
             page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS, wait_until="domcontentloaded")
             ext_ui_log("AUTH", "Login successful. Session established.")
             ext_ui_log("SUCCESS", "Handshake verified.")
@@ -172,7 +172,7 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
                 btn = page.locator("id=SYS_ASCX_btnContinue")
                 btn.wait_for(state="visible", timeout=5_000)
                 btn.click(force=True)
-            except Exception: pass
+            except PlaywrightTimeoutError: ui_log("SYS", "No interceptor detected. Clean session acquired.")
             
             page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS)
             ui_log("AUTH", "Login successful.")
