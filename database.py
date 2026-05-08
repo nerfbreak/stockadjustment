@@ -1,31 +1,5 @@
-
 import streamlit as st
 from supabase import create_client, Client
-from cryptography.fernet import Fernet
-import os
-
-def get_cipher():
-    key = st.secrets.get("ENCRYPTION_KEY", "")
-    if not key:
-        return None
-    try:
-        if isinstance(key, str):
-            key = key.encode()
-        return Fernet(key)
-    except:
-        return None
-
-def decrypt_password(encrypted_str):
-    if not encrypted_str: return ""
-    try:
-        cipher = get_cipher()
-        if cipher:
-            return cipher.decrypt(encrypted_str.encode()).decode()
-        return encrypted_str
-    except Exception:
-        # Backward compatibility: if it cannot be decrypted, assume it's plaintext
-        return encrypted_str
-
 
 @st.cache_resource
 def init_supabase() -> Client:
@@ -73,7 +47,7 @@ def get_distributor_creds(supabase, selected_distributor):
             res = supabase.table("distributor_vault").select("np_user_id, np_password").eq("nama_distributor", selected_distributor).execute()
             if res.data:
                 bot_user = res.data[0]['np_user_id']
-                bot_pass = decrypt_password(res.data[0]['np_password'])
+                bot_pass = res.data[0]['np_password']
         except: pass
     return bot_user, bot_pass
 
