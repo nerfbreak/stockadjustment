@@ -1,5 +1,6 @@
 import streamlit as st
 from supabase import create_client, Client
+import bcrypt
 
 @st.cache_resource
 def init_supabase() -> Client:
@@ -24,9 +25,11 @@ def get_system_config(supabase):
 def authenticate_user(supabase, username, password):
     if supabase:
         try:
-            res_user = supabase.table("users_auth").select("*").eq("username", username).eq("password", password).execute()
+            res_user = supabase.table("users_auth").select("*").eq("username", username).execute()
             if res_user.data:
-                return True
+                stored_hash = res_user.data[0].get('password', '')
+                if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
+                    return True
         except: pass
     return False
 
