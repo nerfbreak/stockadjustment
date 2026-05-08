@@ -30,8 +30,6 @@ def authenticate_user(supabase, username, password):
                 stored_hash = res_user.data[0].get('password', '')
                 if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
                     return True
-        except: pass
-                return True
         except Exception: pass
     return False
 
