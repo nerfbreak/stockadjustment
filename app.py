@@ -4,6 +4,7 @@ import requests
 import database
 import data_processor
 import playwright_engine
+import html
 
 # --- 1. CONFIG & UI HELPERS ---
 st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
@@ -19,7 +20,7 @@ st.markdown("""
     }
 
     /* 2. Style Teks Label (Nama Distributor, NP Password, Upload) dibikin Center */
-    div[data-testid="stSelectbox"] label p, 
+    div[data-testid="stSelectbox"] label p,
     div[data-testid="stTextInput"] label p,
     div[data-testid="stFileUploader"] label p {
         font-family: "Inter", sans-serif !important;
@@ -67,7 +68,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
     /* 1. Label Judul (Nama Distributor, Upload, NP Password) */
-    div[data-testid="stSelectbox"] label p, 
+    div[data-testid="stSelectbox"] label p,
     div[data-testid="stFileUploader"] label p,
     div[data-testid="stTextInput"] label p {
         font-family: "Inter", sans-serif !important;
@@ -87,7 +88,7 @@ st.markdown("""
     [data-testid="stFileUploadDropzone"] * {
         font-family: "Inter", sans-serif !important;
     }
-    
+
     /* Paksa teks kecil (200MB CSV XLSX) biar nggak terlalu mencolok */
     [data-testid="stFileUploadDropzone"] small {
         font-size: 0.7rem !important;
@@ -97,7 +98,7 @@ st.markdown("""
     }
 
     /* 4. Semua Tombol Utama (Extract, Clear, Execute, Browse Files) dan teks di dalamnya */
-    div[data-testid="stButton"] button, 
+    div[data-testid="stButton"] button,
     div[data-testid="stButton"] button p,
     div[data-testid="stFileUploader"] button,
     div[data-testid="stFileUploader"] button p {
@@ -215,7 +216,7 @@ if not st.session_state.logged_in:
             text-align: left !important;
             padding-left: 15px !important;
         }
-        
+
         /* 7. Hilangkan instruksi Enter */
         div[data-testid="InputInstructions"] { display: none !important; }
         </style>
@@ -225,10 +226,10 @@ if not st.session_state.logged_in:
     with st.form("login_form"):
         username = st.text_input("Username", placeholder="")
         password = st.text_input("Password", type="password", placeholder="")
-        
+
         st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
         submit = st.form_submit_button("LOGIN", use_container_width=True)
-        
+
         if submit:
             if database.authenticate_user(supabase, username, password):
                 st.session_state.logged_in = True
@@ -293,7 +294,7 @@ st.markdown("<h1>Compare & Adjustment Stock</h1>", unsafe_allow_html=True)
 st.markdown(f"""
     <div style='display: inline-block; margin-top: -4px;'>
         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Session</span>
-        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{st.session_state.current_user}</span>
+        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(st.session_state.current_user)}</span>
     </div>
 """, unsafe_allow_html=True)
 
@@ -305,17 +306,17 @@ with col1:
     with st.container(border=True):
         st.markdown("<div class='box-np'>Newspage Stock Data</div>", unsafe_allow_html=True)
         np_col1, np_col2 = st.columns(2)
-        
+
         list_dist = database.get_distributor_list(supabase)
 
         with np_col1:
             selected_distributor = st.selectbox("Nama Distributor", list_dist, key="distributor_select")
             bot_user, bot_pass = database.get_distributor_creds(supabase, selected_distributor)
             if bot_user: st.session_state.current_np_user_id = bot_user
-                
+
         with np_col2:
             st.text_input("NP Password", value="••••••••", type="password", disabled=True, key="np_pass_dummy")
-        
+
         extract_btn = st.button("Extract Inventory Master", type="primary", use_container_width=True)
         file1 = None
 
@@ -374,7 +375,7 @@ if extract_btn:
         render_terminal(ext_log_placeholder, ext_logs_history)
 
     playwright_engine.run_extract(
-        bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, 
+        bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE,
         ext_ui_log, send_telegram_alert, supabase, st.session_state.current_user
     )
 
@@ -384,7 +385,7 @@ np_source_ready = (st.session_state.np_df is not None) or (file1 is not None)
 if np_source_ready and file2:
     df1 = st.session_state.np_df if st.session_state.np_df is not None else data_processor.load_data(file1)
     df2 = data_processor.load_data(file2)
-    
+
     if df1 is not None and df2 is not None:
         st.markdown("<div class='box-results'>Results</div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
@@ -413,12 +414,12 @@ if np_source_ready and file2:
         if st.button("Compare Stock", type="primary", use_container_width=True):
             TARGET_SKUS = database.get_target_skus(supabase)
             multipliers = database.get_multiplier_rules(supabase, st.session_state.current_np_user_id)
-            
+
             merged, mismatches = data_processor.process_compare(
                 df1, df2, sku_col1, desc_col1, qty_col1, sku_col2, qty_col2, TARGET_SKUS, multipliers
             )
-            
-            if len(mismatches) == 0: 
+
+            if len(mismatches) == 0:
                 st.success("Analysis complete: all sku matched!")
                 st.session_state.reconcile_summary = None
             else:
@@ -436,34 +437,34 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
     with m1: st.markdown(f'''<div class="metric-box-match"><div class="metric-label">Match</div><div class="metric-value">{match_count}</div></div>''', unsafe_allow_html=True)
     with m2: st.markdown(f'''<div class="metric-box-mismatch"><div class="metric-label">Stock difference</div><div class="metric-value">{mismatch_count}</div></div>''', unsafe_allow_html=True)
     st.dataframe(st.session_state.reconcile_summary['df_view'], use_container_width=True, hide_index=True, column_config={"SKU": st.column_config.TextColumn("SKU", width="medium"), "Description": st.column_config.TextColumn("Description", width="large")})
-    
+
     df_view = st.session_state.reconcile_result.copy()
     df_view['Status'] = df_view['Status'].apply(lambda x: 'Pending' if x == 'Mismatch' else x)
     if 'Keterangan' not in df_view.columns: df_view['Keterangan'] = 'Ready to Process'
-    
+
     st.markdown("<div class='box-queue'>Adjustment SKU List</div>", unsafe_allow_html=True)
     table_placeholder = st.empty(); table_placeholder.dataframe(df_view, use_container_width=True, hide_index=True)
-    
+
     log_label_placeholder = st.empty()
     log_placeholder = st.empty()
     btn_placeholder = st.empty()
-            
+
     if btn_placeholder.button("EXECUTE", type="primary", use_container_width=True):
-        if not bot_user or not bot_pass: 
+        if not bot_user or not bot_pass:
             st.error("Access Denied: Kredensial tidak ditemukan di Database!")
         else:
             st.session_state.is_bot_running = True
             st.session_state.execute_done = False
             btn_placeholder.empty()
-            
+
             log_label_placeholder.markdown(f"""
                 <div style='display: inline-block; margin-bottom: 4px;'>
                     <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Account</span>
-                    <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
+                <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(str(selected_distributor))} ({html.escape(str(bot_user))})</span>
                 </div>
             """, unsafe_allow_html=True)
             bot_logs_history  = []; bot_last_log_time = [time.time()]
-            
+
             def bot_ui_log(module, msg):
                 now = time.time(); diff_ms = int((now - bot_last_log_time[0]) * 1000); bot_last_log_time[0] = now
                 timestamp = time.strftime('%H:%M:%S'); tag_class = f"tag-{module.lower()}"
@@ -471,7 +472,7 @@ if st.session_state.reconcile_summary is not None and st.session_state.reconcile
                 render_terminal(log_placeholder, bot_logs_history)
 
             playwright_engine.run_execution(
-                df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, 
+                df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE,
                 REASON_CODE, TABLE_UPDATE_INTERVAL, bot_ui_log, send_telegram_alert, table_placeholder, log_label_placeholder, supabase
             )
 
