@@ -223,8 +223,8 @@ if not st.session_state.logged_in:
 
     # Tanpa kolom-kolom, langsung hajar form di tengah
     with st.form("login_form"):
-        username = st.text_input("Username", placeholder="")
-        password = st.text_input("Password", type="password", placeholder="")
+        username = st.text_input("Username", placeholder="e.g. admin")
+        password = st.text_input("Password", type="password", placeholder="••••••••")
         
         st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
         submit = st.form_submit_button("LOGIN", use_container_width=True)
