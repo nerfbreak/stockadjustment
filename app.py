@@ -7,15 +7,108 @@ import playwright_engine
 
 # --- 1. CONFIG & UI HELPERS ---
 st.set_page_config(page_title="Stock Adjustment Newspage", layout="wide")
+st.markdown("""
+    <style>
+    /* 1. Kontainer Label Judul dibikin full width biar bisa ditengahin */
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stTextInput"] label,
+    div[data-testid="stFileUploader"] label {
+        width: 100% !important;
+        justify-content: center !important;
+        display: flex !important;
+    }
 
-def load_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    /* 2. Style Teks Label (Nama Distributor, NP Password, Upload) dibikin Center */
+    div[data-testid="stSelectbox"] label p, 
+    div[data-testid="stTextInput"] label p,
+    div[data-testid="stFileUploader"] label p {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+        text-align: center !important;
+        width: 100% !important;
+        margin-bottom: 8px !important; /* Kasih jarak dikit ke inputnya */
+    }
 
-load_css("style.css")
+    /* 3. Samakan semua font di dalam area kotak dropzone */
+    div[data-testid="stFileUploadDropzone"] * {
+        font-family: "Inter", sans-serif !important;
+    }
 
+    /* 4. Rapihkan tombol "Browse files" biar masuk tema corporate */
+    div[data-testid="stFileUploader"] button {
+        background-color: #1e293b !important;
+        color: #3b82f6 !important;
+        border: 1px solid #334155 !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        padding: 4px 16px !important;
+    }
 
+    /* Efek hover pas tombolnya disentuh */
+    div[data-testid="stFileUploader"] button:hover {
+        border-color: #3b82f6 !important;
+        background-color: rgba(59, 130, 246, 0.1) !important;
+        color: #38bdf8 !important;
+    }
 
+    /* 5. Hilangkan teks "Press Enter to submit" yang nabrak icon mata */
+    div[data-testid="InputInstructions"] {
+        display: none !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    /* Import font Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    /* 1. Label Judul (Nama Distributor, Upload, NP Password) */
+    div[data-testid="stSelectbox"] label p, 
+    div[data-testid="stFileUploader"] label p,
+    div[data-testid="stTextInput"] label p {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+    }
+
+    /* 2. Isi Dropdown List */
+    div[data-baseweb="select"] * {
+        font-family: "Inter", sans-serif !important;
+    }
+
+    /* 3. Area Dropzone Uploader (Teks Drag & Drop, 200MB limit, dan tombol) */
+    [data-testid="stFileUploadDropzone"] * {
+        font-family: "Inter", sans-serif !important;
+    }
+    
+    /* Paksa teks kecil (200MB CSV XLSX) biar nggak terlalu mencolok */
+    [data-testid="stFileUploadDropzone"] small {
+        font-size: 0.7rem !important;
+        color: #64748b !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+    }
+
+    /* 4. Semua Tombol Utama (Extract, Clear, Execute, Browse Files) dan teks di dalamnya */
+    div[data-testid="stButton"] button, 
+    div[data-testid="stButton"] button p,
+    div[data-testid="stFileUploader"] button,
+    div[data-testid="stFileUploader"] button p {
+        font-family: "Inter", sans-serif !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 URL_LOGIN             = "https://rb-id.np.accenture.com/RB_ID/Logon.aspx"
 TIMEOUT_MS            = 30_000
 TABLE_UPDATE_INTERVAL = 5
@@ -57,44 +150,92 @@ def render_footer():
     """, unsafe_allow_html=True)
 
 # --- 2. AUTHENTICATION GATEKEEPER ---
-
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = "unknown"
-if "login_attempts" not in st.session_state: st.session_state.login_attempts = 0
-if "lockout_time" not in st.session_state: st.session_state.lockout_time = 0
-
 
 if not st.session_state.logged_in:
     # CSS TOTAL RESET: KUNCI LAYAR & PAKSA TENGAH
+    st.markdown("""
+        <style>
+        /* 1. Matikan scroll di semua level */
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stMainViewContainer"] {
+            overflow: hidden !important;
+            height: 100vh !important;
+            width: 100vw !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
 
+        /* 2. Sembunyikan elemen sampah Streamlit */
+        [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
+            display: none !important;
+        }
+
+        /* 3. Paksa kontainer utama jadi full screen dan centering */
+        .main .block-container {
+            height: 100vh !important;
+            max-width: 100vw !important;
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important; /* Paksa ke tengah horizontal */
+            justify-content: center !important; /* Paksa ke tengah vertikal */
+        }
+
+        /* 4. Styling Kotak Login (Card) */
+        div[data-testid="stForm"] {
+            border: 1px solid #334155 !important;
+            border-radius: 16px !important;
+            background-color: #0f172a !important;
+            padding: 40px !important;
+            width: 380px !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+            margin-left: auto !important; /* Fix lari ke kiri */
+            margin-right: auto !important; /* Fix lari ke kiri */
+        }
+
+        /* 5. Label Tetap Center */
+        div[data-testid="stTextInput"] label p {
+            font-family: "Inter", sans-serif !important;
+            font-size: 0.7rem !important;
+            font-weight: 700 !important;
+            color: #94a3b8 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.1em !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
+
+        /* 6. Input Field - RATA KIRI */
+        div[data-testid="stTextInput"] input {
+            background-color: #1e293b !important;
+            border: 1px solid #334155 !important;
+            border-radius: 8px !important;
+            color: #f8fafc !important;
+            text-align: left !important;
+            padding-left: 15px !important;
+        }
+        
+        /* 7. Hilangkan instruksi Enter */
+        div[data-testid="InputInstructions"] { display: none !important; }
+        </style>
+    """, unsafe_allow_html=True)
 
     # Tanpa kolom-kolom, langsung hajar form di tengah
     with st.form("login_form"):
-        username = st.text_input("Username", placeholder="e.g. admin")
-        password = st.text_input("Password", type="password", placeholder="••••••••")
+        username = st.text_input("Username", placeholder="")
+        password = st.text_input("Password", type="password", placeholder="")
         
         st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
         submit = st.form_submit_button("LOGIN", use_container_width=True)
         
         if submit:
-            current_time = time.time()
-            if st.session_state.lockout_time > current_time:
-                remaining_time = int(st.session_state.lockout_time - current_time)
-                st.markdown(f"<p style='color: #ef4444; font-size: 0.8rem; text-align: center; margin-top: 10px;'>Akun terkunci sementara karena terlalu banyak percobaan. Coba lagi dalam {remaining_time} detik.</p>", unsafe_allow_html=True)
+            if database.authenticate_user(supabase, username, password):
+                st.session_state.logged_in = True
+                st.session_state.current_user = username
+                st.rerun()
             else:
-                if database.authenticate_user(supabase, username, password):
-                    st.session_state.logged_in = True
-                    st.session_state.current_user = username
-                    st.session_state.login_attempts = 0
-                    st.rerun()
-                else:
-                    st.session_state.login_attempts += 1
-                    if st.session_state.login_attempts >= 5:
-                        st.session_state.lockout_time = current_time + 30 # Lock for 30 seconds
-                        st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center; margin-top: 10px;'>Akun terkunci. Terlalu banyak percobaan gagal.</p>", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"<p style='color: #ef4444; font-size: 0.8rem; text-align: center; margin-top: 10px;'>Invalid credentials. Percobaan sisa: {5 - st.session_state.login_attempts}</p>", unsafe_allow_html=True)
-
+                st.markdown("<p style='color: #ef4444; font-size: 0.8rem; text-align: center; margin-top: 10px;'>Invalid credentials.</p>", unsafe_allow_html=True)
 
     # Footer nempel persis di bawah
     render_footer()
