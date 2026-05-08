@@ -1,3 +1,7 @@
+## 2026-05-08 - Prevent XSS in Streamlit Markdown
+**Vulnerability**: Unescaped dynamic variables interpolated into f-strings used inside `st.markdown(..., unsafe_allow_html=True)` allowed potential execution of malicious JavaScript (XSS).
+**Learning**: Any use of `unsafe_allow_html=True` in Streamlit must be thoroughly audited. Variables sourced from user input, external data, or session state are not inherently safe and must be explicitly sanitized.
+**Prevention**: Always import `html` and wrap interpolated variables with `html.escape()` before injecting them into HTML payloads rendered by Streamlit.
 ## 2026-05-08 - [Streamlit XSS Fix]\n**Vulnerability:** Cross-Site Scripting (XSS) via Unsafe HTML in Streamlit due to interpolating unescaped session variables into markdown with `unsafe_allow_html=True`.\n**Learning:** When using Streamlit's `st.markdown(..., unsafe_allow_html=True)`, any dynamic variables must be escaped using `html.escape()`.\n**Prevention:** Always escape user-controlled or session-stored strings before embedding them in HTML payloads.
 
 ## 2026-05-08 - [🔒 Fix plaintext password storage]
