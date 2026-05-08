@@ -6,8 +6,10 @@ import asyncio
 import sys
 import zipfile
 import pandas as pd
+import html
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import database
+import html
 
 def ensure_playwright():
     try:
@@ -133,17 +135,17 @@ def run_extract(user_id_np, pass_np, selected_distributor, URL_LOGIN, TIMEOUT_MS
                 st.session_state.is_bot_running = False
                 ext_ui_log("ERROR", "DataFrame validation failed.")
                 st.error("Gagal membaca file dari server.")
-                alert_callback(f"⚠️ <b>EXTRACT FAILED</b>\nUser: {current_user}\nDist: {selected_distributor}\nReason: Invalid DataFrame")
+                alert_callback(f"⚠️ <b>EXTRACT FAILED</b>\nUser: {html.escape(str(current_user))}\nDist: {html.escape(str(selected_distributor))}\nReason: Invalid DataFrame")
     except PlaywrightTimeoutError: 
         st.session_state.is_bot_running = False
         ext_ui_log("ERROR", "TIMEOUT: Server tidak merespon.")
         st.error("Operation Timeout.")
-        alert_callback(f"🚨 <b>EXTRACT TIMEOUT</b>\nUser: {current_user}\nDist: {selected_distributor}\nReason: Playwright Timeout")
+        alert_callback(f"🚨 <b>EXTRACT TIMEOUT</b>\nUser: {html.escape(str(current_user))}\nDist: {html.escape(str(selected_distributor))}\nReason: Playwright Timeout")
     except Exception as e: 
         st.session_state.is_bot_running = False
         ext_ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
         st.error(f"System error: {e}")
-        alert_callback(f"🚨 <b>SYSTEM ERROR (EXTRACT)</b>\nDist: {selected_distributor}\nError: <code>{str(e)[:100]}</code>")
+        alert_callback(f"🚨 <b>SYSTEM ERROR (EXTRACT)</b>\nDist: {html.escape(str(selected_distributor))}\nError: <code>{html.escape(str(e)[:100])}</code>")
 
 
 def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, REASON_CODE, TABLE_UPDATE_INTERVAL, ui_log, alert_callback, table_placeholder, log_label_placeholder, supabase):
@@ -152,7 +154,7 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
     ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
     if supabase: ui_log("SYS", "Supabase client active.")
 
-    alert_callback(f"🚀 <b>BOT STARTED</b>\nTask: Reconcile Stock\nDist: {selected_distributor}\nTotal SKU: {len(df_view)}")
+    alert_callback(f"🚀 <b>BOT STARTED</b>\nTask: Reconcile Stock\nDist: {html.escape(str(selected_distributor))}\nTotal SKU: {len(df_view)}")
 
     try:
         if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -172,7 +174,7 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
                 btn = page.locator("id=SYS_ASCX_btnContinue")
                 btn.wait_for(state="visible", timeout=5_000)
                 btn.click(force=True)
-            except Exception: pass
+            except PlaywrightTimeoutError: pass
             
             page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS)
             ui_log("AUTH", "Login successful.")
@@ -199,7 +201,7 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
                 <div style='display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; margin-bottom: 8px;'>
                     <div>
                         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Account</span>
-                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
+                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(str(selected_distributor))} ({html.escape(str(bot_user))})</span>
                     </div>
                     <div>
                         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Processed</span>
@@ -283,7 +285,7 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
             ui_log("SUCCESS", f"Complete. Total runtime: {elapsed//60}m {elapsed%60}s")
             box_html = f"<div style='background-color:#166534;color:#ffffff;padding:12px 16px;border-radius:8px;font-weight:600;font-size:0.92rem;margin:8px 0;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:block;width:100%;'>Done — Success: {success_count} | Failed: {failed_count} | Time: {elapsed//60}m {elapsed%60}s</div>"
             st.markdown(box_html, unsafe_allow_html=True)
-            alert_callback(f"✅ <b>BOT FINISHED</b>\nDist: {selected_distributor}\nSuccess: {success_count} | Failed: {failed_count}\nRuntime: {elapsed//60}m {elapsed%60}s")
+            alert_callback(f"✅ <b>BOT FINISHED</b>\nDist: {html.escape(str(selected_distributor))}\nSuccess: {success_count} | Failed: {failed_count}\nRuntime: {elapsed//60}m {elapsed%60}s")
 
             if success_count > 0: 
                 st.toast('System override complete!')
@@ -295,4 +297,4 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
         st.session_state.is_bot_running = False
         st.error("System halted.")
         ui_log("ERROR", f"FAILURE: {e}")
-        alert_callback(f"🚨 <b>FATAL ERROR (EXECUTE)</b>\nDist: {selected_distributor}\nError: <code>{str(e)[:100]}</code>")
+        alert_callback(f"🚨 <b>FATAL ERROR (EXECUTE)</b>\nDist: {html.escape(str(selected_distributor))}\nError: <code>{html.escape(str(e)[:100])}</code>")
