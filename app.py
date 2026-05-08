@@ -124,7 +124,7 @@ def send_telegram_alert(message: str):
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
         try: requests.post(url, json=payload, timeout=5)
-        except: pass
+        except Exception: pass
 
 def make_solid_box(text: str, bg_color: str, text_color: str) -> str:
     return (f"<div style='background-color:{bg_color};color:{text_color};padding:12px 16px;border-radius:8px;font-weight:600;font-size:0.92rem;margin:8px 0;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:block;width:100%;'>{text}</div>")
