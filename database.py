@@ -35,11 +35,12 @@ def authenticate_user(supabase, username, password):
         except Exception: pass
     return False
 
-def get_distributor_list(supabase):
+@st.cache_data(ttl=3600)
+def get_distributor_list(_supabase):
     list_dist = []
-    if supabase:
+    if _supabase:
         try:
-            res = supabase.table("distributor_vault").select("nama_distributor").execute()
+            res = _supabase.table("distributor_vault").select("nama_distributor").execute()
             list_dist = [d['nama_distributor'] for d in res.data]
         except Exception: pass
     if not list_dist: list_dist = ["Belum ada data di Database"]
