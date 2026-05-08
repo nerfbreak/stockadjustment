@@ -7,6 +7,21 @@ Sebuah *automation tools* berbasis web untuk membandingkan dan menyesuaikan data
 
 ---
 
+## 🔒 Security & Authentication
+
+Aplikasi ini menggunakan **bcrypt** untuk pengamanan kata sandi.
+
+### Migrasi Kata Sandi Plaintext (Legacy)
+
+Jika Anda memiliki data pengguna lama dengan kata sandi *plaintext* di tabel `users_auth` Supabase, Anda harus melakukan migrasi ke kata sandi terenkripsi menggunakan skrip migrasi:
+
+1. Pastikan `.streamlit/secrets.toml` Anda memiliki `SUPABASE_URL` dan `SUPABASE_KEY` yang valid.
+2. Jalankan skrip migrasi:
+   ```bash
+   python migrate_passwords.py
+   ```
+   Skrip ini akan mendeteksi kata sandi yang belum terenkripsi dan memperbaruinya secara otomatis menjadi hash bcrypt yang aman.
+
 ## 🚀 Fitur Utama
 1. **Auto-Extraction**: Ekstraksi *Inventory Master* langsung dari server Newspage tanpa campur tangan manual.
 2. **Smart Compare**: Rekonsiliasi instan antara stok Newspage dan stok fisik/sistem Distributor.
