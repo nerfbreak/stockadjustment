@@ -9,6 +9,7 @@ import pandas as pd
 import html
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import database
+import html
 
 def ensure_playwright():
     try:
@@ -200,7 +201,7 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
                 <div style='display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; margin-bottom: 8px;'>
                     <div>
                         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Active Account</span>
-                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{selected_distributor} ({bot_user})</span>
+                        <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.1em;'>{html.escape(str(selected_distributor))} ({html.escape(str(bot_user))})</span>
                     </div>
                     <div>
                         <span style='font-family: "Inter", sans-serif; font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 8px;'>Processed</span>
