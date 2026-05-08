@@ -6,6 +6,7 @@ import asyncio
 import sys
 import zipfile
 import pandas as pd
+import html
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import database
 import html
