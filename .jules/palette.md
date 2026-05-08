@@ -1,3 +1,0 @@
-## 2025-05-08 - Added Placeholder Text to Login Inputs
-**Learning:** Empty text inputs without placeholders can leave users uncertain about the expected format. By simply adding a placeholder (like "e.g. admin" or "••••••••"), the inputs become much more approachable.
-**Action:** Always include helpful placeholder text in form inputs, especially for authentication fields, to give users immediate context on the expected input format.
