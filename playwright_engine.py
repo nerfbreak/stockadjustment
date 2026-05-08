@@ -172,7 +172,7 @@ def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, 
                 btn = page.locator("id=SYS_ASCX_btnContinue")
                 btn.wait_for(state="visible", timeout=5_000)
                 btn.click(force=True)
-            except Exception: pass
+            except PlaywrightTimeoutError: pass
             
             page.wait_for_url("**/Default.aspx", timeout=TIMEOUT_MS)
             ui_log("AUTH", "Login successful.")
