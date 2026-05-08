@@ -51,11 +51,12 @@ def get_distributor_creds(supabase, selected_distributor):
         except: pass
     return bot_user, bot_pass
 
-def get_target_skus(supabase):
+@st.cache_data(ttl=3600)
+def get_target_skus(_supabase):
     TARGET_SKUS = []
-    if supabase:
+    if _supabase:
         try:
-            res_sku = supabase.table("sku_formatting_rules").select("sku_code").execute()
+            res_sku = _supabase.table("sku_formatting_rules").select("sku_code").execute()
             TARGET_SKUS = [s['sku_code'] for s in res_sku.data]
         except: pass
     if not TARGET_SKUS: 
