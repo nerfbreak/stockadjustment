@@ -18,7 +18,7 @@ def get_system_config(supabase):
             for cfg in res_config.data:
                 if cfg['config_key'] == 'REASON_CODE': reason_code = cfg['config_value']
                 if cfg['config_key'] == 'WAREHOUSE': warehouse = cfg['config_value']
-        except: pass
+        except Exception: pass
     return reason_code, warehouse
 
 def authenticate_user(supabase, username, password):
@@ -27,7 +27,7 @@ def authenticate_user(supabase, username, password):
             res_user = supabase.table("users_auth").select("*").eq("username", username).eq("password", password).execute()
             if res_user.data:
                 return True
-        except: pass
+        except Exception: pass
     return False
 
 def get_distributor_list(supabase):
@@ -36,7 +36,7 @@ def get_distributor_list(supabase):
         try:
             res = supabase.table("distributor_vault").select("nama_distributor").execute()
             list_dist = [d['nama_distributor'] for d in res.data]
-        except: pass
+        except Exception: pass
     if not list_dist: list_dist = ["Belum ada data di Database"]
     return list_dist
 
@@ -48,7 +48,7 @@ def get_distributor_creds(supabase, selected_distributor):
             if res.data:
                 bot_user = res.data[0]['np_user_id']
                 bot_pass = res.data[0]['np_password']
-        except: pass
+        except Exception: pass
     return bot_user, bot_pass
 
 def get_target_skus(supabase):
@@ -57,7 +57,7 @@ def get_target_skus(supabase):
         try:
             res_sku = supabase.table("sku_formatting_rules").select("sku_code").execute()
             TARGET_SKUS = [s['sku_code'] for s in res_sku.data]
-        except: pass
+        except Exception: pass
     if not TARGET_SKUS: 
         TARGET_SKUS = ['373103', '373104', '373105', '373106', '373108', '373110', '373112', '135428', '137118', '137120', '167209', '172130', '172131', '205901', '22583', '22595', '260656', '260659', '304095', '304100', '304102', '304157', '304161', '304164', '323044', '372264', '373100']
     return TARGET_SKUS
@@ -69,7 +69,7 @@ def get_multiplier_rules(supabase, current_np_user_id):
             res_mult = supabase.table("distributor_sku_multiplier").select("sku_target, multiplier_value").eq("np_user_id", current_np_user_id).execute()
             if res_mult.data:
                 rules = res_mult.data
-        except: pass
+        except Exception: pass
     return rules
 
 def log_extraction_history(supabase, selected_distributor, current_user):
@@ -80,7 +80,7 @@ def log_extraction_history(supabase, selected_distributor, current_user):
                 "extracted_by": current_user,
                 "status": "Success"
             }).execute()
-        except: pass
+        except Exception: pass
 
 def log_adjustment(supabase, sku, qty, status, keterangan, bot_user):
     if supabase:
@@ -91,4 +91,4 @@ def log_adjustment(supabase, sku, qty, status, keterangan, bot_user):
                 "sku": sku, "qty": safe_qty, "status": status, 
                 "keterangan": keterangan, "np_user": bot_user
             }).execute()
-        except: pass
+        except Exception: pass
